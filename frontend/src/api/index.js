@@ -139,7 +139,7 @@ export const analyticsAPI = {
     // 获取位置数据
     getLocations: (vehicleId) => api.get(`/analytics/locations/${vehicleId}`),
     // 获取总览
-    getOverview: (vehicleId) => api.get(`/analytics/overview/${vehicleId}`),
+    getOverview: (vehicleId, params) => api.get(`/analytics/overview/${vehicleId}`, { params }),
     // 获取月度趋势
     getMonthlyTrend: (vehicleId, params) => api.get(`/analytics/monthly-trend/${vehicleId}`, { params })
 }

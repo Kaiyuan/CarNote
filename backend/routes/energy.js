@@ -10,6 +10,43 @@ const { authenticateUser, authenticateApiKey, checkVehicleOwnership } = require(
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
+ * 油耗计算助手 (支持非加满情况)
+ * 逻辑：从本次“加满”追溯到最近一次“加满”，统计期间总里程和总油量
+ */
+async function calculateFullToFullConsumption(vehicleId, currentMileage, currentAmount, isFull, currentId = null) {
+    if (!isFull) return { mileage_diff: null, consumption: null };
+
+    // 1. 寻找最近一次加满的记录
+    let lastFullQuery = `SELECT id, mileage, log_date FROM energy_logs 
+                         WHERE vehicle_id = ? AND is_full = 1`;
+    const params = [vehicleId];
+    if (currentId) {
+        lastFullQuery += ` AND id != ? AND (mileage < ? OR (mileage = ? AND id < ?))`;
+        params.push(currentId, currentMileage, currentMileage, currentId);
+    }
+    lastFullQuery += ` ORDER BY mileage DESC, log_date DESC LIMIT 1`;
+
+    const lastFullLog = await get(lastFullQuery, params);
+    if (!lastFullLog) return { mileage_diff: null, consumption: null };
+
+    const mileageDiff = currentMileage - lastFullLog.mileage;
+    if (mileageDiff <= 0) return { mileage_diff: 0, consumption: 0 };
+
+    // 2. 统计这两次加满之间的所有中间油量
+    let midAmountQuery = `SELECT SUM(amount) as total_amount FROM energy_logs 
+                          WHERE vehicle_id = ? AND mileage > ? AND mileage < ?`;
+    const midResult = await get(midAmountQuery, [vehicleId, lastFullLog.mileage, currentMileage]);
+
+    const totalAmount = (parseFloat(midResult?.total_amount) || 0) + parseFloat(currentAmount);
+    const consumption = (totalAmount / mileageDiff) * 100;
+
+    return {
+        mileage_diff: mileageDiff,
+        consumption: Math.round(consumption * 100) / 100
+    };
+}
+
+/**
  * 添加能耗记录
  * POST /api/energy
  */
@@ -59,26 +96,13 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
         });
     }
 
-    // 获取上一次记录以计算里程差和百公里消耗
-    const lastLog = await get(
-        `SELECT mileage, log_date FROM energy_logs 
-         WHERE vehicle_id = ? AND log_date < ? 
-         ORDER BY log_date DESC LIMIT 1`,
-        [vehicle_id, log_date]
+    // 重新计算里程差和百公里消耗 (Full-to-Full 算法)
+    const { mileage_diff, consumption: consumption_per_100km } = await calculateFullToFullConsumption(
+        vehicle_id,
+        parseInt(mileage),
+        parseFloat(amount),
+        is_full == 1 || is_full === true
     );
-
-    let mileage_diff = null;
-    let consumption_per_100km = null;
-
-    if (lastLog && lastLog.mileage < mileage) {
-        mileage_diff = mileage - lastLog.mileage;
-        // 百公里消耗 = (加油量/行驶里程) * 100
-        if (mileage_diff > 0) {
-            consumption_per_100km = (amount / mileage_diff) * 100;
-            // 保留两位小数
-            consumption_per_100km = Math.round(consumption_per_100km * 100) / 100;
-        }
-    }
 
     // 插入记录
     const result = await query(
@@ -148,34 +172,23 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
     const vehicle = await get('SELECT power_type FROM vehicles WHERE id = ?', [vehicle_id]);
     const energy_type = vehicle.power_type === 'electric' ? 'electric' : 'fuel';
 
-    // 获取上一次记录
-    const lastLog = await get(
-        `SELECT mileage FROM energy_logs 
-         WHERE vehicle_id = ? 
-         ORDER BY log_date DESC LIMIT 1`,
-        [vehicle_id]
-    );
-
-    let mileage_diff = null;
-    let consumption_per_100km = null;
-
-    if (lastLog && lastLog.mileage < mileage) {
-        mileage_diff = parseInt(mileage) - lastLog.mileage;
-        if (mileage_diff > 0) {
-            consumption_per_100km = (parseFloat(amount) / mileage_diff) * 100;
-            consumption_per_100km = Math.round(consumption_per_100km * 100) / 100;
-        }
+    // 处理 is_full 参数，支持 1, true, yes 等值
+    let isFullVal = 0;
+    if (is_full === '1' || is_full === 'true' || is_full === 'yes' || is_full === true || is_full === 1) {
+        isFullVal = 1;
     }
+
+    // 重新计算里程差和百公里消耗 (Full-to-Full 算法)
+    const { mileage_diff, consumption: consumption_per_100km } = await calculateFullToFullConsumption(
+        vehicle_id,
+        parseInt(mileage),
+        parseFloat(amount),
+        isFullVal === 1
+    );
 
     // 插入记录
     const log_date = new Date().toISOString();
     const unit_price = cost && amount ? parseFloat(cost) / parseFloat(amount) : null;
-
-    // 处理 is_full 参数，支持 1, true, yes 等值
-    let isFullVal = 0;
-    if (is_full === '1' || is_full === 'true' || is_full === 'yes' || is_full === true) {
-        isFullVal = 1;
-    }
 
     const result = await query(
         `INSERT INTO energy_logs 
@@ -358,24 +371,14 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         });
     }
 
-    // 重新计算里程差和百公里消耗
-    const lastLog = await get(
-        `SELECT mileage, log_date FROM energy_logs 
-         WHERE vehicle_id = ? AND log_date < ? AND id != ?
-         ORDER BY log_date DESC LIMIT 1`,
-        [log.vehicle_id, log_date, req.params.id]
+    // 重新计算里程差和百公里消耗 (Full-to-Full 算法)
+    const { mileage_diff, consumption: consumption_per_100km } = await calculateFullToFullConsumption(
+        log.vehicle_id,
+        parseInt(mileage),
+        parseFloat(amount),
+        is_full == 1 || is_full === true,
+        req.params.id
     );
-
-    let mileage_diff = null;
-    let consumption_per_100km = null;
-
-    if (lastLog && lastLog.mileage < mileage) {
-        mileage_diff = mileage - lastLog.mileage;
-        if (mileage_diff > 0) {
-            consumption_per_100km = (amount / mileage_diff) * 100;
-            consumption_per_100km = Math.round(consumption_per_100km * 100) / 100;
-        }
-    }
 
     // 更新记录（包含重新计算的值）
     await query(

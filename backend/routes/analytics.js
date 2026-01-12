@@ -10,6 +10,23 @@ const { authenticateUser } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
+ * 助手函数：根据 range 参数获取起始日期
+ */
+function resolveRange(range) {
+    if (!range || range === 'all') return null;
+
+    const now = new Date();
+    if (range === '6months') {
+        now.setMonth(now.getMonth() - 6);
+    } else if (range === 'year') {
+        now.setFullYear(now.getFullYear() - 1);
+    } else {
+        return null;
+    }
+    return now.toISOString().split('T')[0];
+}
+
+/**
  * 获取能耗趋势数据
  * GET /api/analytics/consumption/:vehicleId
  * 查询参数: period (day/month/year), start_date, end_date
@@ -94,9 +111,10 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
  */
 router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { start_date, end_date } = req.query;
+    const { start_date: query_start, end_date, range } = req.query;
 
-    // 验证车辆所有权
+    // 如果提供了 range，优先使用 range
+    const start_date = query_start || resolveRange(range);
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
         [vehicleId, req.userId]
@@ -241,6 +259,8 @@ router.get('/locations/:vehicleId', authenticateUser, asyncHandler(async (req, r
  */
 router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
+    const { range } = req.query;
+    const start_date = resolveRange(range);
 
     // 验证车辆所有权
     const vehicle = await get(
@@ -255,6 +275,11 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         });
     }
 
+    // 构建时间过滤子句
+    const dateFilter = start_date ? ` AND log_date >= '${start_date}'` : '';
+    const maintDateFilter = start_date ? ` AND maintenance_date >= '${start_date}'` : '';
+    const partDateFilter = start_date ? ` AND replacement_date >= '${start_date}'` : '';
+
     // 能耗统计
     const energyStats = await get(
         `SELECT 
@@ -263,21 +288,34 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             AVG(consumption_per_100km) as avg_consumption,
             SUM(cost) as total_cost,
             MIN(log_date) as first_record_date,
-            MAX(log_date) as last_record_date
+            MAX(log_date) as last_record_date,
+            (MAX(mileage) - MIN(mileage)) as period_mileage
          FROM energy_logs
-         WHERE vehicle_id = ?`,
+         WHERE vehicle_id = ?${dateFilter}`,
         [vehicleId]
     );
+
+    // 如果是 filtered 模式，total_mileage 应该是期间里程
+    const displayMileage = start_date ? (energyStats?.period_mileage || 0) : vehicle.current_mileage;
 
     // 保养统计
     const maintenanceStats = await get(
         `SELECT 
             COUNT(*) as total_records,
-            SUM(cost) as total_cost
+            SUM(cost) as total_cost,
+            MAX(maintenance_date) as last_maintenance_date
          FROM maintenance_records
-         WHERE vehicle_id = ?`,
+         WHERE vehicle_id = ?${maintDateFilter}`,
         [vehicleId]
     );
+
+    // 计算距离上次保养天数
+    let lastMaintDays = null;
+    if (maintenanceStats?.last_maintenance_date) {
+        const lastDate = new Date(maintenanceStats.last_maintenance_date);
+        const now = new Date();
+        lastMaintDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+    }
 
     // 配件统计
     const partsStats = await get(
@@ -297,16 +335,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             COUNT(*) as total_replacements,
             SUM(cost) as total_cost
          FROM part_replacements
-         WHERE vehicle_id = ?`,
-        [vehicleId]
-    );
-
-    // 最近能耗记录
-    const recentEnergy = await query(
-        `SELECT * FROM energy_logs
-         WHERE vehicle_id = ?
-         ORDER BY log_date DESC
-         LIMIT 5`,
+         WHERE vehicle_id = ?${partDateFilter}`,
         [vehicleId]
     );
 
@@ -314,13 +343,18 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         success: true,
         data: {
             vehicle,
+            total_mileage: displayMileage,
+            total_cost: (energyStats?.total_cost || 0) + (maintenanceStats?.total_cost || 0) + (partReplacementStats?.total_cost || 0),
+            avg_consumption: energyStats?.avg_consumption || 0,
+            avg_cost_per_km: displayMileage > 0 ? ((energyStats?.total_cost || 0) + (maintenanceStats?.total_cost || 0) + (partReplacementStats?.total_cost || 0)) / displayMileage : 0,
+            last_maintenance_date: maintenanceStats?.last_maintenance_date || null,
+            last_maintenance_days: lastMaintDays,
             energy: energyStats,
             maintenance: maintenanceStats,
             parts: {
                 ...partsStats,
                 replacement_cost: partReplacementStats?.total_cost || 0
-            },
-            recent_records: recentEnergy
+            }
         }
     });
 }));
@@ -332,7 +366,13 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
  */
 router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { months = 12 } = req.query;
+    const { range, months: queryMonths } = req.query;
+
+    // 如果是 range='all'，设为一个很大的数值
+    let months = parseInt(queryMonths) || 12;
+    if (range === '6months') months = 6;
+    else if (range === 'year') months = 12;
+    else if (range === 'all') months = 120; // 10 years
 
     // 验证车辆所有权
     const vehicle = await get(
@@ -354,9 +394,10 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
             AVG(consumption_per_100km) as avg_consumption,
             SUM(amount) as total_amount,
             SUM(cost) as total_cost,
+            SUM(COALESCE(mileage_diff, 0)) as total_mileage,
             COUNT(*) as record_count
          FROM energy_logs
-         WHERE vehicle_id = ? AND log_date >= date('now', '-${parseInt(months)} months')
+         WHERE vehicle_id = ? AND log_date >= date('now', '-${months} months')
          GROUP BY strftime('%Y-%m', log_date)
          ORDER BY month`,
         [vehicleId]

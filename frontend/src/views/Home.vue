@@ -14,9 +14,9 @@
         <Button label="记一笔" icon="pi pi-plus" class="p-button-primary flex-shrink-0"
           @click="router.push('/energy?action=add')" />
         <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
-          placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" @change="loadDashboardData" />
+          placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" />
         <SelectButton v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
-          :allowEmpty="false" @change="loadDashboardData" class="hidden md:flex" />
+          :allowEmpty="false" class="hidden md:flex" />
       </div>
     </div>
 
@@ -211,7 +211,6 @@ const loadVehicles = async () => {
     if (res.success && res.data.length > 0) {
       vehicles.value = res.data
       selectedVehicleId.value = res.data[0].id
-      loadDashboardData()
     }
   } catch (e) { console.error(e) }
 }
@@ -223,13 +222,12 @@ const loadDashboardData = async () => {
 
   try {
     const params = { range: timeRange.value }
-    const yearParams = { year: new Date().getFullYear() }
 
     console.log('加载仪表盘数据，车辆ID:', selectedVehicleId.value)
-    console.log('参数:', { params, yearParams })
+    console.log('参数:', params)
 
     const [ovRes, exRes, monRes, actRes] = await Promise.all([
-      analyticsAPI.getOverview(selectedVehicleId.value).catch(e => {
+      analyticsAPI.getOverview(selectedVehicleId.value, params).catch(e => {
         console.error('获取总览数据失败:', e)
         return { success: false, error: e }
       }),
@@ -237,7 +235,7 @@ const loadDashboardData = async () => {
         console.error('获取费用数据失败:', e)
         return { success: false, error: e }
       }),
-      analyticsAPI.getMonthlyTrend(selectedVehicleId.value, yearParams).catch(e => {
+      analyticsAPI.getMonthlyTrend(selectedVehicleId.value, params).catch(e => {
         console.error('获取月度趋势失败:', e)
         return { success: false, error: e }
       }),
@@ -327,9 +325,20 @@ const mainChartOptions = {
   plugins: { legend: { display: false } }, // Custom legend used in template
   scales: {
     y: {
+      type: 'linear',
+      display: true,
+      position: 'left',
       beginAtZero: true,
       grid: { color: '#f3f4f6', drawBorder: false },
-      ticks: { color: '#9ca3af' }
+      ticks: { color: '#9ca3af', callback: (value) => '¥' + value }
+    },
+    y1: {
+      type: 'linear',
+      display: true,
+      position: 'right',
+      beginAtZero: true,
+      grid: { drawOnChartArea: false },
+      ticks: { color: '#9ca3af', callback: (value) => value + ' km' }
     },
     x: {
       grid: { display: false },
@@ -339,28 +348,27 @@ const mainChartOptions = {
 }
 
 const monthlyTrendData = computed(() => {
+  const data = Array.isArray(monthlyData.value) ? monthlyData.value : []
   return {
-    labels: monthlyData.value.map(d => d.month + '月'),
+    labels: data.map(d => d.month + '月'),
     datasets: [
       {
         type: 'bar',
         label: '费用',
         backgroundColor: '#FFA726',
-        data: monthlyData.value.map(d => d.total_cost),
+        data: data.map(d => d.total_cost),
         borderRadius: 4,
-        barThickness: 20
+        yAxisID: 'y'
       },
       {
         type: 'line',
         label: '里程',
         borderColor: '#3B82F6',
         borderWidth: 2,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#3B82F6',
-        pointRadius: 4,
-        data: monthlyData.value.map(d => d.total_mileage),
-        yAxisID: 'y1',
-        tension: 0.4
+        fill: false,
+        tension: 0.4,
+        data: data.map(d => d.total_mileage || 0),
+        yAxisID: 'y1'
       }
     ]
   }
@@ -384,12 +392,11 @@ const expenseChartData = computed(() => {
 })
 
 const expenseList = computed(() => {
-  const d = expenseData.value || {}
+  const s = expenseData.value?.summary || {}
   return [
-    { label: '能耗花费', value: d.energy_cost || 0, color: '#3B82F6' },
-    { label: '保养维修', value: d.maintenance_cost || 0, color: '#10B981' },
-    { label: '配件更换', value: d.parts_cost || 0, color: '#F59E0B' },
-    { label: '其他费用', value: d.other_cost || 0, color: '#8B5CF6' }
+    { label: '补能费用', value: s.energy || 0, color: '#3B82F6' },
+    { label: '保养维修', value: s.maintenance || 0, color: '#10B981' },
+    { label: '配件更换', value: s.parts || 0, color: '#F59E0B' }
   ]
 })
 
