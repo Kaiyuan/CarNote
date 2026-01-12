@@ -102,6 +102,21 @@
                             </Column>
                         </DataTable>
 
+                        <Divider />
+
+                        <h3 class="text-lg font-semibold mb-3">数据管理</h3>
+                        <div class="mb-3">
+                            <p class="text-sm text-600 mb-2">您可以导出所有数据作为备份，或者从备份文件恢复数据。</p>
+                            <div class="flex gap-3">
+                                <Button label="导出全量数据" icon="pi pi-download" size="small" outlined @click="exportData"
+                                    :loading="exporting" />
+                                <Button label="导入全量数据" icon="pi pi-upload" size="small" outlined @click="triggerImport"
+                                    :loading="importing" />
+                                <input type="file" ref="importFile" style="display: none" accept=".json"
+                                    @change="handleImport" />
+                            </div>
+                        </div>
+
                     </div>
                 </template>
 
@@ -148,13 +163,16 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import { userAPI, vehicleAPI, systemAPI } from '../api'
+import { userAPI, vehicleAPI, systemAPI, dataAPI } from '../api'
 
 const router = useRouter()
 const toast = useToast()
 
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
+const importing = ref(false)
+const importFile = ref(null)
 const userInfo = ref({})
 const settingsForm = ref({
     profile: {
@@ -311,6 +329,68 @@ const deleteApiKey = async (id) => {
 const formatDate = (dateStr) => {
     if (!dateStr) return ''
     return new Date(dateStr).toLocaleDateString()
+}
+
+// 数据管理相关
+const exportData = async () => {
+    exporting.value = true
+    try {
+        const res = await dataAPI.exportData()
+        if (res.success) {
+            const dataStr = JSON.stringify(res.data, null, 2)
+            const blob = new Blob([dataStr], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `carnote_backup_${new Date().toISOString().split('T')[0]}.json`
+            link.click()
+            URL.revokeObjectURL(url)
+            toast.add({ severity: 'success', summary: '成功', detail: '备份数据已导出', life: 3000 })
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '错误', detail: '导出失败', life: 3000 })
+    } finally {
+        exporting.value = false
+    }
+}
+
+const triggerImport = () => {
+    importFile.value.click()
+}
+
+const handleImport = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (!confirm('导入备份将添加所有记录，建议在导入前先导出当前数据。是否继续？')) {
+        event.target.value = ''
+        return
+    }
+
+    importing.value = true
+    try {
+        const reader = new FileReader()
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result)
+                const res = await dataAPI.importData(data)
+                if (res.success) {
+                    toast.add({ severity: 'success', summary: '成功', detail: '数据导入成功', life: 3000 })
+                    loadData() // 刷新数据
+                }
+            } catch (err) {
+                toast.add({ severity: 'error', summary: '错误', detail: '文件解析失败或导入失败', life: 3000 })
+            } finally {
+                importing.value = false
+                event.target.value = ''
+            }
+        }
+        reader.readAsText(file)
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '错误', detail: '读取文件失败', life: 3000 })
+        importing.value = false
+        event.target.value = ''
+    }
 }
 
 onMounted(() => {

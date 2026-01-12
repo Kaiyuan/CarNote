@@ -145,3 +145,9 @@ export const analyticsAPI = {
 }
 
 export default api
+
+// 数据备份 API
+export const dataAPI = {
+    exportData: () => api.get('/data/export'),
+    importData: (data) => api.post('/data/import', data)
+}
