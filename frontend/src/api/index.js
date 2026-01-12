@@ -144,10 +144,18 @@ export const analyticsAPI = {
     getMonthlyTrend: (vehicleId, params) => api.get(`/analytics/monthly-trend/${vehicleId}`, { params })
 }
 
-export default api
-
-// 数据备份 API
-export const dataAPI = {
-    exportData: () => api.get('/data/export'),
-    importData: (data) => api.post('/data/import', data)
+// 导出记录 API
+export const exportAPI = {
+    all: () => api.get('/export/all'),
+    vehicles: () => api.get('/export/vehicles'),
+    energy: () => api.get('/export/energy'),
+    maintenance: () => api.get('/export/maintenance')
 }
+
+// 导入记录 API
+export const importAPI = {
+    validate: (data) => api.post('/import/validate', { data }),
+    execute: (data) => api.post('/import/execute', { data })
+}
+
+export default api;

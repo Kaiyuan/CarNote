@@ -105,15 +105,27 @@
                         <Divider />
 
                         <h3 class="text-lg font-semibold mb-3">数据管理</h3>
-                        <div class="mb-3">
-                            <p class="text-sm text-600 mb-2">您可以导出所有数据作为备份，或者从备份文件恢复数据。</p>
-                            <div class="flex gap-3">
-                                <Button label="导出全量数据" icon="pi pi-download" size="small" outlined @click="exportData"
-                                    :loading="exporting" />
+                        <div class="mb-4">
+                            <p class="text-sm text-600 mb-2">备份与恢复（JSON 格式）</p>
+                            <div class="flex flex-wrap gap-2">
+                                <Button label="导出全量数据" icon="pi pi-download" size="small" outlined
+                                    @click="exportFullData" :loading="exporting" />
                                 <Button label="导入全量数据" icon="pi pi-upload" size="small" outlined @click="triggerImport"
-                                    :loading="importing" />
+                                    :loading="validating" />
                                 <input type="file" ref="importFile" style="display: none" accept=".json"
-                                    @change="handleImport" />
+                                    @change="onFileChange" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <p class="text-sm text-600 mb-2">分类数据导出（CSV 格式）</p>
+                            <div class="flex flex-wrap gap-2">
+                                <Button label="导出车辆" icon="pi pi-car" size="small" severity="secondary" text
+                                    @click="exportVehicles" />
+                                <Button label="导出能耗" icon="pi pi-bolt" size="small" severity="secondary" text
+                                    @click="exportEnergy" />
+                                <Button label="导出保养" icon="pi pi-wrench" size="small" severity="secondary" text
+                                    @click="exportMaintenance" />
                             </div>
                         </div>
 
@@ -155,6 +167,42 @@
                     <Button v-else label="关闭" @click="closeKeyDialog" />
                 </template>
             </Dialog>
+
+            <!-- 导入预览对话框 -->
+            <Dialog v-model:visible="showImportDialog" header="导入详情确认" :modal="true"
+                :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '450px' }">
+                <div v-if="importSummary" class="p-fluid">
+                    <p class="mb-3">解析到以下数据记录，确定要执行导入吗？</p>
+                    <ul class="list-none p-0 m-0">
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
+                            <span>车辆信息</span>
+                            <Tag value="success">{{ importSummary.vehicles }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
+                            <span>能耗记录</span>
+                            <Tag value="info">{{ importSummary.energyLogs }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
+                            <span>保养记录</span>
+                            <Tag value="warning">{{ importSummary.maintenanceRecords }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2">
+                            <span>配件信息</span>
+                            <Tag value="secondary">{{ importSummary.parts }} 条</Tag>
+                        </li>
+                    </ul>
+                    <div class="mt-4 p-3 orange-50 surface-50 border-round">
+                        <p class="text-sm text-700 m-0">
+                            <i class="pi pi-exclamation-triangle mr-1"></i>
+                            导入过程不可逆，旧数据将保留，冲突记录将根据标识自动合并或跳过。
+                        </p>
+                    </div>
+                </div>
+                <template #footer>
+                    <Button label="取消" text @click="showImportDialog = false" />
+                    <Button label="确认导入" icon="pi pi-check" @click="executeImport" :loading="importing" />
+                </template>
+            </Dialog>
         </div>
     </div>
 </template>
@@ -163,7 +211,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import { userAPI, vehicleAPI, systemAPI, dataAPI } from '../api'
+import { userAPI, vehicleAPI, systemAPI, exportAPI, importAPI } from '../api'
+import { convertToCSV, downloadFile, downloadBackupJSON } from '../utils/dataExport'
+import { validateBackupFormat } from '../utils/dataImport'
 
 const router = useRouter()
 const toast = useToast()
@@ -171,8 +221,12 @@ const toast = useToast()
 const loading = ref(false)
 const saving = ref(false)
 const exporting = ref(false)
+const validating = ref(false)
 const importing = ref(false)
 const importFile = ref(null)
+const showImportDialog = ref(false)
+const importSummary = ref(null)
+const pendingData = ref(null)
 const userInfo = ref({})
 const settingsForm = ref({
     profile: {
@@ -332,19 +386,14 @@ const formatDate = (dateStr) => {
 }
 
 // 数据管理相关
-const exportData = async () => {
+
+// 1. 全量导出 (JSON)
+const exportFullData = async () => {
     exporting.value = true
     try {
-        const res = await dataAPI.exportData()
+        const res = await exportAPI.all()
         if (res.success) {
-            const dataStr = JSON.stringify(res.data, null, 2)
-            const blob = new Blob([dataStr], { type: 'application/json' })
-            const url = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = url
-            link.download = `carnote_backup_${new Date().toISOString().split('T')[0]}.json`
-            link.click()
-            URL.revokeObjectURL(url)
+            downloadBackupJSON(res.data)
             toast.add({ severity: 'success', summary: '成功', detail: '备份数据已导出', life: 3000 })
         }
     } catch (error) {
@@ -354,42 +403,103 @@ const exportData = async () => {
     }
 }
 
+// 2. 分类导出 (CSV)
+const exportVehicles = async () => {
+    try {
+        const res = await exportAPI.vehicles()
+        if (res.success) {
+            const columns = {
+                plate_number: '车牌号', brand: '品牌', model: '型号', year: '年份',
+                color: '颜色', current_mileage: '当前里程', power_type: '动力类型'
+            }
+            const csv = convertToCSV(res.data, columns)
+            downloadFile(csv, `车辆列表_${new Date().toLocaleDateString()}.csv`)
+        }
+    } catch (e) { toast.add({ severity: 'error', summary: '导出失败' }) }
+}
+
+const exportEnergy = async () => {
+    try {
+        const res = await exportAPI.energy()
+        if (res.success) {
+            const columns = {
+                log_date: '日期', plate_number: '车牌', mileage: '里程',
+                energy_type: '类型', amount: '数量', cost: '费用', consumption_per_100km: '百公里能耗'
+            }
+            const csv = convertToCSV(res.data, columns)
+            downloadFile(csv, `能耗记录_${new Date().toLocaleDateString()}.csv`)
+        }
+    } catch (e) { toast.add({ severity: 'error', summary: '导出失败' }) }
+}
+
+const exportMaintenance = async () => {
+    try {
+        const res = await exportAPI.maintenance()
+        if (res.success) {
+            const columns = {
+                maintenance_date: '日期', plate_number: '车牌', mileage: '里程',
+                type: '项目', description: '描述', cost: '金额', shop_name: '地点'
+            }
+            const csv = convertToCSV(res.data, columns)
+            downloadFile(csv, `保养记录_${new Date().toLocaleDateString()}.csv`)
+        }
+    } catch (e) { toast.add({ severity: 'error', summary: '导出失败' }) }
+}
+
+// 3. 导入逻辑
 const triggerImport = () => {
     importFile.value.click()
 }
 
-const handleImport = async (event) => {
+const onFileChange = async (event) => {
     const file = event.target.files[0]
     if (!file) return
 
-    if (!confirm('导入备份将添加所有记录，建议在导入前先导出当前数据。是否继续？')) {
-        event.target.value = ''
-        return
-    }
-
-    importing.value = true
+    validating.value = true
     try {
         const reader = new FileReader()
         reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result)
-                const res = await dataAPI.importData(data)
+                if (!validateBackupFormat(data)) {
+                    toast.add({ severity: 'error', summary: '格式错误', detail: '非有效的备份文件', life: 3000 })
+                    return
+                }
+
+                const res = await importAPI.validate(data)
                 if (res.success) {
-                    toast.add({ severity: 'success', summary: '成功', detail: '数据导入成功', life: 3000 })
-                    loadData() // 刷新数据
+                    importSummary.value = res.data.summary
+                    pendingData.value = data
+                    showImportDialog.value = true
                 }
             } catch (err) {
-                toast.add({ severity: 'error', summary: '错误', detail: '文件解析失败或导入失败', life: 3000 })
+                toast.add({ severity: 'error', summary: '解析失败', detail: '文件内容不是合法的 JSON' })
             } finally {
-                importing.value = false
-                event.target.value = ''
+                validating.value = false
             }
         }
         reader.readAsText(file)
     } catch (error) {
-        toast.add({ severity: 'error', summary: '错误', detail: '读取文件失败', life: 3000 })
-        importing.value = false
+        toast.add({ severity: 'error', summary: '读取失败' })
+        validating.value = false
+    } finally {
         event.target.value = ''
+    }
+}
+
+const executeImport = async () => {
+    importing.value = true
+    try {
+        const res = await importAPI.execute(pendingData.value)
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '导入成功', detail: '数据已恢复', life: 3000 })
+            showImportDialog.value = false
+            loadData()
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '导入失败', detail: error.response?.data?.message || '服务器错误' })
+    } finally {
+        importing.value = false
     }
 }
 
