@@ -1,0 +1,82 @@
+/**
+ * Vue 主入口文件
+ * 初始化 Vue 应用并注册 PrimeVue 组件
+ */
+
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import PrimeVue from 'primevue/config'
+
+// PrimeVue 样式
+import 'primevue/resources/themes/lara-light-blue/theme.css'
+import 'primevue/resources/primevue.min.css'
+import 'primeicons/primeicons.css'
+import 'primeflex/primeflex.css'
+
+// PrimeVue 组件
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import InputNumber from 'primevue/inputnumber'
+import Card from 'primevue/card'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Dialog from 'primevue/dialog'
+import Toast from 'primevue/toast'
+import ToastService from 'primevue/toastservice'
+import Dropdown from 'primevue/dropdown'
+import Calendar from 'primevue/calendar'
+import Textarea from 'primevue/textarea'
+import Chip from 'primevue/chip'
+import Tag from 'primevue/tag'
+import Menubar from 'primevue/menubar'
+import Chart from 'primevue/chart'
+
+// 创建应用
+const app = createApp(App)
+
+// 使用插件
+app.use(router)
+app.use(PrimeVue, { ripple: true })
+app.use(ToastService)
+
+// 注册全局组件
+// 注册全局组件
+app.component('Button', Button)
+app.component('InputText', InputText)
+app.component('InputNumber', InputNumber)
+app.component('Card', Card)
+app.component('DataTable', DataTable)
+app.component('Column', Column)
+app.component('Dialog', Dialog)
+app.component('Toast', Toast)
+app.component('Dropdown', Dropdown)
+app.component('Calendar', Calendar)
+app.component('Textarea', Textarea)
+app.component('Chip', Chip)
+app.component('Tag', Tag)
+app.component('Menubar', Menubar)
+app.component('Chart', Chart)
+
+import Avatar from 'primevue/avatar'
+import Badge from 'primevue/badge'
+import Tooltip from 'primevue/tooltip'
+import SelectButton from 'primevue/selectbutton'
+
+import Sidebar from 'primevue/sidebar'
+
+app.component('Avatar', Avatar)
+app.component('Badge', Badge)
+app.directive('tooltip', Tooltip)
+app.component('SelectButton', SelectButton)
+app.component('Sidebar', Sidebar)
+import Checkbox from 'primevue/checkbox'
+import Divider from 'primevue/divider'
+import ProgressSpinner from 'primevue/progressspinner'
+
+app.component('Checkbox', Checkbox)
+app.component('Divider', Divider)
+app.component('ProgressSpinner', ProgressSpinner)
+
+// 挂载应用
+app.mount('#app')

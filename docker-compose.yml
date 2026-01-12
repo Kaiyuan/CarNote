@@ -1,0 +1,48 @@
+# CarNote Docker Compose 配置
+# 包含后端 API 服务和可选的 PostgreSQL 数据库
+
+version: '3.8'
+
+services:
+  # 主应用服务 (包含前后端)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carnote-app
+    ports:
+      - "53300:53300"
+    environment:
+      - NODE_ENV=production
+      - PORT=53300
+      - DB_TYPE=sqlite
+      - SQLITE_PATH=/app/data/carnote.db
+      - UPLOAD_PATH=/app/uploads
+      - JWT_SECRET=${JWT_SECRET:-carnote-production-secret-change-this}
+      - CORS_ORIGIN=http://localhost
+    volumes:
+      - carnote_data:/app/data
+      - carnote_uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:53300/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - carnote-network
+
+  # 数据卷
+volumes:
+  carnote_data:
+    driver: local
+  carnote_uploads:
+    driver: local
+  # postgres_data:
+  #   driver: local
+
+  # 网络
+networks:
+  carnote-network:
+    driver: bridge

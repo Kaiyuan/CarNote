@@ -1,0 +1,379 @@
+<!--
+  能耗记录页面 - 完整版
+-->
+
+<template>
+  <div>
+    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
+      <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">能耗记录</h1>
+      <div class="flex gap-2">
+        <Button label="记录能耗" icon="pi pi-plus" @click="openAddDialog" />
+      </div>
+    </div>
+
+    <!-- 过滤器 -->
+    <div class="grid p-fluid mb-4">
+      <div class="col-12 md:col-4">
+        <span class="p-float-label">
+          <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
+            showClear @change="loadLogs" placeholder="选择车辆" class="w-full" />
+          <label>筛选车辆</label>
+        </span>
+      </div>
+    </div>
+
+    <!-- 记录列表 -->
+    <DataTable :value="logs" :loading="loading" stripedRows tableStyle="min-width: 50rem" paginator :rows="10"
+      :rowsPerPageOptions="[10, 20, 50]">
+      <Column field="log_date" header="日期" sortable>
+        <template #body="slotProps">
+          {{ formatDate(slotProps.data.log_date) }}
+        </template>
+      </Column>
+      <Column field="vehicle_plate" header="车牌号"></Column>
+      <Column field="mileage" header="里程 (km)" sortable>
+        <template #body="slotProps">
+          {{ formatNumber(slotProps.data.mileage) }}
+        </template>
+      </Column>
+      <Column field="type" header="类型">
+        <template #body="slotProps">
+          <Tag :value="getTypeLabel(slotProps.data.energy_type)"
+            :severity="getTypeSeverity(slotProps.data.energy_type)" />
+        </template>
+      </Column>
+      <Column field="amount" header="数量">
+        <template #body="slotProps">
+          {{ slotProps.data.amount }} {{ getUnit(slotProps.data.energy_type) }}
+        </template>
+      </Column>
+      <Column field="cost" header="费用 (元)" sortable>
+        <template #body="slotProps">
+          {{ formatCurrency(slotProps.data.cost) }}
+        </template>
+      </Column>
+      <Column field="consumption_per_100km" header="百公里能耗">
+        <template #body="slotProps">
+          <span v-if="slotProps.data.consumption_per_100km"
+            :class="{ 'text-green-600 font-bold': slotProps.data.consumption_per_100km < 8, 'text-orange-500': slotProps.data.consumption_per_100km > 12 }">
+            {{ slotProps.data.consumption_per_100km.toFixed(2) }}
+          </span>
+          <span v-else>--</span>
+        </template>
+      </Column>
+      <Column header="操作">
+        <template #body="slotProps">
+          <Button icon="pi pi-pencil" text rounded @click="editLog(slotProps.data)" />
+          <Button icon="pi pi-trash" text rounded severity="danger" @click="deleteLog(slotProps.data.id)" />
+        </template>
+      </Column>
+    </DataTable>
+
+    <!-- 添加/编辑对话框 -->
+    <Dialog v-model:visible="showDialog" :header="editingLog ? '编辑记录' : '添加能耗记录'" :modal="true"
+      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
+      <div class="field">
+        <label>车辆 *</label>
+        <Dropdown v-model="logForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
+          placeholder="选择车辆" class="w-full" :disabled="!!editingLog" @change="onVehicleSelect" />
+      </div>
+
+      <div class="field">
+        <label>日期 *</label>
+        <Calendar v-model="logForm.log_date" showTime hourFormat="24" dateFormat="yy-mm-dd" class="w-full" />
+      </div>
+
+      <div class="field">
+        <label>当前里程 (km) *</label>
+        <InputNumber v-model="logForm.mileage" class="w-full" :min="0" />
+      </div>
+
+      <div class="field">
+        <label>能源类型 *</label>
+        <Dropdown v-model="logForm.energy_type" :options="energyTypes" optionLabel="label" optionValue="value"
+          class="w-full" />
+      </div>
+
+      <div class="flex flex-column md:flex-row gap-3 mb-3">
+        <div class="flex-1 field m-0">
+          <label class="block mb-2">数量 ({{ getUnit(logForm.energy_type) }}) *</label>
+          <InputNumber v-model="logForm.amount" class="w-full" :min="0" :maxFractionDigits="2" />
+        </div>
+        <div class="flex-1 field m-0">
+          <label class="block mb-2">总费用 (元) *</label>
+          <InputNumber v-model="logForm.cost" class="w-full" :min="0" :maxFractionDigits="2" />
+        </div>
+      </div>
+
+      <div class="field-checkbox">
+        <Checkbox v-model="logForm.is_full" :binary="true" inputId="is_full" />
+        <label for="is_full" class="ml-2">加满/充满</label>
+      </div>
+
+      <div class="field">
+        <label>位置</label>
+        <div class="p-inputgroup">
+          <InputText v-model="logForm.location_name" placeholder="输入或获取位置" />
+          <Button icon="pi pi-map-marker" @click="getCurrentLocation" v-tooltip="'获取当前位置'" />
+          <Button icon="pi pi-map" severity="secondary" @click="showMapDialog = true" v-tooltip="'在地图上选择'" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>备注</label>
+        <Textarea v-model="logForm.notes" rows="2" class="w-full" />
+      </div>
+
+      <template #footer>
+        <Button label="取消" text @click="showDialog = false" />
+        <Button label="保存" @click="saveLog" :loading="saving" />
+      </template>
+    </Dialog>
+    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px' }">
+      <LocationPicker v-if="showMapDialog" :initialLat="logForm.location_lat" :initialLng="logForm.location_lng"
+        @confirm="onLocationSelected" />
+    </Dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
+import { useToast } from 'primevue/usetoast'
+import { useRouter, useRoute } from 'vue-router'
+import { energyAPI, vehicleAPI } from '../api'
+
+const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
+
+const toast = useToast()
+const router = useRouter()
+const route = useRoute()
+
+// 状态
+
+// 状态
+const logs = ref([])
+const vehicles = ref([])
+const loading = ref(false)
+const showDialog = ref(false)
+const showMapDialog = ref(false) // 地图对话框
+const saving = ref(false)
+const editingLog = ref(null)
+
+// 过滤器
+const filters = ref({
+  vehicle_id: null
+})
+
+// 表单数据
+const defaultForm = {
+  vehicle_id: null,
+  log_date: new Date(),
+  mileage: null,
+  energy_type: 'fuel', // 默认燃油
+  amount: null,
+  cost: null,
+  is_full: true,
+  location_name: '',
+  location_lat: null,
+  location_lng: null,
+  notes: ''
+}
+
+const logForm = ref({ ...defaultForm })
+
+const energyTypes = [
+  { label: '汽油', value: 'fuel' },
+  { label: '电能', value: 'electric' }
+]
+
+// 获取车辆列表
+const loadVehicles = async () => {
+  try {
+    const res = await vehicleAPI.getList()
+    if (res.success) {
+      vehicles.value = res.data
+    }
+  } catch (error) {
+    console.error('Failed to load vehicles', error)
+  }
+}
+
+// 获取日志列表
+const loadLogs = async () => {
+  loading.value = true
+  try {
+    const params = {}
+    if (filters.value.vehicle_id) {
+      params.vehicle_id = filters.value.vehicle_id
+    }
+    const res = await energyAPI.getList(params)
+    if (res.success) {
+      logs.value = res.data.map(log => ({
+        ...log,
+        // 添加车牌号显示辅助
+        vehicle_plate: vehicles.value.find(v => v.id === log.vehicle_id)?.plate_number || '未知车辆'
+      }))
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '错误', detail: '加载记录失败', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 当选择车辆时，自动设置默认能源类型
+const onVehicleSelect = () => {
+  const vehicle = vehicles.value.find(v => v.id === logForm.value.vehicle_id)
+  if (vehicle) {
+    if (vehicle.power_type === 'electric') {
+      logForm.value.energy_type = 'electric'
+    } else {
+      logForm.value.energy_type = 'fuel'
+    }
+    // 可以预填该车上次里程（如果后端支持查询）
+  }
+}
+
+// 打开添加对话框
+const openAddDialog = () => {
+  editingLog.value = null
+  logForm.value = { ...defaultForm, log_date: new Date() }
+
+  // 如果只有一个车辆，默认选中
+  if (vehicles.value.length === 1) {
+    logForm.value.vehicle_id = vehicles.value[0].id
+    onVehicleSelect()
+  } else if (filters.value.vehicle_id) {
+    logForm.value.vehicle_id = filters.value.vehicle_id
+    onVehicleSelect()
+  }
+
+  showDialog.value = true
+}
+
+// 编辑记录
+const editLog = (log) => {
+  editingLog.value = log
+  logForm.value = {
+    ...log,
+    log_date: new Date(log.log_date),
+    is_full: log.is_full === 1 || log.is_full === true
+  }
+  showDialog.value = true
+}
+
+// 保存记录
+const saveLog = async () => {
+  if (!logForm.value.vehicle_id || !logForm.value.mileage || !logForm.value.amount || !logForm.value.cost) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '请填写所有必填项', life: 3000 })
+    return
+  }
+
+  saving.value = true
+  try {
+    const data = {
+      ...logForm.value,
+      is_full: logForm.value.is_full ? 1 : 0
+    }
+
+    let res
+    if (editingLog.value) {
+      res = await energyAPI.update(editingLog.value.id, data)
+    } else {
+      res = await energyAPI.create(data)
+    }
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '成功', detail: res.message, life: 3000 })
+      showDialog.value = false
+      loadLogs()
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '错误', detail: error.message || '保存失败', life: 3000 })
+  } finally {
+    saving.value = false
+  }
+}
+
+// 删除记录
+const deleteLog = async (id) => {
+  if (!confirm('确定要删除这条记录吗？')) return
+
+  try {
+    const res = await energyAPI.delete(id)
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '成功', detail: '删除成功', life: 3000 })
+      loadLogs()
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '错误', detail: '删除失败', life: 3000 })
+  }
+}
+
+// 获取浏览器当前位置
+const getCurrentLocation = () => {
+  if ("geolocation" in navigator) {
+    navigator.query({ name: 'permissions', permission: 'geolocation' }).then((result) => {
+      // 简单的获取位置
+      navigator.geolocation.getCurrentPosition((position) => {
+        logForm.value.location_lat = position.coords.latitude
+        logForm.value.location_lng = position.coords.longitude
+        logForm.value.location_name = `Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`
+        toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
+      }, (error) => {
+        toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
+      });
+    });
+  } else {
+    toast.add({ severity: 'warn', summary: '不支持', detail: '您的浏览器不支持地理位置', life: 3000 })
+  }
+}
+
+const onLocationSelected = (loc) => {
+  logForm.value.location_lat = loc.lat
+  logForm.value.location_lng = loc.lng
+  logForm.value.location_name = `Lat: ${loc.lat.toFixed(4)}, Lng: ${loc.lng.toFixed(4)}`
+  showMapDialog.value = false
+  toast.add({ severity: 'success', summary: '已选择', detail: '位置已更新', life: 2000 })
+}
+
+
+// 格式化工具函数
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString() + ' ' + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatNumber = (num) => num ? num.toLocaleString() : 0
+const formatCurrency = (val) => val ? '¥' + val.toFixed(2) : '¥0.00'
+
+const getTypeLabel = (type) => type === 'electric' ? '充电' : '加油'
+const getTypeSeverity = (type) => type === 'electric' ? 'success' : 'warning'
+const getUnit = (type) => type === 'electric' ? 'kWh' : 'L'
+
+onMounted(() => {
+  loadVehicles()
+  loadLogs()
+
+  // Check for quick add action
+  const { action } = route.query
+  if (action === 'add') {
+    showDialog.value = true
+    // Optional: Clean up query param
+    router.replace({ query: null })
+  }
+})
+</script>
+
+<style scoped>
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+</style>
