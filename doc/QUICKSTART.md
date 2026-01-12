@@ -77,7 +77,7 @@ npm run dev
 # 登录后端 -> 用户设置 -> 生成 API Key
 
 # 使用 API Key 快速添加（一行命令）
-curl "http://localhost:55300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&amount=45.5&cost=350"
+curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&amount=45.5&cost=350"
 ```
 
 参数说明：

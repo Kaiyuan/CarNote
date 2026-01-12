@@ -64,7 +64,8 @@
       <Column header="操作">
         <template #body="slotProps">
           <Button icon="pi pi-pencil" text rounded @click="editLog(slotProps.data)" />
-          <Button icon="pi pi-trash" text rounded severity="danger" @click="deleteLog(slotProps.data.id)" />
+          <Button icon="pi pi-trash" text rounded severity="danger"
+            @click="() => { console.log('Delete clicked!', slotProps.data.id); deleteLog(slotProps.data.id); }" />
         </template>
       </Column>
     </DataTable>
@@ -207,16 +208,54 @@ const loadLogs = async () => {
     if (filters.value.vehicle_id) {
       params.vehicle_id = filters.value.vehicle_id
     }
+
+    console.log('正在加载能耗记录，参数:', params)
     const res = await energyAPI.getList(params)
+    console.log('API 响应:', res)
+
     if (res.success) {
-      logs.value = res.data.map(log => ({
+      // 处理多种可能的响应格式
+      let logsData = []
+
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          // 格式1: { success: true, data: [...] }
+          logsData = res.data
+          console.log('使用格式1: data 是数组')
+        } else if (res.data.logs && Array.isArray(res.data.logs)) {
+          // 格式2: { success: true, data: { logs: [...], pagination: {...} } }
+          logsData = res.data.logs
+          console.log('使用格式2: data.logs 是数组')
+        } else if (typeof res.data === 'object') {
+          // 格式3: data 是对象但不是数组，尝试转换
+          console.warn('未知的 data 格式:', res.data)
+          logsData = []
+        }
+      }
+
+      console.log('解析后的日志数据:', logsData)
+
+      // Backend already returns plate_number in the data, just use it directly
+      logs.value = logsData.map(log => ({
         ...log,
-        // 添加车牌号显示辅助
-        vehicle_plate: vehicles.value.find(v => v.id === log.vehicle_id)?.plate_number || '未知车辆'
+        // Use plate_number from backend, fallback to mapping if not present
+        vehicle_plate: log.plate_number || vehicles.value.find(v => v.id === log.vehicle_id)?.plate_number || '未知车辆'
       }))
+
+      console.log('最终日志列表:', logs.value)
+
+      if (logs.value.length === 0) {
+        toast.add({ severity: 'info', summary: '提示', detail: '暂无能耗记录', life: 3000 })
+      }
+    } else {
+      console.error('API 返回 success: false')
+      toast.add({ severity: 'error', summary: '错误', detail: res.message || '加载失败', life: 3000 })
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: '错误', detail: '加载记录失败', life: 3000 })
+    console.error('加载能耗记录失败:', error)
+    console.error('错误详情:', error.response || error.message)
+    const errorMsg = error.response?.data?.message || error.message || '加载记录失败'
+    toast.add({ severity: 'error', summary: '错误', detail: errorMsg, life: 3000 })
   } finally {
     loading.value = false
   }
@@ -298,16 +337,27 @@ const saveLog = async () => {
 
 // 删除记录
 const deleteLog = async (id) => {
-  if (!confirm('确定要删除这条记录吗？')) return
+  console.log('删除记录被调用, ID:', id)
 
+  if (!window.confirm('确定要删除这条记录吗？')) {
+    console.log('用户取消删除')
+    return
+  }
+
+  console.log('开始删除记录...')
   try {
     const res = await energyAPI.delete(id)
+    console.log('删除 API 响应:', res)
+
     if (res.success) {
       toast.add({ severity: 'success', summary: '成功', detail: '删除成功', life: 3000 })
       loadLogs()
+    } else {
+      toast.add({ severity: 'error', summary: '错误', detail: res.message || '删除失败', life: 3000 })
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: '错误', detail: '删除失败', life: 3000 })
+    console.error('删除记录失败:', error)
+    toast.add({ severity: 'error', summary: '错误', detail: error.message || '删除失败', life: 3000 })
   }
 }
 

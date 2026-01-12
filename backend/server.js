@@ -58,8 +58,11 @@ if (fs.existsSync(FRONTEND_PATH)) {
 
     // SPA 回退处理 (放在 API 路由之后)
     app.get('*', (req, res, next) => {
-        // 如果请求的是 API 或上传文件，不要返回 index.html
-        if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+        // 如果请求的是 API、上传文件、静态资源或包含文件扩展名，不要返回 index.html
+        if (req.path.startsWith('/api') ||
+            req.path.startsWith('/uploads') ||
+            req.path.startsWith('/assets') ||
+            req.path.match(/\.\w+$/)) {  // 匹配包含文件扩展名的路径
             return next();
         }
         res.sendFile(path.join(FRONTEND_PATH, 'index.html'));

@@ -23,7 +23,19 @@
 
           <div class="field">
             <label for="password">密码</label>
-            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full" />
+            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full" @keyup.enter="handleLogin" />
+          </div>
+
+          <!-- CAPTCHA (显示在2次失败后) -->
+          <div v-if="showCaptcha" class="field">
+            <label for="captcha">验证码 *</label>
+            <div class="flex gap-2 align-items-center">
+              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary" style="min-width: 120px; text-align: center;">
+                {{ captchaQuestion }}
+              </div>
+              <InputText id="captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1" @keyup.enter="handleLogin" />
+            </div>
+            <small class="text-500">为了安全，请完成验证</small>
           </div>
 
           <Button label="登录" icon="pi pi-sign-in" class="w-full mt-3" @click="handleLogin" :loading="loading" />
@@ -87,6 +99,13 @@ const loading = ref(false)
 const allowRegistration = ref(true) // Default true until checked
 const isFirstUser = ref(false)
 
+// CAPTCHA 相关
+const failedAttempts = ref(0)
+const showCaptcha = ref(false)
+const captchaQuestion = ref('')
+const captchaAnswer = ref('')
+const correctAnswer = ref(0)
+
 // Check system config
 onMounted(async () => {
   try {
@@ -105,6 +124,15 @@ onMounted(async () => {
     console.error('Failed to fetch system config', e)
   }
 })
+
+// 生成验证码
+const generateCaptcha = () => {
+  const num1 = Math.floor(Math.random() * 10) + 1
+  const num2 = Math.floor(Math.random() * 10) + 1
+  captchaQuestion.value = `${num1} + ${num2} = ?`
+  correctAnswer.value = num1 + num2
+  captchaAnswer.value = ''
+}
 
 // 表单数据
 const loginForm = ref({
@@ -126,10 +154,24 @@ const handleLogin = async () => {
     return
   }
 
+  // 验证 CAPTCHA
+  if (showCaptcha.value) {
+    const userAnswer = parseInt(captchaAnswer.value)
+    if (isNaN(userAnswer) || userAnswer !== correctAnswer.value) {
+      toast.add({ severity: 'error', summary: '验证失败', detail: '验证码错误，请重新输入', life: 3000 })
+      generateCaptcha() // 重新生成
+      return
+    }
+  }
+
   loading.value = true
   try {
     const res = await userAPI.login(loginForm.value)
     if (res.success) {
+      // 登录成功，重置失败计数
+      failedAttempts.value = 0
+      showCaptcha.value = false
+      
       // 保存用户信息
       localStorage.setItem('userId', res.data.userId)
       localStorage.setItem('currentUser', JSON.stringify(res.data))
@@ -138,7 +180,21 @@ const handleLogin = async () => {
       router.push('/')
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: '错误', detail: error.message || '登录失败', life: 3000 })
+    // 登录失败，增加计数
+    failedAttempts.value++
+    
+    if (failedAttempts.value >= 2) {
+      showCaptcha.value = true
+      generateCaptcha()
+      toast.add({ 
+        severity: 'warn', 
+        summary: '安全提示', 
+        detail: '登录失败次数过多，请完成验证码验证', 
+        life: 4000 
+      })
+    } else {
+      toast.add({ severity: 'error', summary: '错误', detail: error.message || '登录失败', life: 3000 })
+    }
   } finally {
     loading.value = false
   }

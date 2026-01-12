@@ -177,14 +177,13 @@ PG_PASSWORD=your_password
 ## Docker Compose 配置
 
 项目包含完整的 Docker Compose 配置，包括：
-- **backend** - Node.js API 服务
-- **frontend** - Nginx 静态文件服务
+- **app** - 统一的前后端服务
 - **postgres** (可选) - PostgreSQL 数据库
 
 ### 环境变量
 
 在 `docker-compose.yml` 中可以配置：
-- `PORT` - 后端端口 (默认 53300)
+- `PORT` - 服务端口 (默认 53300)
 - `DB_TYPE` - 数据库类型 (sqlite/postgresql)
 - `CORS_ORIGIN` - 允许的前端地址
 

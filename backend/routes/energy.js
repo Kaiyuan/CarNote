@@ -358,21 +358,46 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         });
     }
 
-    // 更新记录
+    // 重新计算里程差和百公里消耗
+    const lastLog = await get(
+        `SELECT mileage, log_date FROM energy_logs 
+         WHERE vehicle_id = ? AND log_date < ? AND id != ?
+         ORDER BY log_date DESC LIMIT 1`,
+        [log.vehicle_id, log_date, req.params.id]
+    );
+
+    let mileage_diff = null;
+    let consumption_per_100km = null;
+
+    if (lastLog && lastLog.mileage < mileage) {
+        mileage_diff = mileage - lastLog.mileage;
+        if (mileage_diff > 0) {
+            consumption_per_100km = (amount / mileage_diff) * 100;
+            consumption_per_100km = Math.round(consumption_per_100km * 100) / 100;
+        }
+    }
+
+    // 更新记录（包含重新计算的值）
     await query(
         `UPDATE energy_logs 
          SET log_date = ?, mileage = ?, energy_type = ?, amount = ?, cost = ?,
              unit_price = ?, fuel_gauge_reading = ?, is_full = ?,
              location_name = ?, location_lat = ?, location_lng = ?, notes = ?,
+             mileage_diff = ?, consumption_per_100km = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [log_date, mileage, energy_type, amount, cost, unit_price, fuel_gauge_reading,
-            is_full ? 1 : 0, location_name, location_lat, location_lng, notes, req.params.id]
+            is_full ? 1 : 0, location_name, location_lat, location_lng, notes,
+            mileage_diff, consumption_per_100km, req.params.id]
     );
 
     res.json({
         success: true,
-        message: '记录更新成功'
+        message: '记录更新成功',
+        data: {
+            mileage_diff,
+            consumption_per_100km
+        }
     });
 }));
 

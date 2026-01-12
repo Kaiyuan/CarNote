@@ -225,19 +225,41 @@ const loadDashboardData = async () => {
     const params = { range: timeRange.value }
     const yearParams = { year: new Date().getFullYear() }
 
+    console.log('加载仪表盘数据，车辆ID:', selectedVehicleId.value)
+    console.log('参数:', { params, yearParams })
+
     const [ovRes, exRes, monRes, actRes] = await Promise.all([
-      analyticsAPI.getOverview(selectedVehicleId.value),
-      analyticsAPI.getExpenses(selectedVehicleId.value, params),
-      analyticsAPI.getMonthlyTrend(selectedVehicleId.value, yearParams),
-      fetchRecentActivities(selectedVehicleId.value)
+      analyticsAPI.getOverview(selectedVehicleId.value).catch(e => {
+        console.error('获取总览数据失败:', e)
+        return { success: false, error: e }
+      }),
+      analyticsAPI.getExpenses(selectedVehicleId.value, params).catch(e => {
+        console.error('获取费用数据失败:', e)
+        return { success: false, error: e }
+      }),
+      analyticsAPI.getMonthlyTrend(selectedVehicleId.value, yearParams).catch(e => {
+        console.error('获取月度趋势失败:', e)
+        return { success: false, error: e }
+      }),
+      fetchRecentActivities(selectedVehicleId.value).catch(e => {
+        console.error('获取最近活动失败:', e)
+        return []
+      })
     ])
+
+    console.log('总览数据响应:', ovRes)
+    console.log('费用数据响应:', exRes)
+    console.log('月度趋势响应:', monRes)
+    console.log('最近活动响应:', actRes)
 
     if (ovRes.success) overview.value = ovRes.data
     if (exRes.success) expenseData.value = exRes.data
     if (monRes.success) monthlyData.value = monRes.data
     recentActivities.value = actRes
 
-  } catch (e) { console.error(e) } finally {
+  } catch (e) {
+    console.error('加载仪表盘数据失败:', e)
+  } finally {
     loading.value = false
   }
 }
@@ -251,28 +273,34 @@ const fetchRecentActivities = async (vehicleId) => {
       maintenanceAPI.getList({ vehicle_id: vehicleId, page: 1, limit: 5 })
     ])
 
+    console.log('能耗活动响应:', energyRes)
+    console.log('保养活动响应:', maintRes)
+
     const activities = []
 
     if (energyRes.success) {
-      energyRes.data.forEach(log => {
+      // Handle nested data structure: { success, data: { logs, pagination } }
+      const energyLogs = energyRes.data?.logs || energyRes.data || []
+      energyLogs.forEach(log => {
         activities.push({
           type: 'energy',
-          date: log.date,
-          description: `里程: ${log.current_mileage}km`,
-          cost: log.total_cost,
-          timestamp: new Date(log.date).getTime()
+          date: log.log_date || log.date,
+          description: `里程: ${log.mileage}km`,
+          cost: log.cost,
+          timestamp: new Date(log.log_date || log.date).getTime()
         })
       })
     }
 
     if (maintRes.success) {
-      maintRes.data.forEach(rec => {
+      const maintRecords = maintRes.data?.logs || maintRes.data || []
+      maintRecords.forEach(rec => {
         activities.push({
           type: 'maintenance',
-          date: rec.date,
+          date: rec.maintenance_date || rec.date,
           description: `${rec.type} - ${rec.description || '无描述'}`,
           cost: rec.cost,
-          timestamp: new Date(rec.date).getTime()
+          timestamp: new Date(rec.maintenance_date || rec.date).getTime()
         })
       })
     }
@@ -281,6 +309,7 @@ const fetchRecentActivities = async (vehicleId) => {
     return activities.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5)
 
   } catch (e) {
+    console.error('获取最近活动失败:', e)
     return []
   }
 }
@@ -370,6 +399,21 @@ const formatCurrency = (v) => v ? '¥' + v.toLocaleString(undefined, { minimumFr
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
 const getActivityLabel = (t) => t === 'energy' ? '能耗' : '保养'
 const getActivitySeverity = (t) => t === 'energy' ? 'info' : 'warning'
+
+// Watch for vehicle or time range changes
+watch(selectedVehicleId, (newVal) => {
+  console.log('车辆选择变更:', newVal)
+  if (newVal) {
+    loadDashboardData()
+  }
+})
+
+watch(timeRange, (newVal) => {
+  console.log('时间范围变更:', newVal)
+  if (selectedVehicleId.value) {
+    loadDashboardData()
+  }
+})
 
 onMounted(() => {
   loadVehicles()
