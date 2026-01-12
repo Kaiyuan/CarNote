@@ -3,99 +3,100 @@
 -->
 
 <template>
-  <div>
-    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
-      <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">数据分析</h1>
-      <div class="flex gap-2 align-items-center">
-         <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id" 
-                  placeholder="选择车辆" class="w-14rem" @change="loadAllData" />
-         <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
-                  placeholder="时间范围" class="w-10rem" @change="loadAllData" />
-      </div>
+    <div>
+        <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
+            <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">数据分析</h1>
+            <div class="flex gap-2 align-items-center w-full md:w-auto">
+                <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
+                    placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" @change="loadAllData" />
+                <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
+                    placeholder="范围" class="flex-auto md:w-10rem min-w-0" @change="loadAllData" />
+            </div>
+        </div>
+
+        <div v-if="!selectedVehicleId" class="text-center py-8">
+            <i class="pi pi-chart-bar mb-3" style="font-size: 4rem; color: var(--surface-400)"></i>
+            <div class="text-xl text-600">请选择一辆车以查看分析数据</div>
+        </div>
+
+        <div v-else class="grid">
+            <!-- 概览卡片 -->
+            <div class="col-12 md:col-6 lg:col-3">
+                <Card class="h-full shadow-1 border-left-3 border-blue-500">
+                    <template #content>
+                        <div class="text-600 mb-2">总里程</div>
+                        <div class="text-2xl font-bold text-900">{{ formatNumber(overview.total_mileage) }} km</div>
+                    </template>
+                </Card>
+            </div>
+            <div class="col-12 md:col-6 lg:col-3">
+                <Card class="h-full shadow-1 border-left-3 border-green-500">
+                    <template #content>
+                        <div class="text-600 mb-2">总花费</div>
+                        <div class="text-2xl font-bold text-900">{{ formatCurrency(overview.total_cost) }}</div>
+                        <div class="text-sm text-green-600 mt-1" v-if="overview.avg_cost_per_km">
+                            {{ formatCurrency(overview.avg_cost_per_km) }}/km
+                        </div>
+                    </template>
+                </Card>
+            </div>
+            <div class="col-12 md:col-6 lg:col-3">
+                <Card class="h-full shadow-1 border-left-3 border-orange-500">
+                    <template #content>
+                        <div class="text-600 mb-2">平均能耗</div>
+                        <div class="text-2xl font-bold text-900">
+                            {{ overview.avg_consumption ? overview.avg_consumption.toFixed(2) : '--' }}
+                            <span class="text-base font-normal text-600">{{ unit }}</span>
+                        </div>
+                    </template>
+                </Card>
+            </div>
+            <div class="col-12 md:col-6 lg:col-3">
+                <Card class="h-full shadow-1 border-left-3 border-purple-500">
+                    <template #content>
+                        <div class="text-600 mb-2">最近保养</div>
+                        <div class="text-xl font-bold text-900">
+                            {{ overview.last_maintenance_date ? formatDate(overview.last_maintenance_date) : '无记录' }}
+                        </div>
+                        <div class="text-sm text-600 mt-1" v-if="overview.last_maintenance_days">
+                            {{ overview.last_maintenance_days }} 天前
+                        </div>
+                    </template>
+                </Card>
+            </div>
+
+            <!-- 图表区域 -->
+            <div class="col-12 lg:col-8">
+                <Card class="shadow-2 h-full">
+                    <template #title>能耗趋势</template>
+                    <template #content>
+                        <Chart type="line" :data="consumptionChartData" :options="chartOptions" class="h-20rem" />
+                    </template>
+                </Card>
+            </div>
+
+            <div class="col-12 lg:col-4">
+                <Card class="shadow-2 h-full">
+                    <template #title>费用构成</template>
+                    <template #content>
+                        <div class="flex justify-content-center">
+                            <Chart type="doughnut" :data="expenseChartData" :options="doughnutOptions" class="w-full"
+                                style="max-height: 20rem" />
+                        </div>
+                    </template>
+                </Card>
+            </div>
+
+            <div class="col-12">
+                <Card class="shadow-2">
+                    <template #title>月度费用统计</template>
+                    <template #content>
+                        <Chart type="bar" :data="monthlyTrendData" :options="chartOptions" class="h-20rem" />
+                    </template>
+                </Card>
+            </div>
+        </div>
     </div>
-    
-    <div v-if="!selectedVehicleId" class="text-center py-8">
-        <i class="pi pi-chart-bar mb-3" style="font-size: 4rem; color: var(--surface-400)"></i>
-        <div class="text-xl text-600">请选择一辆车以查看分析数据</div>
-    </div>
-    
-    <div v-else class="grid">
-        <!-- 概览卡片 -->
-        <div class="col-12 md:col-6 lg:col-3">
-            <Card class="h-full shadow-1 border-left-3 border-blue-500">
-                <template #content>
-                    <div class="text-600 mb-2">总里程</div>
-                    <div class="text-2xl font-bold text-900">{{ formatNumber(overview.total_mileage) }} km</div>
-                </template>
-            </Card>
-        </div>
-        <div class="col-12 md:col-6 lg:col-3">
-            <Card class="h-full shadow-1 border-left-3 border-green-500">
-                <template #content>
-                    <div class="text-600 mb-2">总花费</div>
-                    <div class="text-2xl font-bold text-900">{{ formatCurrency(overview.total_cost) }}</div>
-                    <div class="text-sm text-green-600 mt-1" v-if="overview.avg_cost_per_km">
-                        {{ formatCurrency(overview.avg_cost_per_km) }}/km
-                    </div>
-                </template>
-            </Card>
-        </div>
-        <div class="col-12 md:col-6 lg:col-3">
-            <Card class="h-full shadow-1 border-left-3 border-orange-500">
-                <template #content>
-                    <div class="text-600 mb-2">平均能耗</div>
-                    <div class="text-2xl font-bold text-900">
-                        {{ overview.avg_consumption ? overview.avg_consumption.toFixed(2) : '--' }}
-                        <span class="text-base font-normal text-600">{{ unit }}</span>
-                    </div>
-                </template>
-            </Card>
-        </div>
-        <div class="col-12 md:col-6 lg:col-3">
-            <Card class="h-full shadow-1 border-left-3 border-purple-500">
-                <template #content>
-                    <div class="text-600 mb-2">最近保养</div>
-                    <div class="text-xl font-bold text-900">
-                        {{ overview.last_maintenance_date ? formatDate(overview.last_maintenance_date) : '无记录' }}
-                    </div>
-                    <div class="text-sm text-600 mt-1" v-if="overview.last_maintenance_days">
-                        {{ overview.last_maintenance_days }} 天前
-                    </div>
-                </template>
-            </Card>
-        </div>
-        
-        <!-- 图表区域 -->
-        <div class="col-12 lg:col-8">
-            <Card class="shadow-2 h-full">
-                <template #title>能耗趋势</template>
-                <template #content>
-                    <Chart type="line" :data="consumptionChartData" :options="chartOptions" class="h-20rem" />
-                </template>
-            </Card>
-        </div>
-        
-        <div class="col-12 lg:col-4">
-            <Card class="shadow-2 h-full">
-                <template #title>费用构成</template>
-                <template #content>
-                    <div class="flex justify-content-center">
-                        <Chart type="doughnut" :data="expenseChartData" :options="doughnutOptions" class="w-full" style="max-height: 20rem" />
-                    </div>
-                </template>
-            </Card>
-        </div>
-        
-        <div class="col-12">
-            <Card class="shadow-2">
-                <template #title>月度费用统计</template>
-                <template #content>
-                    <Chart type="bar" :data="monthlyTrendData" :options="chartOptions" class="h-20rem" />
-                </template>
-            </Card>
-        </div>
-    </div>
-  </div>
 </template>
 
 <script setup>
@@ -138,23 +139,23 @@ const loadVehicles = async () => {
 // 加载所有分析数据
 const loadAllData = async () => {
     if (!selectedVehicleId.value) return
-    
+
     try {
         const params = { range: timeRange.value }
-        
+
         // 并行请求
         const [overviewRes, consumptionRes, expenseRes, monthlyRes] = await Promise.all([
-            analyticsAPI.getOverview(selectedVehicleId.value),
+            analyticsAPI.getOverview(selectedVehicleId.value, params),
             analyticsAPI.getConsumption(selectedVehicleId.value, params),
             analyticsAPI.getExpenses(selectedVehicleId.value, params),
-            analyticsAPI.getMonthlyTrend(selectedVehicleId.value, { year: new Date().getFullYear() }) // 默认当年
+            analyticsAPI.getMonthlyTrend(selectedVehicleId.value, params)
         ])
-        
+
         if (overviewRes.success) overview.value = overviewRes.data
         if (consumptionRes.success) consumptionData.value = consumptionRes.data
         if (expenseRes.success) expenseData.value = expenseRes.data
         if (monthlyRes.success) monthlyData.value = monthlyRes.data
-        
+
     } catch (error) {
         console.error('Failed to load analytics', error)
     }
@@ -247,7 +248,7 @@ const monthlyTrendData = computed(() => {
 
 // 格式化工具
 const formatNumber = (num) => num ? num.toLocaleString() : 0
-const formatCurrency = (val) => val ? '¥' + val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '¥0.00'
+const formatCurrency = (val) => val ? '¥' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '¥0.00'
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString() : ''
 
 onMounted(() => {

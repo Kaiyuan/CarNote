@@ -82,7 +82,8 @@
                                 @click="showKeyDialog = true" />
                         </div>
 
-                        <DataTable :value="apiKeys" size="small" stripedRows v-if="apiKeys.length > 0">
+                        <DataTable :value="apiKeys" size="small" stripedRows v-if="apiKeys.length > 0"
+                            responsiveLayout="stack" breakpoint="960px">
                             <Column field="key_name" header="名称"></Column>
                             <Column field="key_prefix" header="前缀">
                                 <template #body="slotProps">

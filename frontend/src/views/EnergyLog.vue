@@ -26,8 +26,8 @@
     </div>
 
     <!-- 记录列表 -->
-    <DataTable :value="logs" :loading="loading" stripedRows tableStyle="min-width: 50rem" paginator :rows="10"
-      :rowsPerPageOptions="[10, 20, 50]">
+    <DataTable :value="logs" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
+      responsiveLayout="stack" breakpoint="960px">
       <Column field="log_date" header="日期" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.log_date) }}

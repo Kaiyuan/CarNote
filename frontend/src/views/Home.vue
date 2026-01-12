@@ -10,13 +10,17 @@
         <h2 class="text-xl md:text-2xl font-bold m-0 text-900 line-height-3">欢迎回来, {{ currentUser?.nickname ||
           currentUser?.username }}</h2>
       </div>
-      <div class="flex gap-2 align-items-center w-full md:w-auto">
+      <div class="flex gap-2 align-items-center w-full md:w-auto overflow-hidden">
         <Button label="记一笔" icon="pi pi-plus" class="p-button-primary flex-shrink-0"
           @click="router.push('/energy?action=add')" />
         <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
-          placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" />
+          placeholder="车辆" class="flex-auto md:w-14rem min-w-0" />
+        <!-- 桌面端显示范围选择器 -->
         <SelectButton v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
-          :allowEmpty="false" class="hidden md:flex" />
+          :allowEmpty="false" class="hidden lg:flex flex-shrink-0" />
+        <!-- 移动端显示范围下拉框 -->
+        <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value" placeholder="范围"
+          class="flex-auto lg:hidden min-w-0" />
       </div>
     </div>
 
@@ -154,7 +158,7 @@
             <h5 class="text-xl font-bold m-0 text-900">最近活动</h5>
             <Button label="查看全部" text size="small" @click="router.push('/energy')" />
           </div>
-          <DataTable :value="recentActivities" :rows="5" responsiveLayout="scroll">
+          <DataTable :value="recentActivities" :rows="5" responsiveLayout="stack" breakpoint="960px">
             <Column field="type" header="类型">
               <template #body="slotProps">
                 <Tag :severity="getActivitySeverity(slotProps.data.type)" :value="getActivityLabel(slotProps.data.type)"

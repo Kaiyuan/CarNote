@@ -30,8 +30,8 @@
     </div>
 
     <!-- 列表 -->
-    <DataTable :value="records" :loading="loading" stripedRows tableStyle="min-width: 60rem" paginator :rows="10"
-      :rowsPerPageOptions="[10, 20, 50]">
+    <DataTable :value="records" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
+      responsiveLayout="stack" breakpoint="960px">
       <Column field="service_date" header="日期" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.service_date) }}

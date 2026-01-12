@@ -86,4 +86,13 @@ router.beforeEach((to, from, next) => {
     }
 })
 
-export default router
+// 路由错误处理 (处理动态加载模块失败的情况，通常是由于版本更新导致旧文件 404)
+router.onError((error, to) => {
+    if (error.message.includes('Failed to fetch dynamically imported module') ||
+        error.message.includes('Importing a dangling component')) {
+        console.warn('检测到组件加载失败，可能是由于版本更新，正在尝试强制刷新...');
+        window.location.href = to.fullPath;
+    }
+});
+
+export default router;
