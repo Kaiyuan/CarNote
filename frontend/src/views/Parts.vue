@@ -37,7 +37,7 @@
         <Card class="h-full shadow-2 hover:shadow-4 cursor-pointer transition-duration-200">
           <template #title>
             <div class="flex justify-content-between align-items-start">
-              <div class="text-xl">{{ part.part_name }}</div>
+              <div class="text-xl">{{ part.name }}</div>
               <Tag :value="getStatusLabel(part.status)" :severity="getStatusSeverity(part.status)" />
             </div>
           </template>
@@ -51,21 +51,22 @@
             <div class="text-sm text-700">
               <div class="mb-2">
                 <i class="pi pi-calendar mr-2"></i>
-                安装日期: {{ formatDate(part.install_date) }}
+                安装日期: {{ formatDate(part.installed_date) }}
               </div>
               <div class="mb-2">
                 <i class="pi pi-car mr-2"></i>
-                安装里程: {{ formatNumber(part.install_mileage) }} km
+                安装里程: {{ formatNumber(part.installed_mileage) }} km
               </div>
-              <div class="mb-2" v-if="part.lifespan_months || part.lifespan_km">
+              <div class="mb-2" v-if="part.recommended_replacement_months || part.recommended_replacement_mileage">
                 <i class="pi pi-clock mr-2"></i>
                 预期寿命:
-                <span v-if="part.lifespan_months">{{ part.lifespan_months }}月</span>
-                <span v-if="part.lifespan_months && part.lifespan_km"> / </span>
-                <span v-if="part.lifespan_km">{{ formatNumber(part.lifespan_km) }} km</span>
+                <span v-if="part.recommended_replacement_months">{{ part.recommended_replacement_months }}月</span>
+                <span v-if="part.recommended_replacement_months && part.recommended_replacement_mileage"> / </span>
+                <span v-if="part.recommended_replacement_mileage">{{ formatNumber(part.recommended_replacement_mileage)
+                  }} km</span>
               </div>
               <div class="mt-3 surface-200 border-round overflow-hidden" style="height: 6px"
-                v-if="part.lifespan_km && part.current_vehicle_mileage">
+                v-if="part.recommended_replacement_mileage && part.current_mileage">
                 <div class="bg-primary h-full"
                   :style="{ width: calculateHealth(part) + '%', backgroundColor: getHealthColor(part) + ' !important' }">
                 </div>
@@ -96,7 +97,7 @@
 
       <div class="field">
         <label>配件名称 *</label>
-        <InputText v-model="partForm.part_name" class="w-full" placeholder="如：空气滤芯" />
+        <InputText v-model="partForm.name" class="w-full" placeholder="如：空气滤芯" />
       </div>
 
       <div class="field">
@@ -109,22 +110,22 @@
       <div class="formgrid grid">
         <div class="field col-12 md:col-6">
           <label>日期 *</label>
-          <Calendar v-model="partForm.install_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
+          <Calendar v-model="partForm.installed_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
         </div>
         <div class="field col-12 md:col-6">
           <label>里程 (km) *</label>
-          <InputNumber v-model="partForm.install_mileage" class="w-full" :min="0" />
+          <InputNumber v-model="partForm.installed_mileage" class="w-full" :min="0" />
         </div>
       </div>
 
       <div class="formgrid grid">
         <div class="field col-12 md:col-6">
           <label>寿命 (月)</label>
-          <InputNumber v-model="partForm.lifespan_months" class="w-full" :min="0" suffix=" 月" />
+          <InputNumber v-model="partForm.recommended_replacement_months" class="w-full" :min="0" suffix=" 月" />
         </div>
         <div class="field col-12 md:col-6">
           <label>寿命 (km)</label>
-          <InputNumber v-model="partForm.lifespan_km" class="w-full" :min="0" suffix=" km" />
+          <InputNumber v-model="partForm.recommended_replacement_mileage" class="w-full" :min="0" suffix=" km" />
         </div>
       </div>
 
@@ -151,7 +152,7 @@
 
       <div class="field">
         <label>更换日期 *</label>
-        <Calendar v-model="replaceForm.date" dateFormat="yy-mm-dd" class="w-full" showIcon />
+        <Calendar v-model="replaceForm.replacement_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
       </div>
 
       <div class="field">
@@ -166,7 +167,7 @@
 
       <div class="field">
         <label>位置/供应商</label>
-        <InputText v-model="replaceForm.location" class="w-full" />
+        <InputText v-model="replaceForm.service_provider" class="w-full" />
       </div>
 
       <div class="field-checkbox">
@@ -189,15 +190,15 @@
     <Dialog v-model:visible="showHistoryDialog" header="配件更换历史" :modal="true"
       :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '700px' }" maximizable>
       <DataTable :value="historyRecords" :loading="historyLoading" stripedRows paginator :rows="10">
-        <Column field="replaced_at" header="更换日期">
+        <Column field="replacement_date" header="更换日期">
           <template #body="slotProps">
-            {{ formatDate(slotProps.data.replaced_at) }}
+            {{ formatDate(slotProps.data.replacement_date) }}
           </template>
         </Column>
-        <Column field="part_name" header="配件名称"></Column>
-        <Column field="mileage_at_replacement" header="里程">
+        <Column field="new_part_name" header="配件名称"></Column>
+        <Column field="mileage" header="里程">
           <template #body="slotProps">
-            {{ formatNumber(slotProps.data.mileage_at_replacement) }}
+            {{ formatNumber(slotProps.data.mileage) }}
           </template>
         </Column>
         <Column field="cost" header="费用">
@@ -238,22 +239,22 @@ const filters = ref({
 // 表单数据
 const defaultPartForm = {
   vehicle_id: null,
-  part_name: '',
+  name: '',
   part_number: '',
-  install_date: new Date(),
-  install_mileage: null,
-  lifespan_months: null,
-  lifespan_km: null,
+  installed_date: new Date(),
+  installed_mileage: null,
+  recommended_replacement_months: null,
+  recommended_replacement_mileage: null,
   notes: ''
 }
 
 const partForm = ref({ ...defaultPartForm })
 
 const replaceForm = ref({
-  date: new Date(),
+  replacement_date: new Date(),
   mileage: null,
   cost: null,
-  location: '',
+  service_provider: '',
   notes: '',
   reset_install: true
 })
@@ -309,7 +310,7 @@ const loadHistory = async () => {
 // 打开添加对话框
 const openAddDialog = () => {
   editingPart.value = null
-  partForm.value = { ...defaultPartForm, install_date: new Date() }
+  partForm.value = { ...defaultPartForm, installed_date: new Date() }
 
   if (vehicles.value.length === 1) {
     partForm.value.vehicle_id = vehicles.value[0].id
@@ -325,14 +326,14 @@ const editPart = (part) => {
   editingPart.value = part
   partForm.value = {
     ...part,
-    install_date: new Date(part.install_date)
+    installed_date: new Date(part.installed_date)
   }
   showDialog.value = true
 }
 
 // 保存配件
 const savePart = async () => {
-  if (!partForm.value.vehicle_id || !partForm.value.part_name || !partForm.value.install_date) {
+  if (!partForm.value.vehicle_id || !partForm.value.name || !partForm.value.installed_date) {
     toast.add({ severity: 'warn', summary: '提示', detail: '请填写必填项(车辆、名称、安装日期)', life: 3000 })
     return
   }
@@ -364,10 +365,10 @@ const savePart = async () => {
 const openReplaceDialog = (part) => {
   replacingPart.value = part
   replaceForm.value = {
-    date: new Date(),
+    replacement_date: new Date(),
     mileage: null,  // 理想情况下应自动填入车辆当前里程
     cost: null,
-    location: '',
+    service_provider: '',
     notes: '',
     reset_install: true
   }
@@ -376,7 +377,7 @@ const openReplaceDialog = (part) => {
 
 // 确认更换
 const confirmReplace = async () => {
-  if (!replaceForm.value.date || !replaceForm.value.mileage) {
+  if (!replaceForm.value.replacement_date || !replaceForm.value.mileage) {
     toast.add({ severity: 'warn', summary: '提示', detail: '请填写日期和里程', life: 3000 })
     return
   }
@@ -385,15 +386,14 @@ const confirmReplace = async () => {
   try {
     const data = {
       part_id: replacingPart.value.id,
-      vehicle_id: replacingPart.value.vehicle_id, // 需要传递 vehicle_id
-      part_name: replacingPart.value.part_name,
-      replaced_at: replaceForm.value.date,
-      mileage_at_replacement: replaceForm.value.mileage,
+      vehicle_id: replacingPart.value.vehicle_id,
+      old_part_name: replacingPart.value.name,
+      new_part_name: replacingPart.value.name, // 默认同名
+      replacement_date: replaceForm.value.replacement_date,
+      mileage: replaceForm.value.mileage,
       cost: replaceForm.value.cost,
-      location: replaceForm.value.location,
-      notes: replaceForm.value.notes,
-      // 如果勾选了重置，需要更新原配件
-      update_install_info: replaceForm.value.reset_install
+      service_provider: replaceForm.value.service_provider,
+      notes: replaceForm.value.notes
     }
 
     const res = await partsAPI.createReplacement(data)
@@ -444,10 +444,10 @@ const getStatusSeverity = (status) => {
 
 const calculateHealth = (part) => {
   // 简单模拟健康度百分比，仅基于里程
-  if (!part.lifespan_km || !part.current_vehicle_mileage || !part.install_mileage) return 100
+  if (!part.recommended_replacement_mileage || !part.current_mileage || !part.installed_mileage) return 100
 
-  const used = part.current_vehicle_mileage - part.install_mileage
-  const total = part.lifespan_km
+  const used = part.current_mileage - part.installed_mileage
+  const total = part.recommended_replacement_mileage
   const percent = Math.max(0, Math.min(100, 100 - (used / total * 100)))
   return percent
 }

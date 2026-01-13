@@ -103,24 +103,48 @@ router.post('/login', asyncHandler(async (req, res) => {
         [username]
     );
 
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
     if (!user) {
+        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 0]);
         return res.status(401).json({
             success: false,
             message: '用户名或密码错误'
         });
+    }
+
+    if (user.is_disabled) {
+        return res.status(403).json({ success: false, message: '您的账号已被禁用，请联系管理员' });
     }
 
     // 验证密码
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
+        // 增加失败次数
+        const newAttempts = (user.failed_login_attempts || 0) + 1;
+        await query('UPDATE users SET failed_login_attempts = ? WHERE id = ?', [newAttempts, user.id]);
+        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 0]);
+
+        let message = '用户名或密码错误';
+        let showReset = false;
+        if (newAttempts >= 5) {
+            message = '连续登录失败次数过多。您可以尝试重置密码。';
+            showReset = true;
+        }
+
         return res.status(401).json({
             success: false,
-            message: '用户名或密码错误'
+            message,
+            showReset
         });
     }
 
-    // 返回用户信息 (生产环境应该返回 JWT token)
+    // 登录成功，重置失败计数
+    await query('UPDATE users SET failed_login_attempts = 0 WHERE id = ?', [user.id]);
+    await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 1]);
+
+    // 返回用户信息
     res.json({
         success: true,
         message: '登录成功',
@@ -128,9 +152,74 @@ router.post('/login', asyncHandler(async (req, res) => {
             userId: user.id,
             username: user.username,
             nickname: user.nickname,
-            email: user.email
+            email: user.email,
+            role: user.role
         }
     });
+}));
+
+/**
+ * 忘记密码 - 发送重置邮件
+ */
+router.post('/forgot-password', asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: '邮箱不能为空' });
+
+    const user = await get('SELECT * FROM users WHERE email = ?', [email]);
+    if (!user) {
+        // 安全起见，即使用户不存在也返回成功感，或者提示检查邮箱
+        return res.json({ success: true, message: '如果邮箱存在，重置链接已发送' });
+    }
+
+    const token = require('crypto').randomBytes(20).toString('hex');
+    const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+    await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
+        [token, expires, user.id]);
+
+    const { sendMail } = require('../utils/mailer');
+    const resetUrl = `${req.get('origin')}/reset-password?token=${token}`;
+
+    try {
+        await sendMail({
+            to: user.email,
+            subject: 'CarNote 密码重置请求',
+            html: `<p>您收到此邮件是因为您（或他人）请求重置密码。</p>
+                   <p>请点击以下链接完成重置（有效期1小时）：</p>
+                   <a href="${resetUrl}">${resetUrl}</a>
+                   <p>如果您没有请求重置，请忽略此邮件。</p>`
+        });
+        res.json({ success: true, message: '重置链接已发送至您的邮箱' });
+    } catch (e) {
+        console.error('Mail failed:', e);
+        res.status(500).json({ success: false, message: '邮件发送失败，请联系管理员或稍后再试' });
+    }
+}));
+
+/**
+ * 重置密码 - 执行修改
+ */
+router.post('/reset-password', asyncHandler(async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ success: false, message: '参数不全' });
+
+    const user = await get('SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > ?',
+        [token, new Date().toISOString()]);
+
+    if (!user) {
+        return res.status(400).json({ success: false, message: '令牌无效或已过期' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await query(`UPDATE users 
+                 SET password_hash = ?, 
+                     reset_password_token = NULL, 
+                     reset_password_expires = NULL, 
+                     failed_login_attempts = 0 
+                 WHERE id = ?`,
+        [passwordHash, user.id]);
+
+    res.json({ success: true, message: '密码重置成功，请重新登录' });
 }));
 
 /**

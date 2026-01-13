@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AppSidebar from './layout/AppSidebar.vue'
 import AppTopbar from './layout/AppTopbar.vue'
@@ -69,20 +69,27 @@ const route = useRoute()
 const currentUser = ref(null)
 const mobileMenuVisible = ref(false)
 
-const menuItems = ref([
-  { label: '首页', icon: 'pi pi-home', path: '/' },
-  { label: '车辆管理', icon: 'pi pi-car', path: '/vehicles' },
-  { label: '能耗记录', icon: 'pi pi-bolt', path: '/energy' },
-  { label: '保养维修', icon: 'pi pi-wrench', path: '/maintenance' },
-  { label: '配件管理', icon: 'pi pi-box', path: '/parts' },
-])
+const menuItems = computed(() => {
+  const items = [
+    { label: '首页', icon: 'pi pi-home', path: '/' },
+    { label: '车辆管理', icon: 'pi pi-car', path: '/vehicles' },
+    { label: '能耗记录', icon: 'pi pi-bolt', path: '/energy' },
+    { label: '保养维修', icon: 'pi pi-wrench', path: '/maintenance' },
+    { label: '配件管理', icon: 'pi pi-box', path: '/parts' },
+  ]
+
+  if (currentUser.value?.role === 'admin') {
+    items.push({ label: '系统管理', icon: 'pi pi-shield', path: '/admin' })
+  }
+
+  return items
+})
 
 onMounted(() => {
   checkUser()
 })
 
 // Watch route changes to update user state (e.g. after login/logout)
-import { watch } from 'vue' // Ensure watch is imported
 watch(() => route.fullPath, () => {
   checkUser()
 })

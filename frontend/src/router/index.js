@@ -13,6 +13,8 @@ const Maintenance = () => import('../views/Maintenance.vue')
 const Parts = () => import('../views/Parts.vue')
 const Analytics = () => import('../views/Analytics.vue')
 const Settings = () => import('../views/Settings.vue')
+const Admin = () => import('../views/Admin.vue')
+const ResetPassword = () => import('../views/ResetPassword.vue')
 
 // 路由配置
 const routes = [
@@ -62,6 +64,17 @@ const routes = [
         name: 'Settings',
         component: Settings,
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/admin',
+        name: 'Admin',
+        component: Admin,
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: ResetPassword
     }
 ]
 
@@ -81,6 +94,15 @@ router.beforeEach((to, from, next) => {
     } else if (to.path === '/login' && userId) {
         // 已登录访问登录页，跳转到首页
         next('/')
+    } else if (to.meta.requiresAdmin) {
+        // 检查管理员权限
+        const userStr = localStorage.getItem('currentUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        if (user && user.role === 'admin') {
+            next();
+        } else {
+            next('/');
+        }
     } else {
         next()
     }

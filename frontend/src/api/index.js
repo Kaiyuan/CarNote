@@ -59,7 +59,11 @@ export const userAPI = {
     // 获取 API Keys
     getApiKeys: () => api.get('/users/api-keys'),
     // 创建 API Key
-    createApiKey: (data) => api.post('/users/api-keys', data)
+    createApiKey: (data) => api.post('/users/api-keys', data),
+    // 忘记密码
+    forgotPassword: (data) => api.post('/users/forgot-password', data),
+    // 重置密码
+    resetPassword: (data) => api.post('/users/reset-password', data)
 }
 
 // System configuration
@@ -156,6 +160,19 @@ export const exportAPI = {
 export const importAPI = {
     validate: (data) => api.post('/import/validate', { data }),
     execute: (data) => api.post('/import/execute', { data })
+}
+
+// 管理员 API
+export const adminAPI = {
+    getUsers: () => api.get('/admin/users'),
+    updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+    adminResetPassword: (id) => api.post(`/admin/users/${id}/reset-password`),
+    getSmtpConfig: () => api.get('/admin/settings/smtp'),
+    updateSmtpConfig: (data) => api.put('/admin/settings/smtp', data),
+    getLoginLogs: () => api.get('/admin/logs/login'),
+    getAllVehicles: () => api.get('/admin/vehicles'),
+    getAllEnergy: () => api.get('/admin/energy'),
+    getAllMaintenance: () => api.get('/admin/maintenance')
 }
 
 export default api;

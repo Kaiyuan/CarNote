@@ -32,16 +32,15 @@
     <!-- 列表 -->
     <DataTable :value="records" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
       responsiveLayout="stack" breakpoint="960px">
-      <Column field="service_date" header="日期" sortable>
+      <Column field="maintenance_date" header="日期" sortable>
         <template #body="slotProps">
-          {{ formatDate(slotProps.data.service_date) }}
+          {{ formatDate(slotProps.data.maintenance_date) }}
         </template>
       </Column>
       <Column field="vehicle_plate" header="车辆"></Column>
-      <Column field="service_type" header="类型">
+      <Column field="type" header="类型">
         <template #body="slotProps">
-          <Tag :value="getTypeLabel(slotProps.data.service_type)"
-            :severity="getTypeSeverity(slotProps.data.service_type)" />
+          <Tag :value="getTypeLabel(slotProps.data.type)" :severity="getTypeSeverity(slotProps.data.type)" />
         </template>
       </Column>
       <Column field="description" header="项目描述"
@@ -58,9 +57,11 @@
       </Column>
       <Column header="下次保养">
         <template #body="slotProps">
-          <div class="text-sm" v-if="slotProps.data.next_service_date || slotProps.data.next_service_mileage">
-            <div v-if="slotProps.data.next_service_date">📅 {{ formatDate(slotProps.data.next_service_date) }}</div>
-            <div v-if="slotProps.data.next_service_mileage">🚗 {{ formatNumber(slotProps.data.next_service_mileage) }}
+          <div class="text-sm" v-if="slotProps.data.next_maintenance_date || slotProps.data.next_maintenance_mileage">
+            <div v-if="slotProps.data.next_maintenance_date">📅 {{ formatDate(slotProps.data.next_maintenance_date) }}
+            </div>
+            <div v-if="slotProps.data.next_maintenance_mileage">🚗 {{
+              formatNumber(slotProps.data.next_maintenance_mileage) }}
               km</div>
           </div>
           <span v-else class="text-400">--</span>
@@ -86,11 +87,12 @@
       <div class="formgrid grid">
         <div class="field col-6">
           <label>日期 *</label>
-          <Calendar v-model="recordForm.service_date" showTime hourFormat="24" dateFormat="yy-mm-dd" class="w-full" />
+          <Calendar v-model="recordForm.maintenance_date" showTime hourFormat="24" dateFormat="yy-mm-dd"
+            class="w-full" />
         </div>
         <div class="field col-6">
           <label>类型 *</label>
-          <Dropdown v-model="recordForm.service_type" :options="serviceTypes" optionLabel="label" optionValue="value"
+          <Dropdown v-model="recordForm.type" :options="serviceTypes" optionLabel="label" optionValue="value"
             class="w-full" />
         </div>
       </div>
@@ -126,11 +128,11 @@
       <div class="formgrid grid">
         <div class="field col-6">
           <label>下次保养日期</label>
-          <Calendar v-model="recordForm.next_service_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
+          <Calendar v-model="recordForm.next_maintenance_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
         </div>
         <div class="field col-6">
           <label>下次保养里程 (km)</label>
-          <InputNumber v-model="recordForm.next_service_mileage" class="w-full" :min="0" placeholder="例如: 10000" />
+          <InputNumber v-model="recordForm.next_maintenance_mileage" class="w-full" :min="0" placeholder="例如: 10000" />
         </div>
       </div>
 
@@ -178,14 +180,14 @@ const serviceTypes = [
 // 表单数据
 const defaultForm = {
   vehicle_id: null,
-  service_date: new Date(),
-  service_type: 'maintenance',
+  maintenance_date: new Date(),
+  type: 'maintenance',
   mileage: null,
   cost: null,
   service_provider: '',
   description: '',
-  next_service_date: null,
-  next_service_mileage: null,
+  next_maintenance_date: null,
+  next_maintenance_mileage: null,
   notes: ''
 }
 
@@ -232,7 +234,7 @@ const onVehicleSelect = () => {
 // 打开添加对话框
 const openAddDialog = () => {
   editingRecord.value = null
-  recordForm.value = { ...defaultForm, service_date: new Date() }
+  recordForm.value = { ...defaultForm, maintenance_date: new Date() }
 
   // 智能预选
   if (vehicles.value.length === 1) {
@@ -249,16 +251,16 @@ const editRecord = (record) => {
   editingRecord.value = record
   recordForm.value = {
     ...record,
-    service_date: new Date(record.service_date),
-    next_service_date: record.next_service_date ? new Date(record.next_service_date) : null
+    maintenance_date: new Date(record.maintenance_date),
+    next_maintenance_date: record.next_maintenance_date ? new Date(record.next_maintenance_date) : null
   }
   showDialog.value = true
 }
 
 // 保存记录
 const saveRecord = async () => {
-  if (!recordForm.value.vehicle_id || !recordForm.value.mileage || !recordForm.value.description) {
-    toast.add({ severity: 'warn', summary: '提示', detail: '请填写必填项(车辆、里程、描述)', life: 3000 })
+  if (!recordForm.value.vehicle_id || !recordForm.value.mileage || !recordForm.value.description || !recordForm.value.type || !recordForm.value.maintenance_date) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '请填写必填项(车辆、时间、类型、里程、描述)', life: 3000 })
     return
   }
 

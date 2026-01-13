@@ -23,19 +23,26 @@
 
           <div class="field">
             <label for="password">密码</label>
-            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full" @keyup.enter="handleLogin" />
+            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full"
+              @keyup.enter="handleLogin" />
           </div>
 
           <!-- CAPTCHA (显示在2次失败后) -->
           <div v-if="showCaptcha" class="field">
             <label for="captcha">验证码 *</label>
             <div class="flex gap-2 align-items-center">
-              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary" style="min-width: 120px; text-align: center;">
+              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary"
+                style="min-width: 120px; text-align: center;">
                 {{ captchaQuestion }}
               </div>
-              <InputText id="captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1" @keyup.enter="handleLogin" />
+              <InputText id="captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1"
+                @keyup.enter="handleLogin" />
             </div>
             <small class="text-500">为了安全，请完成验证</small>
+          </div>
+
+          <div class="text-right mt-1">
+            <Button label="忘记密码？" link @click="showForgotDialog = true" class="p-0 text-sm" />
           </div>
 
           <Button label="登录" icon="pi pi-sign-in" class="w-full mt-3" @click="handleLogin" :loading="loading" />
@@ -43,6 +50,11 @@
           <div class="text-center mt-3" v-if="allowRegistration || isFirstUser">
             <span class="text-600">还没有账号？</span>
             <Button label="注册" link @click="showRegister = true" class="p-0 ml-1" />
+          </div>
+
+          <div v-if="excessiveFailures" class="mt-3">
+            <Button label="无法登录？重置密码" icon="pi pi-question-circle" severity="secondary" class="w-full p-button-sm"
+              @click="showForgotDialog = true" />
           </div>
           <div v-if="isFirstUser" class="text-center mt-2">
             <Tag severity="info" value="首次运行：请注册管理员账号" />
@@ -81,6 +93,19 @@
         </div>
       </template>
     </Card>
+
+    <!-- 忘记密码对话框 -->
+    <Dialog v-model:visible="showForgotDialog" header="忘记密码" :modal="true" style="width: 400px">
+      <p class="text-600 mb-4">请输入您的邮箱，我们将向您发送重置密码的链接。</p>
+      <div class="field">
+        <label for="forgot-email">注册邮箱</label>
+        <InputText id="forgot-email" v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
+      </div>
+      <template #footer>
+        <Button label="取消" text @click="showForgotDialog = false" />
+        <Button label="发送重置邮件" @click="handleForgotPassword" :loading="loading" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -95,9 +120,12 @@ const toast = useToast()
 
 // 状态
 const showRegister = ref(false)
+const showForgotDialog = ref(false)
+const forgotEmail = ref('')
 const loading = ref(false)
 const allowRegistration = ref(true) // Default true until checked
 const isFirstUser = ref(false)
+const excessiveFailures = ref(false)
 
 // CAPTCHA 相关
 const failedAttempts = ref(0)
@@ -171,7 +199,8 @@ const handleLogin = async () => {
       // 登录成功，重置失败计数
       failedAttempts.value = 0
       showCaptcha.value = false
-      
+      excessiveFailures.value = false
+
       // 保存用户信息
       localStorage.setItem('userId', res.data.userId)
       localStorage.setItem('currentUser', JSON.stringify(res.data))
@@ -182,19 +211,44 @@ const handleLogin = async () => {
   } catch (error) {
     // 登录失败，增加计数
     failedAttempts.value++
-    
+
+    if (error.showReset) {
+      excessiveFailures.value = true
+    }
+
     if (failedAttempts.value >= 2) {
       showCaptcha.value = true
       generateCaptcha()
-      toast.add({ 
-        severity: 'warn', 
-        summary: '安全提示', 
-        detail: '登录失败次数过多，请完成验证码验证', 
-        life: 4000 
+      toast.add({
+        severity: 'warn',
+        summary: '安全提示',
+        detail: error.message || '连续登录失败次数过多，请完成验证码验证',
+        life: 4000
       })
     } else {
       toast.add({ severity: 'error', summary: '错误', detail: error.message || '登录失败', life: 3000 })
     }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 忘记密码处理
+const handleForgotPassword = async () => {
+  if (!forgotEmail.value) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '请输入邮箱', life: 3000 })
+    return
+  }
+
+  loading.value = true
+  try {
+    const res = await userAPI.forgotPassword({ email: forgotEmail.value })
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '成功', detail: res.message, life: 5000 })
+      showForgotDialog.value = false
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '错误', detail: error.message || '发送失败', life: 3000 })
   } finally {
     loading.value = false
   }
