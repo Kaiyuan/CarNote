@@ -170,6 +170,7 @@
         <div class="p-inputgroup">
           <InputText v-model="replaceForm.service_provider" class="w-full" placeholder="修理厂/4S店" />
           <Button icon="pi pi-map-marker" @click="getCurrentLocation" v-tooltip="'获取当前位置'" />
+          <Button icon="pi pi-map" severity="secondary" @click="showMapDialog = true" v-tooltip="'在地图上选择'" />
         </div>
         <!-- 附近站点推荐 -->
         <div v-if="nearbyLocations.length > 0" class="mt-2 surface-100 p-2 border-round">
@@ -195,6 +196,12 @@
         <Button label="取消" text @click="showReplaceDialog = false" />
         <Button label="确认更换" @click="confirmReplace" :loading="saving" />
       </template>
+    </Dialog>
+
+    <!-- 地图选择对话框 -->
+    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true" :style="{ width: '90vw', maxWidth: '800px' }">
+      <LocationPicker :initialLat="replaceForm.location_lat" :initialLng="replaceForm.location_lng"
+        @confirm="onLocationSelected" />
     </Dialog>
 
     <!-- 历史记录对话框 -->
@@ -223,9 +230,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { partsAPI, vehicleAPI, locationsAPI } from '../api'
+
+const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
 
 const toast = useToast()
 
@@ -242,6 +251,7 @@ const saving = ref(false)
 const editingPart = ref(null)
 const replacingPart = ref(null)
 const nearbyLocations = ref([])
+const showMapDialog = ref(false)
 
 // 过滤器
 const filters = ref({
@@ -426,6 +436,13 @@ const selectNearby = (loc) => {
   replaceForm.value.location_lat = loc.latitude
   replaceForm.value.location_lng = loc.longitude
   toast.add({ severity: 'info', summary: '已选择站点', detail: loc.name, life: 2000 })
+}
+
+const onLocationSelected = (loc) => {
+  replaceForm.value.location_lat = loc.lat
+  replaceForm.value.location_lng = loc.lng
+  showMapDialog.value = false
+  searchNearby(loc.lat, loc.lng)
 }
 
 // 确认更换

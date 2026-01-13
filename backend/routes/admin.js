@@ -98,42 +98,153 @@ router.get('/logs/login', asyncHandler(async (req, res) => {
 
 /**
  * 全局数据管理 - 车辆
+ * 支持筛选: user_id
  */
 router.get('/vehicles', asyncHandler(async (req, res) => {
-    const vehicles = await query(`
-        SELECT v.*, u.username as owner_name 
-        FROM vehicles v 
-        JOIN users u ON v.user_id = u.id
-    `);
+    const { user_id } = req.query;
+    let sql = `SELECT v.*, u.username as owner_name 
+               FROM vehicles v 
+               JOIN users u ON v.user_id = u.id`;
+    const params = [];
+    if (user_id) {
+        sql += ' WHERE v.user_id = ?';
+        params.push(user_id);
+    }
+    const vehicles = await query(sql, params);
     res.json({ success: true, data: vehicles });
+}));
+
+router.put('/vehicles/:id', asyncHandler(async (req, res) => {
+    const { plate_number, brand, model, year, power_type, current_mileage, description } = req.body;
+    await query(
+        `UPDATE vehicles SET plate_number=?, brand=?, model=?, year=?, power_type=?, current_mileage=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [plate_number, brand, model, year, power_type, current_mileage, description, req.params.id]
+    );
+    res.json({ success: true, message: '车辆信息已更新' });
+}));
+
+router.delete('/vehicles/:id', asyncHandler(async (req, res) => {
+    await query('DELETE FROM vehicles WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '车辆已删除' });
 }));
 
 /**
  * 全局数据管理 - 能耗记录
+ * 支持筛选: user_id, vehicle_id
  */
 router.get('/energy', asyncHandler(async (req, res) => {
-    const logs = await query(`
+    const { user_id, vehicle_id } = req.query;
+    let sql = `
         SELECT e.*, v.plate_number, u.username as owner_name 
         FROM energy_logs e 
         JOIN vehicles v ON e.vehicle_id = v.id
         JOIN users u ON v.user_id = u.id
-        ORDER BY e.log_date DESC LIMIT 1000
-    `);
+        WHERE 1=1 `;
+    const params = [];
+    if (user_id) {
+        sql += ' AND u.id = ?';
+        params.push(user_id);
+    }
+    if (vehicle_id) {
+        sql += ' AND v.id = ?';
+        params.push(vehicle_id);
+    }
+    sql += ' ORDER BY e.log_date DESC LIMIT 1000';
+    const logs = await query(sql, params);
     res.json({ success: true, data: logs });
+}));
+
+router.put('/energy/:id', asyncHandler(async (req, res) => {
+    const { log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes } = req.body;
+    await query(
+        `UPDATE energy_logs SET log_date=?, mileage=?, amount=?, cost=?, energy_type=?, location_name=?, unit_price=?, is_full=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes, req.params.id]
+    );
+    res.json({ success: true, message: '能耗记录已更新' });
+}));
+
+router.delete('/energy/:id', asyncHandler(async (req, res) => {
+    await query('DELETE FROM energy_logs WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '能耗记录已删除' });
 }));
 
 /**
  * 全局数据管理 - 保养记录
+ * 支持筛选: user_id, vehicle_id
  */
 router.get('/maintenance', asyncHandler(async (req, res) => {
-    const logs = await query(`
+    const { user_id, vehicle_id } = req.query;
+    let sql = `
         SELECT m.*, v.plate_number, u.username as owner_name 
         FROM maintenance_records m 
         JOIN vehicles v ON m.vehicle_id = v.id
         JOIN users u ON v.user_id = u.id
-        ORDER BY m.maintenance_date DESC LIMIT 1000
-    `);
+        WHERE 1=1 `;
+    const params = [];
+    if (user_id) {
+        sql += ' AND u.id = ?';
+        params.push(user_id);
+    }
+    if (vehicle_id) {
+        sql += ' AND v.id = ?';
+        params.push(vehicle_id);
+    }
+    sql += ' ORDER BY m.maintenance_date DESC LIMIT 1000';
+    const logs = await query(sql, params);
     res.json({ success: true, data: logs });
+}));
+
+router.put('/maintenance/:id', asyncHandler(async (req, res) => {
+    const { maintenance_date, mileage, type, service_provider, cost, description } = req.body;
+    await query(
+        `UPDATE maintenance_records SET maintenance_date=?, mileage=?, type=?, service_provider=?, cost=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [maintenance_date, mileage, type, service_provider, cost, description, req.params.id]
+    );
+    res.json({ success: true, message: '保养记录已更新' });
+}));
+
+router.delete('/maintenance/:id', asyncHandler(async (req, res) => {
+    await query('DELETE FROM maintenance_records WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '保养记录已删除' });
+}));
+
+/**
+ * 全局数据管理 - 配件管理
+ */
+router.get('/parts', asyncHandler(async (req, res) => {
+    const { user_id, vehicle_id } = req.query;
+    let sql = `
+        SELECT p.*, v.plate_number, u.username as owner_name 
+        FROM parts p 
+        JOIN vehicles v ON p.vehicle_id = v.id
+        JOIN users u ON v.user_id = u.id
+        WHERE 1=1 `;
+    const params = [];
+    if (user_id) {
+        sql += ' AND u.id = ?';
+        params.push(user_id);
+    }
+    if (vehicle_id) {
+        sql += ' AND v.id = ?';
+        params.push(vehicle_id);
+    }
+    sql += ' ORDER BY p.created_at DESC';
+    const parts = await query(sql, params);
+    res.json({ success: true, data: parts });
+}));
+
+router.put('/parts/:id', asyncHandler(async (req, res) => {
+    const { name, part_number, installed_date, installed_mileage, status } = req.body;
+    await query(
+        `UPDATE parts SET name=?, part_number=?, installed_date=?, installed_mileage=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [name, part_number, installed_date, installed_mileage, status, req.params.id]
+    );
+    res.json({ success: true, message: '配件信息已更新' });
+}));
+
+router.delete('/parts/:id', asyncHandler(async (req, res) => {
+    await query('DELETE FROM parts WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '配件已删除' });
 }));
 
 /**

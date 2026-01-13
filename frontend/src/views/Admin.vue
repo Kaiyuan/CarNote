@@ -41,43 +41,97 @@
                 </DataTable>
             </TabPanel>
 
-            <!-- 全局数据 -->
-            <TabPanel header="全局数据">
-                <div class="grid">
-                    <div class="col-12 md:col-6 lg:col-3">
-                        <Card class="text-center shadow-1">
-                            <template #content>
-                                <i class="pi pi-car text-4xl text-blue-500 mb-2"></i>
-                                <div class="text-600">总车辆</div>
-                                <div class="text-2xl font-bold">{{ globalData.vehicles.length }}</div>
-                            </template>
-                        </Card>
-                    </div>
-                    <div class="col-12 md:col-6 lg:col-3">
-                        <Card class="text-center shadow-1">
-                            <template #content>
-                                <i class="pi pi-bolt text-4xl text-yellow-500 mb-2"></i>
-                                <div class="text-600">总记录</div>
-                                <div class="text-2xl font-bold">{{ globalData.energy.length }}</div>
-                            </template>
-                        </Card>
+            <!-- 全局数据管理 -->
+            <TabPanel header="全量数据管理">
+                <div class="surface-100 p-3 border-round mb-4">
+                    <div class="grid p-fluid">
+                        <div class="col-12 md:col-6 lg:col-3">
+                            <label class="mb-1 block">所属用户</label>
+                            <Dropdown v-model="mgmtFilters.user_id" :options="users" optionLabel="username"
+                                optionValue="id" showClear placeholder="全部用户" @change="onMgmtFilterChange" />
+                        </div>
+                        <div class="col-12 md:col-6 lg:col-3">
+                            <label class="mb-1 block">指定车辆</label>
+                            <Dropdown v-model="mgmtFilters.vehicle_id" :options="mgmtVehicles"
+                                optionLabel="plate_number" optionValue="id" showClear placeholder="全部车辆"
+                                @change="loadMgmtRecords" />
+                        </div>
                     </div>
                 </div>
 
-                <div class="mt-4">
-                    <h3>最近记录 (能耗)</h3>
-                    <DataTable :value="globalData.energy.slice(0, 10)" stripedRows>
-                        <Column field="owner_name" header="所属用户"></Column>
-                        <Column field="plate_number" header="车辆"></Column>
-                        <Column field="log_date" header="时间">
-                            <template #body="slotProps">
-                                {{ formatDate(slotProps.data.log_date) }}
-                            </template>
-                        </Column>
-                        <Column field="amount" header="数量"></Column>
-                        <Column field="cost" header="花费"></Column>
-                    </DataTable>
-                </div>
+                <TabView>
+                    <TabPanel header="车辆列表">
+                        <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="10">
+                            <Column field="owner_name" header="所属用户"></Column>
+                            <Column field="plate_number" header="车牌号"></Column>
+                            <Column field="brand" header="品牌"></Column>
+                            <Column field="buy_date" header="购车日期">
+                                <template #body="slotProps">{{ formatDate(slotProps.data.buy_date) }}</template>
+                            </Column>
+                            <Column header="操作">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded
+                                        @click="editMgmtItem('vehicle', slotProps.data)" />
+                                    <Button icon="pi pi-trash" text rounded severity="danger"
+                                        @click="deleteMgmtItem('vehicle', slotProps.data.id)" />
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </TabPanel>
+                    <TabPanel header="能耗记录">
+                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10">
+                            <Column field="owner_name" header="用户"></Column>
+                            <Column field="plate_number" header="车辆"></Column>
+                            <Column field="log_date" header="日期">
+                                <template #body="slotProps">{{ formatDate(slotProps.data.log_date) }}</template>
+                            </Column>
+                            <Column field="amount" header="数量"></Column>
+                            <Column field="cost" header="花费"></Column>
+                            <Column header="操作">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded
+                                        @click="editMgmtItem('energy', slotProps.data)" />
+                                    <Button icon="pi pi-trash" text rounded severity="danger"
+                                        @click="deleteMgmtItem('energy', slotProps.data.id)" />
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </TabPanel>
+                    <TabPanel header="保养维修">
+                        <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="10">
+                            <Column field="owner_name" header="用户"></Column>
+                            <Column field="plate_number" header="车辆"></Column>
+                            <Column field="maintenance_date" header="日期">
+                                <template #body="slotProps">{{ formatDate(slotProps.data.maintenance_date) }}</template>
+                            </Column>
+                            <Column field="description" header="项目"></Column>
+                            <Column header="操作">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded
+                                        @click="editMgmtItem('maintenance', slotProps.data)" />
+                                    <Button icon="pi pi-trash" text rounded severity="danger"
+                                        @click="deleteMgmtItem('maintenance', slotProps.data.id)" />
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </TabPanel>
+                    <TabPanel header="配件管理">
+                        <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="10">
+                            <Column field="owner_name" header="用户"></Column>
+                            <Column field="plate_number" header="车辆"></Column>
+                            <Column field="name" header="配件名"></Column>
+                            <Column field="status" header="状态"></Column>
+                            <Column header="操作">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded
+                                        @click="editMgmtItem('part', slotProps.data)" />
+                                    <Button icon="pi pi-trash" text rounded severity="danger"
+                                        @click="deleteMgmtItem('part', slotProps.data.id)" />
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </TabPanel>
+                </TabView>
             </TabPanel>
 
             <!-- 登录日志 -->
@@ -216,6 +270,102 @@
             </template>
         </Dialog>
 
+        <!-- 通用管理项编辑对话框 (车辆) -->
+        <Dialog v-model:visible="mgmtDialogs.vehicle" header="编辑车辆" :modal="true" style="width: 450px">
+            <div class="field mb-3"><label>牌号</label>
+                <InputText v-model="mgmtForm.plate_number" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>品牌</label>
+                <InputText v-model="mgmtForm.brand" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>型号</label>
+                <InputText v-model="mgmtForm.model" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>年份</label>
+                <InputNumber v-model="mgmtForm.year" :useGrouping="false" class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>动力类型</label>
+                <Dropdown v-model="mgmtForm.power_type" :options="['fuel', 'electric', 'hybrid']" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>里程 (km)</label>
+                <InputNumber v-model="mgmtForm.current_mileage" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>说明</label><Textarea v-model="mgmtForm.description" rows="2" class="w-full" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="mgmtDialogs.vehicle = false" />
+                <Button label="保存" @click="saveMgmtItem('vehicle')" />
+            </template>
+        </Dialog>
+
+        <!-- 通用管理项编辑对话框 (能耗) -->
+        <Dialog v-model:visible="mgmtDialogs.energy" header="编辑能耗记录" :modal="true" style="width: 450px">
+            <div class="field mb-3"><label>日期</label>
+                <Calendar v-model="mgmtForm.log_date" class="w-full" dateFormat="yy-mm-dd" showTime hourFormat="24" />
+            </div>
+            <div class="field mb-3"><label>里程 (km)</label>
+                <InputNumber v-model="mgmtForm.mileage" class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>类型</label>
+                <Dropdown v-model="mgmtForm.energy_type" :options="['fuel', 'electric']" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>数量 (L/kWh)</label>
+                <InputNumber v-model="mgmtForm.amount" class="w-full" :minFractionDigits="2" />
+            </div>
+            <div class="field mb-3"><label>单价 (元)</label>
+                <InputNumber v-model="mgmtForm.unit_price" class="w-full" :minFractionDigits="2" />
+            </div>
+            <div class="field mb-3"><label>总计 (元)</label>
+                <InputNumber v-model="mgmtForm.cost" class="w-full" :minFractionDigits="2" />
+            </div>
+            <div class="field mb-3"><label>位置</label>
+                <InputText v-model="mgmtForm.location_name" class="w-full" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="mgmtDialogs.energy = false" />
+                <Button label="保存" @click="saveMgmtItem('energy')" />
+            </template>
+        </Dialog>
+
+        <!-- 通用管理项编辑对话框 (保养) -->
+        <Dialog v-model:visible="mgmtDialogs.maintenance" header="编辑保养记录" :modal="true" style="width: 450px">
+            <div class="field mb-3"><label>日期</label>
+                <Calendar v-model="mgmtForm.maintenance_date" class="w-full" dateFormat="yy-mm-dd" />
+            </div>
+            <div class="field mb-3"><label>里程 (km)</label>
+                <InputNumber v-model="mgmtForm.mileage" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>描述</label>
+                <InputText v-model="mgmtForm.description" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>金额 (元)</label>
+                <InputNumber v-model="mgmtForm.cost" class="w-full" :minFractionDigits="2" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="mgmtDialogs.maintenance = false" />
+                <Button label="保存" @click="saveMgmtItem('maintenance')" />
+            </template>
+        </Dialog>
+
+        <!-- 配件编辑对话框 -->
+        <Dialog v-model:visible="mgmtDialogs.part" header="编辑配件信息" :modal="true" style="width: 450px">
+            <div class="field mb-3"><label>配件名称</label>
+                <InputText v-model="mgmtForm.name" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>配件编号</label>
+                <InputText v-model="mgmtForm.part_number" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>状态</label>
+                <Dropdown v-model="mgmtForm.status" :options="['normal', 'warning', 'critical']" class="w-full" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="mgmtDialogs.part = false" />
+                <Button label="保存" @click="saveMgmtItem('part')" />
+            </template>
+        </Dialog>
+
         <!-- 密码重置显示对话框 -->
         <Dialog v-model:visible="showGeneratedPwd" header="密码已重置" :modal="true" style="width: 400px">
             <div class="text-center py-4">
@@ -245,11 +395,24 @@ const saving = ref(false)
 const users = ref([])
 const loginLogs = ref([])
 const smtpConfig = ref({})
-const globalData = ref({
+const mgmtData = ref({
     vehicles: [],
     energy: [],
-    maintenance: []
+    maintenance: [],
+    parts: []
 })
+const mgmtVehicles = ref([])
+const mgmtFilters = ref({
+    user_id: null,
+    vehicle_id: null
+})
+const mgmtDialogs = ref({
+    vehicle: false,
+    energy: false,
+    maintenance: false,
+    part: false
+})
+const mgmtForm = ref({})
 const adminLocations = ref([])
 
 // 站点表单
@@ -295,17 +458,81 @@ const loadSmtp = async () => {
     } catch (e) { }
 }
 
-const loadGlobalData = async () => {
+const loadMgmtRecords = async () => {
+    loading.value = true
     try {
-        const [vRes, eRes, mRes] = await Promise.all([
-            adminAPI.getAllVehicles(),
-            adminAPI.getAllEnergy(),
-            adminAPI.getAllMaintenance()
+        const params = { ...mgmtFilters.value }
+        const [vRes, eRes, mRes, pRes] = await Promise.all([
+            adminAPI.getAllVehicles(params),
+            adminAPI.getAllEnergy(params),
+            adminAPI.getAllMaintenance(params),
+            adminAPI.getAllParts(params)
         ])
-        if (vRes.success) globalData.value.vehicles = vRes.data
-        if (eRes.success) globalData.value.energy = eRes.data
-        if (mRes.success) globalData.value.maintenance = mRes.data
-    } catch (e) { }
+        if (vRes.success) mgmtData.value.vehicles = vRes.data
+        if (eRes.success) mgmtData.value.energy = eRes.data
+        if (mRes.success) mgmtData.value.maintenance = mRes.data
+        if (pRes.success) mgmtData.value.parts = pRes.data
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '加载失败', detail: '数据加载失败' })
+    } finally {
+        loading.value = false
+    }
+}
+
+const onMgmtFilterChange = async () => {
+    mgmtFilters.value.vehicle_id = null
+    if (mgmtFilters.value.user_id) {
+        const res = await adminAPI.getAllVehicles({ user_id: mgmtFilters.value.user_id })
+        if (res.success) mgmtVehicles.value = res.data
+    } else {
+        mgmtVehicles.value = []
+    }
+    loadMgmtRecords()
+}
+
+const editMgmtItem = (type, item) => {
+    mgmtForm.value = { ...item }
+    if (mgmtForm.value.log_date) mgmtForm.value.log_date = new Date(mgmtForm.value.log_date)
+    if (mgmtForm.value.maintenance_date) mgmtForm.value.maintenance_date = new Date(mgmtForm.value.maintenance_date)
+    if (mgmtForm.value.buy_date) mgmtForm.value.buy_date = new Date(mgmtForm.value.buy_date)
+    mgmtDialogs.value[type] = true
+}
+
+const saveMgmtItem = async (type) => {
+    try {
+        let res
+        const id = mgmtForm.value.id
+        if (type === 'vehicle') res = await adminAPI.updateVehicle(id, mgmtForm.value)
+        else if (type === 'energy') res = await adminAPI.updateEnergy(id, mgmtForm.value)
+        else if (type === 'maintenance') res = await adminAPI.updateMaintenance(id, mgmtForm.value)
+        else if (type === 'part') res = await adminAPI.updatePart(id, mgmtForm.value)
+
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '成功', detail: '操作已完成' })
+            mgmtDialogs.value[type] = false
+            loadMgmtRecords()
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '保存失败' })
+    }
+}
+
+const deleteMgmtItem = async (type, id) => {
+    if (!confirm('确定要删除此记录吗？')) return
+    try {
+        let res
+        if (type === 'vehicle') res = await adminAPI.deleteVehicle(id)
+        else if (type === 'energy') res = await adminAPI.deleteEnergy(id)
+        else if (type === 'maintenance') res = await adminAPI.deleteMaintenance(id)
+        else if (type === 'part') res = await adminAPI.deletePart(id)
+
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '成功', detail: '已删除' })
+            loadMgmtRecords()
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '删除失败' })
+    }
 }
 
 const loadAdminLocations = async () => {
@@ -412,7 +639,7 @@ const deleteLocation = async (id) => {
 // Watch active tab to load data lazily
 watch(activeTab, (idx) => {
     if (idx === 0) loadUsers()
-    if (idx === 1) loadGlobalData()
+    if (idx === 1) loadMgmtRecords()
     if (idx === 2) loadLogs()
     if (idx === 3) loadAdminLocations()
     if (idx === 4) loadSmtp()
