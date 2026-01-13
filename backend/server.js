@@ -12,6 +12,37 @@ require('dotenv').config();
 const { initDatabase } = require('./config/database');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
+// 日志配置 - 将日志存放在数据库相同目录
+const dbPath = process.env.SQLITE_PATH || './data/carnote.db';
+const dbDir = path.isAbsolute(dbPath) ? path.dirname(dbPath) : path.join(__dirname, path.dirname(dbPath));
+const logPath = path.join(dbDir, 'app.log');
+
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+const originalLog = console.log;
+const originalError = console.error;
+
+const formatLog = (level, args) => {
+    const timestamp = new Date().toISOString();
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+    return `[${timestamp}] [${level}] ${message}\n`;
+};
+
+console.log = (...args) => {
+    logStream.write(formatLog('INFO', args));
+    originalLog.apply(console, args);
+};
+
+console.error = (...args) => {
+    logStream.write(formatLog('ERROR', args));
+    originalError.apply(console, args);
+};
+
+console.log('日志系统已启动，日志文件:', logPath);
+
 // 创建 Express 应用
 const app = express();
 const PORT = process.env.PORT || 53300;
