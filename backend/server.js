@@ -50,8 +50,8 @@ app.use('/api/maintenance', require('./routes/maintenance'));
 app.use('/api/parts', require('./routes/parts'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/system', require('./routes/system'));
-app.use('/api/import', require('./routes/import'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/locations', require('./routes/locations').router);
 
 // 静态文件服务 - 前端构建产物
 if (fs.existsSync(FRONTEND_PATH)) {

@@ -172,7 +172,15 @@ export const adminAPI = {
     getLoginLogs: () => api.get('/admin/logs/login'),
     getAllVehicles: () => api.get('/admin/vehicles'),
     getAllEnergy: () => api.get('/admin/energy'),
-    getAllMaintenance: () => api.get('/admin/maintenance')
+    getAllMaintenance: () => api.get('/admin/maintenance'),
+    getLocations: () => api.get('/admin/locations'),
+    updateLocation: (id, data) => api.put(`/admin/locations/${id}`, data),
+    deleteLocation: (id) => api.delete(`/admin/locations/${id}`)
+}
+
+// Locations API
+export const locationsAPI = {
+    searchNearby: (params) => api.get('/locations/nearby', { params })
 }
 
 export default api;

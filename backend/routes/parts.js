@@ -287,7 +287,10 @@ router.post('/replacements', authenticateUser, asyncHandler(async (req, res) => 
         part_number,
         cost,
         service_provider,
-        notes
+        notes,
+        location_name,
+        location_lat,
+        location_lng
     } = req.body;
 
     // 验证必填字段
@@ -313,19 +316,25 @@ router.post('/replacements', authenticateUser, asyncHandler(async (req, res) => 
 
     // 插入更换记录
     const result = await query(
-        `INSERT INTO part_replacements 
-         (vehicle_id, part_id, replacement_date, mileage, old_part_name, new_part_name,
-          part_number, cost, service_provider, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, part_id, replacement_date, mileage, old_part_name, new_part_name,
-            part_number, cost, service_provider, notes]
+        `INSERT INTO part_replacements
+         (vehicle_id, part_id, replacement_date, mileage, old_part_name,
+          new_part_name, part_number, cost, service_provider, notes,
+          location_name, location_lat, location_lng)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [vehicle_id, part_id || null, replacement_date, mileage, old_part_name,
+            new_part_name, part_number, cost, service_provider, notes,
+            location_name, location_lat, location_lng]
     );
+
+    // 同步到共享位置库
+    const { syncToSharedLocation } = require('./locations');
+    await syncToSharedLocation(location_name || service_provider, location_lat, location_lng, 'maintenance', req.userId);
 
     // 如果关联了配件ID，更新配件的安装信息
     if (part_id) {
         await query(
-            `UPDATE parts 
-             SET installed_date = ?, installed_mileage = ?, status = 'normal', 
+            `UPDATE parts
+             SET installed_date = ?, installed_mileage = ?, status = 'normal',
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [replacement_date, mileage, part_id]

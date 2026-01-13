@@ -100,6 +100,34 @@
                 </DataTable>
             </TabPanel>
 
+            <!-- 站点管理 -->
+            <TabPanel header="站点管理">
+                <div class="mb-4 flex justify-content-between align-items-center">
+                    <h2 class="m-0">共享站点/店面</h2>
+                    <Button icon="pi pi-refresh" rounded text @click="loadAdminLocations" />
+                </div>
+                <DataTable :value="adminLocations" :loading="loading" stripedRows paginator :rows="10">
+                    <Column field="name" header="名称" sortable></Column>
+                    <Column field="type" header="类型">
+                        <template #body="slotProps">
+                            <Tag :value="slotProps.data.type" severity="info" />
+                        </template>
+                    </Column>
+                    <Column field="latitude" header="纬度"></Column>
+                    <Column field="longitude" header="经度"></Column>
+                    <Column field="usage_count" header="使用次数" sortable></Column>
+                    <Column header="操作">
+                        <template #body="slotProps">
+                            <div class="flex gap-2">
+                                <Button icon="pi pi-pencil" rounded text @click="editLocation(slotProps.data)" />
+                                <Button icon="pi pi-trash" rounded text severity="danger"
+                                    @click="deleteLocation(slotProps.data.id)" />
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
+            </TabPanel>
+
             <!-- 系统设置 -->
             <TabPanel header="系统设置">
                 <div class="grid">
@@ -162,6 +190,32 @@
             </template>
         </Dialog>
 
+        <!-- 站点编辑对话框 -->
+        <Dialog v-model:visible="locationDialog" header="编辑站点" :modal="true" style="width: 450px">
+            <div class="field mb-3">
+                <label>名称</label>
+                <InputText v-model="locationForm.name" class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>类型</label>
+                <Dropdown v-model="locationForm.type" :options="['energy', 'maintenance']" class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>纬度</label>
+                <InputNumber v-model="locationForm.latitude" :minFractionDigits="2" :maxFractionDigits="7"
+                    class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>经度</label>
+                <InputNumber v-model="locationForm.longitude" :minFractionDigits="2" :maxFractionDigits="7"
+                    class="w-full" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="locationDialog = false" />
+                <Button label="保存" @click="saveLocation" />
+            </template>
+        </Dialog>
+
         <!-- 密码重置显示对话框 -->
         <Dialog v-model:visible="showGeneratedPwd" header="密码已重置" :modal="true" style="width: 400px">
             <div class="text-center py-4">
@@ -196,6 +250,11 @@ const globalData = ref({
     energy: [],
     maintenance: []
 })
+const adminLocations = ref([])
+
+// 站点表单
+const locationDialog = ref(false)
+const locationForm = ref({})
 
 // 用户表单
 const userDialog = ref(false)
@@ -247,6 +306,18 @@ const loadGlobalData = async () => {
         if (eRes.success) globalData.value.energy = eRes.data
         if (mRes.success) globalData.value.maintenance = mRes.data
     } catch (e) { }
+}
+
+const loadAdminLocations = async () => {
+    loading.value = true
+    try {
+        const res = await adminAPI.getLocations()
+        if (res.success) adminLocations.value = res.data
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '加载失败', detail: '站点列表加载失败' })
+    } finally {
+        loading.value = false
+    }
 }
 
 const editUser = (user) => {
@@ -307,12 +378,44 @@ const saveSmtp = async () => {
     }
 }
 
+const editLocation = (loc) => {
+    locationForm.value = { ...loc }
+    locationDialog.value = true
+}
+
+const saveLocation = async () => {
+    try {
+        const res = await adminAPI.updateLocation(locationForm.value.id, locationForm.value)
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '成功', detail: '站点已更新' })
+            locationDialog.value = false
+            loadAdminLocations()
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '保存失败' })
+    }
+}
+
+const deleteLocation = async (id) => {
+    if (!confirm('确定要删除此站点吗？')) return
+    try {
+        const res = await adminAPI.deleteLocation(id)
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '成功', detail: '站点已删除' })
+            loadAdminLocations()
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '删除失败' })
+    }
+}
+
 // Watch active tab to load data lazily
 watch(activeTab, (idx) => {
     if (idx === 0) loadUsers()
     if (idx === 1) loadGlobalData()
     if (idx === 2) loadLogs()
-    if (idx === 3) loadSmtp()
+    if (idx === 3) loadAdminLocations()
+    if (idx === 4) loadSmtp()
 })
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''

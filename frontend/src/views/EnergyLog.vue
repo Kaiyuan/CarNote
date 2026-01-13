@@ -116,11 +116,19 @@
       </div>
 
       <div class="field">
-        <label>位置</label>
+        <label>位置 (补能站名称)</label>
         <div class="p-inputgroup">
-          <InputText v-model="logForm.location_name" placeholder="输入或获取位置" />
+          <InputText v-model="logForm.location_name" placeholder="输入补能站/站点名称" />
           <Button icon="pi pi-map-marker" @click="getCurrentLocation" v-tooltip="'获取当前位置'" />
           <Button icon="pi pi-map" severity="secondary" @click="showMapDialog = true" v-tooltip="'在地图上选择'" />
+        </div>
+        <!-- 附近站点推荐 -->
+        <div v-if="nearbyLocations.length > 0" class="mt-2 surface-100 p-2 border-round">
+          <small class="text-600 block mb-1">发现附近站点 (点击自动填写):</small>
+          <div class="flex flex-wrap gap-2">
+            <Button v-for="loc in nearbyLocations" :key="loc.name" :label="loc.name" size="small" outlined
+              severity="info" class="p-1 text-xs" @click="selectNearby(loc)" />
+          </div>
         </div>
       </div>
 
@@ -143,10 +151,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter, useRoute } from 'vue-router'
-import { energyAPI, vehicleAPI } from '../api'
+import { energyAPI, vehicleAPI, locationsAPI } from '../api'
 
 const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
 
@@ -164,6 +172,7 @@ const showDialog = ref(false)
 const showMapDialog = ref(false) // 地图对话框
 const saving = ref(false)
 const editingLog = ref(null)
+const nearbyLocations = ref([])
 
 // 过滤器
 const filters = ref({
@@ -292,6 +301,7 @@ const openAddDialog = () => {
     onVehicleSelect()
   }
 
+  nearbyLocations.value = []
   showDialog.value = true
 }
 
@@ -368,28 +378,46 @@ const deleteLog = async (id) => {
 // 获取浏览器当前位置
 const getCurrentLocation = () => {
   if ("geolocation" in navigator) {
-    navigator.query({ name: 'permissions', permission: 'geolocation' }).then((result) => {
-      // 简单的获取位置
-      navigator.geolocation.getCurrentPosition((position) => {
-        logForm.value.location_lat = position.coords.latitude
-        logForm.value.location_lng = position.coords.longitude
-        logForm.value.location_name = `Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`
-        toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
-      }, (error) => {
-        toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
-      });
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+      logForm.value.location_lat = lat
+      logForm.value.location_lng = lng
+
+      toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
+      searchNearby(lat, lng)
+    }, (error) => {
+      toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
     });
   } else {
     toast.add({ severity: 'warn', summary: '不支持', detail: '您的浏览器不支持地理位置', life: 3000 })
   }
 }
 
+// 搜索附近站点
+const searchNearby = async (lat, lng) => {
+  try {
+    const res = await locationsAPI.searchNearby({ lat, lng })
+    if (res.success) {
+      nearbyLocations.value = res.data
+    }
+  } catch (e) {
+    console.error('Nearby search failed', e)
+  }
+}
+
+const selectNearby = (loc) => {
+  logForm.value.location_name = loc.name
+  logForm.value.location_lat = loc.latitude
+  logForm.value.location_lng = loc.longitude
+  toast.add({ severity: 'info', summary: '已选择站点', detail: loc.name, life: 2000 })
+}
+
 const onLocationSelected = (loc) => {
   logForm.value.location_lat = loc.lat
   logForm.value.location_lng = loc.lng
-  logForm.value.location_name = `Lat: ${loc.lat.toFixed(4)}, Lng: ${loc.lng.toFixed(4)}`
   showMapDialog.value = false
-  toast.add({ severity: 'success', summary: '已选择', detail: '位置已更新', life: 2000 })
+  searchNearby(loc.lat, loc.lng)
 }
 
 // 日期选择后自动关闭（Calendar组件会自动处理）

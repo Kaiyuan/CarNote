@@ -110,7 +110,18 @@
 
       <div class="field">
         <label>服务提供商 (4S店/修理厂)</label>
-        <InputText v-model="recordForm.service_provider" class="w-full" />
+        <div class="p-inputgroup">
+          <InputText v-model="recordForm.service_provider" class="w-full" placeholder="输入店名" />
+          <Button icon="pi pi-map-marker" @click="getCurrentLocation" v-tooltip="'获取当前位置'" />
+        </div>
+        <!-- 附近站点推荐 -->
+        <div v-if="nearbyLocations.length > 0" class="mt-2 surface-100 p-2 border-round">
+          <small class="text-600 block mb-1">发现附近站点 (点击自动填写):</small>
+          <div class="flex flex-wrap gap-2">
+            <Button v-for="loc in nearbyLocations" :key="loc.name" :label="loc.name" size="small" outlined
+              severity="info" class="p-1 text-xs" @click="selectNearby(loc)" />
+          </div>
+        </div>
       </div>
 
       <div class="field">
@@ -152,7 +163,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { maintenanceAPI, vehicleAPI } from '../api'
+import { maintenanceAPI, vehicleAPI, locationsAPI } from '../api'
 
 const toast = useToast()
 
@@ -163,6 +174,7 @@ const loading = ref(false)
 const showDialog = ref(false)
 const saving = ref(false)
 const editingRecord = ref(null)
+const nearbyLocations = ref([])
 
 // 过滤器
 const filters = ref({
@@ -186,9 +198,11 @@ const defaultForm = {
   cost: null,
   service_provider: '',
   description: '',
-  next_maintenance_date: null,
   next_maintenance_mileage: null,
-  notes: ''
+  notes: '',
+  location_name: '',
+  location_lat: null,
+  location_lng: null
 }
 
 const recordForm = ref({ ...defaultForm })
@@ -243,6 +257,7 @@ const openAddDialog = () => {
     recordForm.value.vehicle_id = filters.value.vehicle_id
   }
 
+  nearbyLocations.value = []
   showDialog.value = true
 }
 
@@ -287,10 +302,45 @@ const saveRecord = async () => {
   }
 }
 
-// 删除记录
+// 获取浏览器当前位置
+const getCurrentLocation = () => {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+      recordForm.value.location_lat = lat
+      recordForm.value.location_lng = lng
+      toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
+      searchNearby(lat, lng)
+    }, (error) => {
+      toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
+    });
+  } else {
+    toast.add({ severity: 'warn', summary: '不支持', detail: '您的浏览器不支持地理位置', life: 3000 })
+  }
+}
+
+const searchNearby = async (lat, lng) => {
+  try {
+    const res = await locationsAPI.searchNearby({ lat, lng })
+    if (res.success) {
+      nearbyLocations.value = res.data
+    }
+  } catch (e) {
+    console.error('Nearby search failed', e)
+  }
+}
+
+const selectNearby = (loc) => {
+  recordForm.value.service_provider = loc.name
+  recordForm.value.location_name = loc.name
+  recordForm.value.location_lat = loc.latitude
+  recordForm.value.location_lng = loc.longitude
+  toast.add({ severity: 'info', summary: '已选择站点', detail: loc.name, life: 2000 })
+}
+
 const deleteRecord = async (id) => {
   if (!confirm('确定要删除这条记录吗？')) return
-
   try {
     const res = await maintenanceAPI.delete(id)
     if (res.success) {

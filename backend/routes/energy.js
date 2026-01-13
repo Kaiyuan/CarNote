@@ -138,10 +138,14 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
           fuel_gauge_reading, is_full,
           location_name, location_lat, location_lng, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price,
-            fuel_gauge_reading, is_full ? 1 : 0,
+        [vehicle_id, log_date, mileage, energy_type, amount, cost || 0, unit_price || 0,
+            fuel_gauge_reading || 0, is_full ? 1 : 0,
             location_name, location_lat, location_lng, notes]
     );
+
+    // 同步到共享位置库
+    const { syncToSharedLocation } = require('./locations');
+    await syncToSharedLocation(location_name, location_lat, location_lng, 'energy', req.userId);
 
     // 触发全局重算 (确保链条准确)
     await recalculateVehicleLogs(vehicle_id);
@@ -211,7 +215,7 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
          (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, is_full,
           location_name, location_lat, location_lng)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, isFullVal,
+        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, is_full ? 1 : 0,
             location_name, location_lat, location_lng]
     );
 
@@ -396,6 +400,10 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         [log_date, mileage, energy_type, amount, cost, unit_price, fuel_gauge_reading,
             is_full ? 1 : 0, location_name, location_lat, location_lng, notes, req.params.id]
     );
+
+    // 同步到共享位置库
+    const { syncToSharedLocation } = require('./locations');
+    await syncToSharedLocation(location_name, location_lat, location_lng, 'energy', req.userId);
 
     // 触发全局重算
     await recalculateVehicleLogs(log.vehicle_id);

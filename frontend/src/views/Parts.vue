@@ -63,7 +63,7 @@
                 <span v-if="part.recommended_replacement_months">{{ part.recommended_replacement_months }}月</span>
                 <span v-if="part.recommended_replacement_months && part.recommended_replacement_mileage"> / </span>
                 <span v-if="part.recommended_replacement_mileage">{{ formatNumber(part.recommended_replacement_mileage)
-                  }} km</span>
+                }} km</span>
               </div>
               <div class="mt-3 surface-200 border-round overflow-hidden" style="height: 6px"
                 v-if="part.recommended_replacement_mileage && part.current_mileage">
@@ -167,7 +167,18 @@
 
       <div class="field">
         <label>位置/供应商</label>
-        <InputText v-model="replaceForm.service_provider" class="w-full" />
+        <div class="p-inputgroup">
+          <InputText v-model="replaceForm.service_provider" class="w-full" placeholder="修理厂/4S店" />
+          <Button icon="pi pi-map-marker" @click="getCurrentLocation" v-tooltip="'获取当前位置'" />
+        </div>
+        <!-- 附近站点推荐 -->
+        <div v-if="nearbyLocations.length > 0" class="mt-2 surface-100 p-2 border-round">
+          <small class="text-600 block mb-1">发现附近店面 (点击自动填写):</small>
+          <div class="flex flex-wrap gap-2">
+            <Button v-for="loc in nearbyLocations" :key="loc.name" :label="loc.name" size="small" outlined
+              severity="info" class="p-1 text-xs" @click="selectNearby(loc)" />
+          </div>
+        </div>
       </div>
 
       <div class="field-checkbox">
@@ -214,7 +225,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { partsAPI, vehicleAPI } from '../api'
+import { partsAPI, vehicleAPI, locationsAPI } from '../api'
 
 const toast = useToast()
 
@@ -230,6 +241,7 @@ const showHistoryDialog = ref(false)
 const saving = ref(false)
 const editingPart = ref(null)
 const replacingPart = ref(null)
+const nearbyLocations = ref([])
 
 // 过滤器
 const filters = ref({
@@ -256,7 +268,10 @@ const replaceForm = ref({
   cost: null,
   service_provider: '',
   notes: '',
-  reset_install: true
+  reset_install: true,
+  location_name: '',
+  location_lat: null,
+  location_lng: null
 })
 
 // 获取车辆列表
@@ -372,7 +387,45 @@ const openReplaceDialog = (part) => {
     notes: '',
     reset_install: true
   }
+  nearbyLocations.value = []
   showReplaceDialog.value = true
+}
+
+// 获取浏览器当前位置
+const getCurrentLocation = () => {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+      replaceForm.value.location_lat = lat
+      replaceForm.value.location_lng = lng
+      toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
+      searchNearby(lat, lng)
+    }, (error) => {
+      toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
+    });
+  } else {
+    toast.add({ severity: 'warn', summary: '不支持', detail: '您的浏览器不支持地理位置', life: 3000 })
+  }
+}
+
+const searchNearby = async (lat, lng) => {
+  try {
+    const res = await locationsAPI.searchNearby({ lat, lng })
+    if (res.success) {
+      nearbyLocations.value = res.data
+    }
+  } catch (e) {
+    console.error('Nearby search failed', e)
+  }
+}
+
+const selectNearby = (loc) => {
+  replaceForm.value.service_provider = loc.name
+  replaceForm.value.location_name = loc.name
+  replaceForm.value.location_lat = loc.latitude
+  replaceForm.value.location_lng = loc.longitude
+  toast.add({ severity: 'info', summary: '已选择站点', detail: loc.name, life: 2000 })
 }
 
 // 确认更换
@@ -393,7 +446,10 @@ const confirmReplace = async () => {
       mileage: replaceForm.value.mileage,
       cost: replaceForm.value.cost,
       service_provider: replaceForm.value.service_provider,
-      notes: replaceForm.value.notes
+      notes: replaceForm.value.notes,
+      location_name: replaceForm.value.location_name,
+      location_lat: replaceForm.value.location_lat,
+      location_lng: replaceForm.value.location_lng
     }
 
     const res = await partsAPI.createReplacement(data)

@@ -136,4 +136,34 @@ router.get('/maintenance', asyncHandler(async (req, res) => {
     res.json({ success: true, data: logs });
 }));
 
+/**
+ * 获取共享站点列表
+ */
+router.get('/locations', asyncHandler(async (req, res) => {
+    const locations = await query('SELECT * FROM shared_locations ORDER BY usage_count DESC');
+    res.json({ success: true, data: locations });
+}));
+
+/**
+ * 更新站点信息
+ */
+router.put('/locations/:id', asyncHandler(async (req, res) => {
+    const { name, type, address, latitude, longitude } = req.body;
+    await query(
+        `UPDATE shared_locations 
+         SET name = ?, type = ?, address = ?, latitude = ?, longitude = ?, updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [name, type, address, latitude, longitude, req.params.id]
+    );
+    res.json({ success: true, message: '站点信息已更新' });
+}));
+
+/**
+ * 删除站点
+ */
+router.delete('/locations/:id', asyncHandler(async (req, res) => {
+    await query('DELETE FROM shared_locations WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: '站点已删除' });
+}));
+
 module.exports = router;
