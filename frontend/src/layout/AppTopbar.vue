@@ -2,7 +2,7 @@
     <div class="layout-topbar flex justify-content-between align-items-center px-4 py-3 bg-transparent">
         <!-- Breadcrumb / Title area -->
         <div class="flex align-items-center">
-            <h2 class="m-0 text-900 font-semibold">{{ siteStore.state.siteName }}</h2>
+            <h2 class="m-0 text-900 font-semibold hidden md:block">{{ siteStore.state.siteName }}</h2>
         </div>
 
         <!-- Actions -->
