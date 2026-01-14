@@ -27,7 +27,7 @@
 
     <!-- 记录列表 -->
     <DataTable :value="logs" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
-      responsiveLayout="stack" breakpoint="960px">
+      responsiveLayout="stack" breakpoint="960px" class="responsive-table">
       <Column field="log_date" header="日期" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.log_date) }}
@@ -75,7 +75,7 @@
 
     <!-- 添加/编辑对话框 -->
     <Dialog v-model:visible="showDialog" :header="editingLog ? '编辑记录' : '添加能耗记录'" :modal="true"
-      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
+      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="logForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -142,8 +142,9 @@
         <Button label="保存" @click="saveLog" :loading="saving" />
       </template>
     </Dialog>
+    <!-- 地图选择对话框 -->
     <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
-      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px' }">
+      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker v-if="showMapDialog" :initialLat="logForm.location_lat" :initialLng="logForm.location_lng"
         @confirm="onLocationSelected" />
     </Dialog>

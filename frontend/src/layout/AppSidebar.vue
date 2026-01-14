@@ -84,10 +84,7 @@ const userInitial = computed(() => {
 .layout-sidebar {
     width: 80px;
     /* Slim sidebar */
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
+    height: 100vh;
     z-index: 999;
     background-color: var(--surface-card);
     display: flex;

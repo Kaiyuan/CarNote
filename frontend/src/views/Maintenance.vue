@@ -31,7 +31,7 @@
 
     <!-- 列表 -->
     <DataTable :value="records" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
-      responsiveLayout="stack" breakpoint="960px">
+      responsiveLayout="stack" breakpoint="960px" class="responsive-table">
       <Column field="maintenance_date" header="日期" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.maintenance_date) }}
@@ -44,7 +44,7 @@
         </template>
       </Column>
       <Column field="description" header="项目描述"
-        style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></Column>
+        style="max-width: 15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></Column>
       <Column field="mileage" header="里程" sortable>
         <template #body="slotProps">
           {{ formatNumber(slotProps.data.mileage) }} km
@@ -77,7 +77,7 @@
 
     <!-- 添加/编辑对话框 -->
     <Dialog v-model:visible="showDialog" :header="editingRecord ? '编辑记录' : '添加保养/维修记录'" :modal="true"
-      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '600px' }">
+      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="recordForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -160,7 +160,8 @@
     </Dialog>
 
     <!-- 地图选择对话框 -->
-    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true" :style="{ width: '90vw', maxWidth: '800px' }">
+    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker :initialLat="recordForm.location_lat" :initialLng="recordForm.location_lng"
         @confirm="onLocationSelected" />
     </Dialog>

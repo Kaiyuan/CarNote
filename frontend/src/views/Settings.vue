@@ -143,7 +143,7 @@
 
             <!-- API Key 显示对话框 -->
             <Dialog v-model:visible="showKeyDialog" header="新的 API Key" :modal="true" :closable="false"
-                :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '450px' }">
+                :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
                 <div class="field">
                     <label>密钥名称</label>
                     <InputText v-model="newKeyForm.key_name" class="w-full" placeholder="例如: 我的快捷指令" />
@@ -174,7 +174,7 @@
 
             <!-- 导入预览对话框 -->
             <Dialog v-model:visible="showImportDialog" header="导入详情确认" :modal="true"
-                :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '450px' }">
+                :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
                 <div v-if="importSummary" class="p-fluid">
                     <p class="mb-3">解析到以下数据记录，确定要执行导入吗？</p>
                     <ul class="list-none p-0 m-0">

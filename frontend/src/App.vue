@@ -33,8 +33,7 @@
     </div>
 
     <!-- Main Container (Right) -->
-    <div class="layout-main-container flex-1 flex flex-column min-h-screen"
-      :class="{ 'md:ml-7': currentUser, 'ml-0': !currentUser }">
+    <div class="layout-main-container flex-1 flex flex-column min-h-screen overflow-x-hidden">
 
       <!-- Topbar (Desktop) -->
       <AppTopbar v-if="currentUser" class="hidden md:flex" />
@@ -131,10 +130,23 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Margin-left utility for sidebar spacing */
-.ml-7 {
-  margin-left: 80px;
-  /* Match sidebar width */
+/* Layout Container Fluidity */
+.layout-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+  width: 100%;
+}
+
+.layout-main-container {
+  transition: width 0.2s;
+  min-width: 0;
+  /* Prevent flex children from overflowing */
+}
+
+/* Base Responsive Fixes */
+@media screen and (max-width: 768px) {
+  /* Mobile adjustments if needed */
 }
 
 /* Card Styling Override for Dashboard Look */
@@ -142,5 +154,12 @@ body {
   border-radius: 1rem !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
   border: none !important;
+}
+
+/* Shared Utility for Tables in Small Screen */
+@media screen and (max-width: 960px) {
+  .responsive-table .p-datatable-thead {
+    display: none !important;
+  }
 }
 </style>

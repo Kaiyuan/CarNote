@@ -10,7 +10,8 @@
     </div>
 
     <!-- 车辆列表 -->
-    <DataTable :value="vehicles" :loading="loading" stripedRows responsiveLayout="stack" breakpoint="960px">
+    <DataTable :value="vehicles" :loading="loading" stripedRows responsiveLayout="stack" breakpoint="960px"
+      class="responsive-table">
       <Column field="plate_number" header="车牌号" sortable></Column>
       <Column field="brand" header="品牌"></Column>
       <Column field="model" header="型号"></Column>

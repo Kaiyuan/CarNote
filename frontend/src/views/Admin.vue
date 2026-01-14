@@ -7,20 +7,28 @@
             <TabPanel header="用户管理">
                 <div class="mb-4 flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
                     <h2 class="m-0">注册用户</h2>
-                    <div class="flex gap-2">
-                        <span class="p-input-icon-left">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="p-input-icon-left flex-1 md:flex-none">
                             <i class="pi pi-search" />
-                            <InputText v-model="userSearch" placeholder="搜索用户名/昵称" />
+                            <InputText v-model="userSearch" placeholder="搜索用户名/昵称" class="w-full md:w-auto" />
                         </span>
                         <Button label="新建用户" icon="pi pi-plus" severity="success" @click="newUser" />
                         <Button icon="pi pi-refresh" rounded text @click="loadUsers" />
                     </div>
                 </div>
-                <DataTable :value="filteredUsers" :loading="loading" stripedRows responsiveLayout="stack">
+                <DataTable :value="filteredUsers" :loading="loading" stripedRows responsiveLayout="stack"
+                    breakpoint="960px" class="responsive-table">
                     <Column field="id" header="ID" style="width: 50px"></Column>
                     <Column field="username" header="用户名"></Column>
                     <Column field="nickname" header="昵称"></Column>
-                    <Column field="email" header="邮箱"></Column>
+                    <Column field="email" header="邮箱">
+                        <template #body="slotProps">
+                            <span class="text-overflow-ellipsis overflow-hidden white-space-nowrap block"
+                                style="max-width: 150px" :title="slotProps.data.email">
+                                {{ slotProps.data.email }}
+                            </span>
+                        </template>
+                    </Column>
                     <Column field="role" header="角色">
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.role"
@@ -68,7 +76,8 @@
 
                 <TabView>
                     <TabPanel header="车辆列表">
-                        <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="10">
+                        <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="10"
+                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                             <Column field="owner_name" header="所属用户"></Column>
                             <Column field="plate_number" header="车牌号"></Column>
                             <Column field="brand" header="品牌"></Column>
@@ -86,7 +95,8 @@
                         </DataTable>
                     </TabPanel>
                     <TabPanel header="能耗记录">
-                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10">
+                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10"
+                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                             <Column field="owner_name" header="用户"></Column>
                             <Column field="plate_number" header="车辆"></Column>
                             <Column field="log_date" header="日期">
@@ -105,13 +115,16 @@
                         </DataTable>
                     </TabPanel>
                     <TabPanel header="保养维修">
-                        <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="10">
+                        <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="10"
+                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                             <Column field="owner_name" header="用户"></Column>
                             <Column field="plate_number" header="车辆"></Column>
                             <Column field="maintenance_date" header="日期">
                                 <template #body="slotProps">{{ formatDate(slotProps.data.maintenance_date) }}</template>
                             </Column>
-                            <Column field="description" header="项目"></Column>
+                            <Column field="description" header="项目"
+                                style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            </Column>
                             <Column header="操作">
                                 <template #body="slotProps">
                                     <Button icon="pi pi-pencil" text rounded
@@ -123,10 +136,13 @@
                         </DataTable>
                     </TabPanel>
                     <TabPanel header="配件管理">
-                        <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="10">
+                        <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="10"
+                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                             <Column field="owner_name" header="用户"></Column>
                             <Column field="plate_number" header="车辆"></Column>
-                            <Column field="name" header="配件名"></Column>
+                            <Column field="name" header="配件名"
+                                style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            </Column>
                             <Column field="status" header="状态"></Column>
                             <Column header="操作">
                                 <template #body="slotProps">
@@ -144,7 +160,7 @@
             <!-- 登录日志 -->
             <TabPanel header="审计与日志">
                 <DataTable :value="loginLogs" :loading="loading" stripedRows paginator :rows="20"
-                    responsiveLayout="stack">
+                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                     <Column field="attempt_time" header="时间">
                         <template #body="slotProps">
                             {{ formatDateTime(slotProps.data.attempt_time) }}
@@ -163,19 +179,36 @@
 
             <!-- 站点管理 -->
             <TabPanel header="站点管理">
-                <div class="mb-4 flex justify-content-between align-items-center">
-                    <h2 class="m-0">共享站点/店面</h2>
+                <div class="mb-4 flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 class="m-0 text-xl md:text-2xl">共享站点/店面</h2>
                     <Button icon="pi pi-refresh" rounded text @click="loadAdminLocations" />
                 </div>
-                <DataTable :value="adminLocations" :loading="loading" stripedRows paginator :rows="10">
-                    <Column field="name" header="名称" sortable></Column>
+                <DataTable :value="adminLocations" :loading="loading" stripedRows paginator :rows="10"
+                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+                    <Column field="name" header="名称" sortable
+                        style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    </Column>
                     <Column field="type" header="类型">
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.type" severity="info" />
                         </template>
                     </Column>
-                    <Column field="latitude" header="纬度"></Column>
-                    <Column field="longitude" header="经度"></Column>
+                    <Column field="latitude" header="纬度">
+                        <template #body="slotProps">
+                            <span class="block overflow-hidden text-overflow-ellipsis white-space-nowrap"
+                                style="max-width: 80px" :title="slotProps.data.latitude">
+                                {{ slotProps.data.latitude }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column field="longitude" header="经度">
+                        <template #body="slotProps">
+                            <span class="block overflow-hidden text-overflow-ellipsis white-space-nowrap"
+                                style="max-width: 80px" :title="slotProps.data.longitude">
+                                {{ slotProps.data.longitude }}
+                            </span>
+                        </template>
+                    </Column>
                     <Column field="usage_count" header="使用次数" sortable></Column>
                     <Column header="操作">
                         <template #body="slotProps">
@@ -232,7 +265,8 @@
         </TabView>
 
         <!-- 用户编辑/创建对话框 -->
-        <Dialog v-model:visible="userDialog" :header="userForm.id ? '编辑用户' : '新建用户'" :modal="true" style="width: 400px">
+        <Dialog v-model:visible="userDialog" :header="userForm.id ? '编辑用户' : '新建用户'" :modal="true"
+            :breakpoints="{ '960px': '75vw', '640px': '90vw' }" style="width: 400px">
             <div class="field mb-3" v-if="!userForm.id">
                 <label>用户名 *</label>
                 <InputText v-model="userForm.username" class="w-full" />
@@ -260,23 +294,24 @@
         </Dialog>
 
         <!-- 站点编辑对话框 -->
-        <Dialog v-model:visible="locationDialog" header="编辑站点" :modal="true" style="width: 450px">
+        <Dialog v-model:visible="locationDialog" header="编辑位置站点" :modal="true"
+            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3">
                 <label>名称</label>
                 <InputText v-model="locationForm.name" class="w-full" />
             </div>
             <div class="field mb-3">
                 <label>类型</label>
-                <Dropdown v-model="locationForm.type" :options="['energy', 'maintenance']" class="w-full" />
+                <Dropdown v-model="locationForm.type" :options="['station', 'shop']" class="w-full" />
             </div>
             <div class="field mb-3">
                 <label>纬度</label>
-                <InputNumber v-model="locationForm.latitude" :minFractionDigits="2" :maxFractionDigits="7"
+                <InputNumber v-model="locationForm.latitude" :minFractionDigits="6" :maxFractionDigits="7"
                     class="w-full" />
             </div>
             <div class="field mb-3">
                 <label>经度</label>
-                <InputNumber v-model="locationForm.longitude" :minFractionDigits="2" :maxFractionDigits="7"
+                <InputNumber v-model="locationForm.longitude" :minFractionDigits="6" :maxFractionDigits="7"
                     class="w-full" />
             </div>
             <template #footer>
@@ -286,7 +321,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (车辆) -->
-        <Dialog v-model:visible="mgmtDialogs.vehicle" header="编辑车辆" :modal="true" style="width: 450px">
+        <Dialog v-model:visible="mgmtDialogs.vehicle" header="编辑车辆" :modal="true"
+            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>牌号</label>
                 <InputText v-model="mgmtForm.plate_number" class="w-full" />
             </div>
@@ -315,7 +351,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (能耗) -->
-        <Dialog v-model:visible="mgmtDialogs.energy" header="编辑能耗记录" :modal="true" style="width: 450px">
+        <Dialog v-model:visible="mgmtDialogs.energy" header="编辑能耗记录" :modal="true"
+            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>日期</label>
                 <Calendar v-model="mgmtForm.log_date" class="w-full" dateFormat="yy-mm-dd" showTime hourFormat="24" />
             </div>
@@ -345,7 +382,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (保养) -->
-        <Dialog v-model:visible="mgmtDialogs.maintenance" header="编辑保养记录" :modal="true" style="width: 450px">
+        <Dialog v-model:visible="mgmtDialogs.maintenance" header="编辑保养记录" :modal="true"
+            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>日期</label>
                 <Calendar v-model="mgmtForm.maintenance_date" class="w-full" dateFormat="yy-mm-dd" />
             </div>
@@ -365,7 +403,8 @@
         </Dialog>
 
         <!-- 配件编辑对话框 -->
-        <Dialog v-model:visible="mgmtDialogs.part" header="编辑配件信息" :modal="true" style="width: 450px">
+        <Dialog v-model:visible="mgmtDialogs.part" header="编辑配件信息" :modal="true"
+            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>配件名称</label>
                 <InputText v-model="mgmtForm.name" class="w-full" />
             </div>

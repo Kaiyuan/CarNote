@@ -88,7 +88,7 @@
 
     <!-- 添加/编辑配件对话框 -->
     <Dialog v-model:visible="showDialog" :header="editingPart ? '编辑配件' : '添加新配件'" :modal="true"
-      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
+      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="partForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -142,7 +142,7 @@
 
     <!-- 更换配件记录对话框 -->
     <Dialog v-model:visible="showReplaceDialog" header="记录配件更换" :modal="true"
-      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
+      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
       <div v-if="replacingPart" class="mb-4 surface-100 p-3 border-round">
         <div class="font-bold mb-1">正在更换: {{ replacingPart.part_name }}</div>
         <div class="text-sm text-600">
@@ -199,15 +199,17 @@
     </Dialog>
 
     <!-- 地图选择对话框 -->
-    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true" :style="{ width: '90vw', maxWidth: '800px' }">
+    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker :initialLat="replaceForm.location_lat" :initialLng="replaceForm.location_lng"
         @confirm="onLocationSelected" />
     </Dialog>
 
     <!-- 历史记录对话框 -->
     <Dialog v-model:visible="showHistoryDialog" header="配件更换历史" :modal="true"
-      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '700px' }" maximizable>
-      <DataTable :value="historyRecords" :loading="historyLoading" stripedRows paginator :rows="10">
+      :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }" maximizable>
+      <DataTable :value="historyRecords" :loading="historyLoading" stripedRows paginator :rows="10"
+        responsiveLayout="stack" breakpoint="960px" class="responsive-table">
         <Column field="replacement_date" header="更换日期">
           <template #body="slotProps">
             {{ formatDate(slotProps.data.replacement_date) }}
