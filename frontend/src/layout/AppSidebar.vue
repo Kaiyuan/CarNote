@@ -11,22 +11,28 @@
 
         <!-- Navigation -->
         <div class="flex flex-column gap-3 w-full">
-            <template v-for="item in menuItems" :key="item.label">
-                <div class="flex justify-content-center position-relative w-full">
-                    <div class="nav-item border-round p-2 cursor-pointer transition-colors transition-duration-200 flex align-items-center justify-content-center"
-                        :class="{ 'bg-primary-50 text-primary': isLocalActive(item.path), 'text-500 hover:surface-100 hover:text-700': !isLocalActive(item.path) }"
-                        style="width: 3rem; height: 3rem" v-tooltip.right="item.label" @click="router.push(item.path)">
-                        <i :class="item.icon" class="text-xl"></i>
-                    </div>
-                    <!-- Active Indicator Strip -->
-                    <div v-if="isLocalActive(item.path)"
-                        class="absolute left-0 top-0 bottom-0 bg-primary border-round-right" style="width: 4px;"></div>
+            <div v-for="item in menuItems" :key="item.label"
+                class="flex justify-content-center position-relative w-full">
+                <div class="nav-item border-round p-2 cursor-pointer transition-colors transition-duration-200 flex align-items-center justify-content-center"
+                    :class="{ 'bg-primary-50 text-primary': isLocalActive(item.path), 'text-500 hover:surface-100 hover:text-700': !isLocalActive(item.path) }"
+                    style="width: 3rem; height: 3rem" v-tooltip.right="item.label" @click="router.push(item.path)">
+                    <i :class="item.icon" class="text-xl"></i>
                 </div>
-            </template>
+                <!-- Active Indicator Strip -->
+                <div v-if="isLocalActive(item.path)"
+                    class="absolute left-0 top-0 bottom-0 bg-primary border-round-right" style="width: 4px;"></div>
+            </div>
         </div>
 
         <!-- Bottom Actions -->
         <div class="mt-auto flex flex-column gap-3 w-full">
+            <div class="flex justify-content-center w-full">
+                <a href="https://github.com/Kaiyuan/CarNote" target="_blank"
+                    class="nav-item border-round p-2 cursor-pointer text-500 hover:surface-100 hover:text-700 flex align-items-center justify-content-center no-underline"
+                    style="width: 3rem; height: 3rem" v-tooltip.right="'Github'">
+                    <i class="pi pi-github text-xl"></i>
+                </a>
+            </div>
             <div class="flex justify-content-center w-full">
                 <div class="nav-item border-round p-2 cursor-pointer text-500 hover:surface-100 hover:text-700 flex align-items-center justify-content-center"
                     style="width: 3rem; height: 3rem" v-tooltip.right="'设置'" @click="router.push('/settings')">
@@ -86,5 +92,9 @@ const userInitial = computed(() => {
     background-color: var(--surface-card);
     display: flex;
     flex-direction: column;
+}
+
+.no-underline {
+    text-decoration: none;
 }
 </style>
