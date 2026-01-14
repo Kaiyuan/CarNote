@@ -225,6 +225,50 @@
             <!-- 系统设置 -->
             <TabPanel header="系统设置">
                 <div class="grid">
+                    <!-- 站点基础设置 -->
+                    <div class="col-12 md:col-6 lg:col-4">
+                        <Card class="shadow-2">
+                            <template #title>站点基础信息</template>
+                            <template #content>
+                                <div class="field mb-3">
+                                    <label>网站名称</label>
+                                    <InputText v-model="siteBranding.site_name" placeholder="例如: 我的爱车日志"
+                                        class="w-full" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>网站描述 (Meta)</label>
+                                    <Textarea v-model="siteBranding.site_description" rows="2" class="w-full"
+                                        placeholder="用于 SEO 或 PWA 描述" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>网站图标 (PWA)</label>
+                                    <div class="flex align-items-center gap-3">
+                                        <div class="border-circle bg-primary overflow-hidden flex align-items-center justify-content-center"
+                                            style="width: 4rem; height: 4rem; flex-shrink: 0">
+                                            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
+                                                style="width: 100%; height: 100%; object-fit: cover" />
+                                            <i v-else class="pi pi-car text-2xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <input type="file" ref="iconInput" hidden accept="image/*"
+                                                @change="onIconFileSelect" />
+                                            <Button label="上传图标" icon="pi pi-upload" severity="secondary"
+                                                @click="$refs.iconInput.click()" class="p-button-sm w-full"
+                                                :loading="uploadingIcon" />
+                                            <p class="text-xs text-500 mt-2">推荐分辨率 512x512</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field-checkbox mb-4">
+                                    <Checkbox v-model="siteBranding.allow_registration" :binary="true" />
+                                    <label class="ml-2">允许新用户注册</label>
+                                </div>
+                                <Button label="保存站点设置" icon="pi pi-save" @click="saveBranding" class="w-full"
+                                    :loading="savingBranding" />
+                            </template>
+                        </Card>
+                    </div>
+
                     <div class="col-12 md:col-6 lg:col-4">
                         <Card class="shadow-2">
                             <template #title>SMTP 邮箱设置</template>
@@ -436,10 +480,13 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { adminAPI } from '../api'
+import { adminAPI, systemAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
+import { useSiteStore } from '../utils/siteStore'
+
+const siteStore = useSiteStore()
 
 const toast = useToast()
 const activeTab = ref(0)
@@ -456,6 +503,57 @@ const mgmtData = ref({
     parts: []
 })
 const mgmtVehicles = ref([])
+// 站点品牌
+const siteBranding = ref({
+    site_name: '',
+    site_description: '',
+    allow_registration: true
+})
+const uploadingIcon = ref(false)
+const savingBranding = ref(false)
+const iconInput = ref(null)
+
+const loadBranding = async () => {
+    await siteStore.fetchConfig()
+    siteBranding.value = {
+        site_name: siteStore.state.siteName,
+        allow_registration: siteStore.state.allowRegistration
+    }
+}
+
+const onIconFileSelect = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('icon', file)
+
+    uploadingIcon.value = true
+    try {
+        const res = await systemAPI.uploadIcon(formData)
+        if (res.success) {
+            siteStore.setSiteIcon(res.data.url)
+            toast.add({ severity: 'success', summary: '成功', detail: '图标已上传' })
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '上传失败: ' + (e.message || '未知错误') })
+    } finally {
+        uploadingIcon.value = false
+        if (iconInput.value) iconInput.value.value = ''
+    }
+}
+
+const saveBranding = async () => {
+    savingBranding.value = true
+    try {
+        await siteStore.updateConfig(siteBranding.value)
+        toast.add({ severity: 'success', summary: '成功', detail: '站点设置已保存' })
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '错误', detail: '保存失败' })
+    } finally {
+        savingBranding.value = false
+    }
+}
 const mgmtFilters = ref({
     user_id: null,
     vehicle_id: null
@@ -720,7 +818,10 @@ watch(activeTab, (idx) => {
     if (idx === 1) loadMgmtRecords()
     if (idx === 2) loadLogs()
     if (idx === 3) loadAdminLocations()
-    if (idx === 4) loadSmtp()
+    if (idx === 4) {
+        loadSmtp()
+        loadBranding()
+    }
 })
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''

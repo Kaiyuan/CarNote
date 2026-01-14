@@ -71,7 +71,10 @@ export const userAPI = {
 // System configuration
 export const systemAPI = {
     getConfig: () => api.get('/system/config'),
-    updateConfig: (data) => api.put('/system/config', data)
+    updateConfig: (data) => api.put('/system/config', data),
+    uploadIcon: (formData) => api.post('/system/upload-icon', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
 }
 
 // 车辆 API

@@ -2,7 +2,7 @@
     <div class="layout-topbar flex justify-content-between align-items-center px-4 py-3 bg-transparent">
         <!-- Breadcrumb / Title area -->
         <div class="flex align-items-center">
-            <h2 class="m-0 text-900 font-semibold">{{ currentTitle }}</h2>
+            <h2 class="m-0 text-900 font-semibold">{{ siteStore.state.siteName }}</h2>
         </div>
 
         <!-- Actions -->
@@ -19,24 +19,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useSiteStore } from '../utils/siteStore'
 
-const route = useRoute()
-
-const routeTitles = {
-    'Home': 'Overview',
-    'VehicleList': 'Vehicle Fleet',
-    'EnergyLog': 'Energy Consumption',
-    'Maintenance': 'Maintenance & Service',
-    'Parts': 'Part Inventory',
-    'Analytics': 'Analytics Dashboard',
-    'Settings': 'User Settings'
-}
-
-const currentTitle = computed(() => {
-    return routeTitles[route.name] || 'CarNote'
-})
+const siteStore = useSiteStore()
 </script>
 
 <style scoped>

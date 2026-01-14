@@ -7,16 +7,75 @@ const { query, get } = require('../config/database');
 const { authenticateUser } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// 配置 Multer 用于图标上传
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = process.env.UPLOAD_PATH || './uploads';
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname) || '.png';
+        cb(null, `site_icon_${Date.now()}${ext}`);
+    }
+});
+const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('只允许上传图片文件'));
+    }
+});
+
+/**
+ * 上传站点图标
+ * POST /api/system/upload-icon
+ */
+router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandler(async (req, res) => {
+    // 检查管理员
+    const user = await get("SELECT role FROM users WHERE id = ?", [req.userId]);
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '无权操作' });
+    }
+
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: '未选择文件' });
+    }
+
+    const iconUrl = `/uploads/${req.file.filename}`;
+
+    // 更新设置
+    const key = 'site_icon';
+    const exists = await get("SELECT key FROM system_settings WHERE key = ?", [key]);
+    if (exists) {
+        await query("UPDATE system_settings SET value = ? WHERE key = ?", [iconUrl, key]);
+    } else {
+        await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [iconUrl, key]);
+    }
+
+    res.json({ success: true, message: '图标上传成功', data: { url: iconUrl } });
+}));
+
 /**
  * 获取系统公开配置 (前端使用)
  * GET /api/system/config
  */
 router.get('/config', asyncHandler(async (req, res) => {
-    // 获取允许注册配置
-    const regSetting = await get("SELECT value FROM system_settings WHERE key = 'allow_registration'");
+    // 获取配置项
+    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description')");
+    const config = {};
+    settings.forEach(s => config[s.key] = s.value);
 
-    // 如果没有设置，默认为 true
-    const allowRegistration = regSetting ? regSetting.value === 'true' : true;
+    // 默认值
+    const allowRegistration = config['allow_registration'] !== undefined ? config['allow_registration'] === 'true' : true;
+    const siteName = config['site_name'] || 'CarNote';
+    const siteIcon = config['site_icon'] || null;
+    const siteDescription = config['site_description'] || '';
 
     // 检查是否已初始化（是否有用户）
     const userCount = await get("SELECT COUNT(*) as count FROM users");
@@ -25,8 +84,11 @@ router.get('/config', asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: {
-            allowRegistration: allowRegistration || isFirstUser, // 如果是第一个用户，强制允许注册
-            isFirstUser
+            allowRegistration: allowRegistration || isFirstUser,
+            isFirstUser,
+            siteName,
+            siteIcon,
+            siteDescription
         }
     });
 }));
@@ -39,41 +101,25 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
     // 检查是否是管理员
     const user = await get("SELECT role FROM users WHERE id = ?", [req.userId]);
     if (!user || user.role !== 'admin') {
-        return res.status(403).json({
-            success: false,
-            message: '无权操作'
-        });
+        return res.status(403).json({ success: false, message: '无权操作' });
     }
 
-    const { allow_registration } = req.body;
+    const updates = req.body;
+    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description'];
 
-    if (allow_registration !== undefined) {
-        await query(
-            "INSERT INTO system_settings (key, value) VALUES ('allow_registration', ?) ON CONFLICT(key) DO UPDATE SET value = ?",
-            [String(allow_registration), String(allow_registration)]
-        );
-        // SQLite: INSERT OR REPLACE INTO system_settings ...
-        // PostgreSQL: ON CONFLICT ...
-        // Using generic UPSERT logic or DELETE+INSERT if needed, but 'replace' is simplest for key-value
-        // Let's use INSERT OR REPLACE for SQLite compatibility primarily.
-        /* 
-           For broad compatibility, let's try UPDATE then INSERT if 0 changes. 
-           But given setup is SQLite/PG, let's just do:
-        */
-        const key = 'allow_registration';
-        const val = String(allow_registration);
-        const exists = await get("SELECT key FROM system_settings WHERE key = ?", [key]);
-        if (exists) {
-            await query("UPDATE system_settings SET value = ? WHERE key = ?", [val, key]);
-        } else {
-            await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [key, val]);
+    for (const key of allowedKeys) {
+        if (updates[key] !== undefined) {
+            const val = String(updates[key]);
+            const exists = await get("SELECT key FROM system_settings WHERE key = ?", [key]);
+            if (exists) {
+                await query("UPDATE system_settings SET value = ? WHERE key = ?", [val, key]);
+            } else {
+                await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [key, val]);
+            }
         }
     }
 
-    res.json({
-        success: true,
-        message: '系统设置已更新'
-    });
+    res.json({ success: true, message: '系统设置已更新' });
 }));
 
 module.exports = router;

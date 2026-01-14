@@ -2,10 +2,12 @@
     <div
         class="layout-sidebar surface-card border-right-1 surface-border h-full flex flex-column align-items-center py-4 select-none">
         <!-- Logo -->
-        <div class="mb-4 cursor-pointer" @click="router.push('/')">
-            <div class="flex align-items-center justify-content-center border-circle bg-primary"
+        <div class="mb-4 cursor-pointer" @click="router.push('/')" v-tooltip.right="siteStore.state.siteName">
+            <div class="flex align-items-center justify-content-center border-circle bg-primary overflow-hidden"
                 style="width: 3rem; height: 3rem">
-                <i class="pi pi-car text-xl"></i>
+                <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
+                    style="width: 100%; height: 100%; object-fit: cover;" />
+                <i v-else class="pi pi-car text-xl"></i>
             </div>
         </div>
 
@@ -50,6 +52,9 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useSiteStore } from '../utils/siteStore'
+
+const siteStore = useSiteStore()
 
 const props = defineProps({
     menuItems: {

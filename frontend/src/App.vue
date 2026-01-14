@@ -8,11 +8,13 @@
     <!-- Mobile Sidebar (Drawer) -->
     <Sidebar v-model:visible="mobileMenuVisible">
       <div class="flex flex-column align-items-center mb-5">
-        <div class="flex align-items-center justify-content-center border-circle bg-primary mb-3"
+        <div class="flex align-items-center justify-content-center border-circle bg-primary mb-3 overflow-hidden"
           style="width: 3rem; height: 3rem">
-          <i class="pi pi-car text-xl"></i>
+          <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
+            style="width: 100%; height: 100%; object-fit: cover;" />
+          <i v-else class="pi pi-car text-xl"></i>
         </div>
-        <span class="font-bold text-xl">CarNote</span>
+        <span class="font-bold text-xl">{{ siteStore.state.siteName }}</span>
       </div>
       <div class="flex flex-column gap-2">
         <Button v-for="item in menuItems" :key="item.label" :label="item.label" :icon="item.icon"
@@ -41,8 +43,7 @@
       <!-- Mobile Topbar (Visible on Mobile) -->
       <div v-if="currentUser" class="md:hidden flex align-items-center p-3 bg-white shadow-1 z-5">
         <Button icon="pi pi-bars" text rounded @click="mobileMenuVisible = true" class="mr-2" />
-        <span class="font-bold text-xl text-900">CarNote</span>
-        <!-- Optional: Add user avatar or spacer here -->
+        <span class="font-bold text-xl text-900">{{ siteStore.state.siteName }}</span>
       </div>
 
       <!-- Content -->
@@ -62,11 +63,13 @@ import { useRouter, useRoute } from 'vue-router'
 import AppSidebar from './layout/AppSidebar.vue'
 import AppTopbar from './layout/AppTopbar.vue'
 import Sidebar from 'primevue/sidebar'
+import { useSiteStore } from './utils/siteStore'
 
 const router = useRouter()
 const route = useRoute()
 const currentUser = ref(null)
 const mobileMenuVisible = ref(false)
+const siteStore = useSiteStore()
 
 const menuItems = computed(() => {
   const items = [
@@ -86,6 +89,7 @@ const menuItems = computed(() => {
 
 onMounted(() => {
   checkUser()
+  siteStore.fetchConfig()
 })
 
 // Watch route changes to update user state (e.g. after login/logout)

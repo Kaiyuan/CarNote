@@ -7,8 +7,14 @@
     <Card style="width: 450px" class="shadow-4">
       <template #header>
         <div class="text-center pt-4">
-          <i class="pi pi-car" style="font-size: 3rem; color: var(--primary-color)"></i>
-          <h2 class="mt-2 mb-0">CarNote 车记录</h2>
+          <div
+            class="flex align-items-center justify-content-center border-circle bg-primary overflow-hidden mx-auto mb-3"
+            style="width: 4rem; height: 4rem">
+            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
+              style="width: 100%; height: 100%; object-fit: cover;" />
+            <i v-else class="pi pi-car text-3xl"></i>
+          </div>
+          <h2 class="mt-2 mb-0">{{ siteStore.state.siteName }}</h2>
           <p class="text-600">车辆记录管理系统</p>
         </div>
       </template>
@@ -114,7 +120,9 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { userAPI, systemAPI } from '../api'
+import { useSiteStore } from '../utils/siteStore'
 
+const siteStore = useSiteStore()
 const router = useRouter()
 const toast = useToast()
 
@@ -137,16 +145,13 @@ const correctAnswer = ref(0)
 // Check system config
 onMounted(async () => {
   try {
-    const res = await systemAPI.getConfig()
-    if (res.success) {
-      allowRegistration.value = res.data.allowRegistration
-      isFirstUser.value = res.data.isFirstUser
+    await siteStore.fetchConfig()
+    allowRegistration.value = siteStore.state.allowRegistration
+    isFirstUser.value = siteStore.state.isFirstUser
 
-      // If first user, default to register view maybe? Or just show message
-      if (isFirstUser.value) {
-        showRegister.value = true
-        toast.add({ severity: 'info', summary: '欢迎', detail: '系统初次运行，请注册管理员账号', life: 5000 })
-      }
+    if (isFirstUser.value) {
+      showRegister.value = true
+      toast.add({ severity: 'info', summary: '欢迎', detail: '系统初次运行，请注册管理员账号', life: 5000 })
     }
   } catch (e) {
     console.error('Failed to fetch system config', e)
