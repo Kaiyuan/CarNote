@@ -38,12 +38,18 @@
     <div class="layout-main-container flex-1 flex flex-column min-h-screen overflow-x-hidden">
 
       <!-- Topbar (Desktop) -->
-      <AppTopbar v-if="currentUser" class="hidden md:flex" />
+      <AppTopbar v-if="currentUser" />
 
       <!-- Mobile Topbar (Visible on Mobile) -->
-      <div v-if="currentUser" class="md:hidden flex align-items-center p-3 bg-white shadow-1 z-5">
-        <Button icon="pi pi-bars" text rounded @click="mobileMenuVisible = true" class="mr-2" />
-        <span class="font-bold text-xl text-900">{{ siteStore.state.siteName }}</span>
+      <div v-if="currentUser"
+        class="md:hidden flex align-items-center justify-content-between px-3 py-2 bg-white shadow-1 z-5 sticky top-0">
+        <div class="flex align-items-center">
+          <Button icon="pi pi-bars" text rounded @click="mobileMenuVisible = true" class="mr-2" />
+          <span class="font-bold text-xl text-900">{{ siteStore.state.siteName }}</span>
+        </div>
+        <div class="flex align-items-center">
+          <Button icon="pi pi-bell" text rounded class="text-500" />
+        </div>
       </div>
 
       <!-- Content -->
