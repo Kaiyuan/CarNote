@@ -17,10 +17,6 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs && \
-  adduser -S nodejs -u 1001
-
 # 从构建阶段复制依赖
 COPY --from=builder /app/node_modules ./node_modules
 
@@ -29,10 +25,11 @@ COPY . .
 
 # 创建数据和上传目录
 RUN mkdir -p data uploads && \
-  chown -R nodejs:nodejs /app
+  chown -R node:node /app && \
+  chmod -R 755 /app
 
 # 切换到非 root 用户
-USER nodejs
+USER node
 
 # 暴露端口
 EXPOSE 53300

@@ -16,22 +16,39 @@ let db = null;
  * 初始化 SQLite 数据库连接
  */
 function initSQLite() {
-    const dbPath = process.env.SQLITE_PATH || './data/carnote.db';
+    let dbPath = process.env.SQLITE_PATH || './data/carnote.db';
+    // 转换为绝对路径以避免 CWD 差异
+    dbPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);
     const dbDir = path.dirname(dbPath);
 
-    // 确保数据目录存在
-    if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
-        console.log(`已创建数据目录: ${dbDir}`);
+    console.log(`准备连接 SQLite 数据库: ${dbPath}`);
+
+    // 检查并创建目录
+    try {
+        if (!fs.existsSync(dbDir)) {
+            fs.mkdirSync(dbDir, { recursive: true });
+            console.log(`已创建数据目录: ${dbDir}`);
+        }
+
+        // 测试目录是否真的可写
+        const testFile = path.join(dbDir, '.write_test');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+    } catch (err) {
+        console.error(`数据目录权限检查失败: ${dbDir}`, err.message);
     }
 
     // 创建或打开数据库
-    db = new sqlite3.Database(dbPath, (err) => {
+    db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
         if (err) {
-            console.error('SQLite 连接失败:', err);
-            throw err;
+            console.error(`SQLite 无法打开数据库文件 (${dbPath}):`, err);
+            // 这里可以添加更详细的指引
+            if (err.code === 'SQLITE_CANTOPEN') {
+                console.error('提示: 请确保目录存在且运行用户(UID 1000)拥有该目录及其父目录的读写权限。');
+            }
+        } else {
+            console.log(`已成功连接到 SQLite 数据库`);
         }
-        console.log(`已连接到 SQLite 数据库: ${dbPath}`);
     });
 
     // 启用外键约束

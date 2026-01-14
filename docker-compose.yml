@@ -21,8 +21,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:-carnote-production-secret-change-this}
       - CORS_ORIGIN=http://localhost
     volumes:
-      - carnote_data:/app/data
-      - carnote_uploads:/app/uploads
+      - ./data:/app/data
+      - ./uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:53300/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
@@ -32,7 +32,6 @@ services:
       start_period: 10s
     networks:
       - carnote-network
-
   # 数据卷
 volumes:
   carnote_data:

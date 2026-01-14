@@ -164,8 +164,11 @@
                 </div>
 
                 <template #footer>
-                    <Button v-if="!generatedKey" label="生成" @click="generateKey" :loading="generatingKey" />
-                    <Button v-else label="关闭" @click="closeKeyDialog" />
+                    <div class="flex justify-content-end gap-2">
+                        <Button v-if="!generatedKey" label="取消" text @click="closeKeyDialog" />
+                        <Button v-if="!generatedKey" label="生成" @click="generateKey" :loading="generatingKey" />
+                        <Button v-else label="关闭" @click="closeKeyDialog" />
+                    </div>
                 </template>
             </Dialog>
 
@@ -348,7 +351,7 @@ const generateKey = async () => {
     try {
         const res = await userAPI.createApiKey(newKeyForm.value)
         if (res.success) {
-            generatedKey.value = res.data.key_value
+            generatedKey.value = res.data.key
             // 刷新列表
             const keysRes = await userAPI.getApiKeys()
             if (keysRes.success) apiKeys.value = keysRes.data
@@ -376,9 +379,17 @@ const copyKey = async () => {
 }
 
 const deleteApiKey = async (id) => {
-    // 暂时没有 delete API，跳过实现或添加后端支持
-    // 根据 api/index.js，没有 deleteApiKey 方法
-    toast.add({ severity: 'info', summary: '提示', detail: '暂不支持删除 API Key', life: 3000 })
+    if (!confirm('确定要删除此 API Key 吗？')) return
+    try {
+        const res = await userAPI.deleteApiKey(id)
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '已删除', life: 2000 })
+            const keysRes = await userAPI.getApiKeys()
+            if (keysRes.success) apiKeys.value = keysRes.data
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '删除失败', detail: error.message || '服务器错误' })
+    }
 }
 
 const formatDate = (dateStr) => {

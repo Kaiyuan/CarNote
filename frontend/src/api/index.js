@@ -63,7 +63,9 @@ export const userAPI = {
     // 忘记密码
     forgotPassword: (data) => api.post('/users/forgot-password', data),
     // 重置密码
-    resetPassword: (data) => api.post('/users/reset-password', data)
+    resetPassword: (data) => api.post('/users/reset-password', data),
+    // 删除 API Key
+    deleteApiKey: (id) => api.delete(`/users/api-keys/${id}`)
 }
 
 // System configuration

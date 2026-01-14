@@ -214,6 +214,9 @@ PG_PASSWORD=your_password
 - `carnote_uploads` - 存储上传的图片文件（车辆照片、发票截图等）
 - `postgres_data` - PostgreSQL 数据 (如使用外部数据库)
 
+**NAS 权限提示**：
+容器内默认使用 `node` 用户 (UID: 1000) 运行。如果您在群晖/威联通等 NAS 上挂载本地目录作为卷，请确保对应的宿主机目录对 UID 1000 有读写权限（可通过 `chown -R 1000:1000 /your/path` 设置）。如果您遇到 `EACCES` 错误，请检查挂载路径的权限设置。
+
 ## 开发说明
 
 ### 后端开发

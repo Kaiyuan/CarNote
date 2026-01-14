@@ -13,10 +13,6 @@ RUN npm run build
 FROM node:18-alpine
 WORKDIR /app
 
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
 # 复制后端依赖配置
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
@@ -25,19 +21,18 @@ RUN npm ci --only=production
 # 复制后端代码
 COPY backend/ .
 
-# 复制前端构建产物到正确位置 (backend/server.js 预期在 ../frontend/dist)
-# 我们需要调整目录结构以匹配 server.js 的 path.join(__dirname, '../frontend/dist')
-# 由于 WORKDIR 是 /app/backend，__dirname 是 /app/backend
-# 所以 ../frontend/dist 应该是 /app/frontend/dist
+# 复制前端构建产物
 WORKDIR /app
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# 设置权限
+# 准备持久化目录并设置权限
+# 使用 alpine 自带的 node 用户 (uid: 1000) 以提高 NAS 兼容性
 RUN mkdir -p /app/backend/data /app/backend/uploads && \
-    chown -R nodejs:nodejs /app
+    chown -R node:node /app && \
+    chmod -R 755 /app
 
 # 切换用户
-USER nodejs
+USER node
 WORKDIR /app/backend
 
 # 环境变量
