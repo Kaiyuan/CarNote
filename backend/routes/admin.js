@@ -17,6 +17,39 @@ router.get('/users', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * 管理员创建用户
+ */
+router.post('/users', asyncHandler(async (req, res) => {
+    const { username, password, email, nickname, role } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+
+    const existingUser = await get('SELECT id FROM users WHERE username = ?', [username]);
+    if (existingUser) {
+        return res.status(400).json({ success: false, message: '用户名已存在' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await query(
+        'INSERT INTO users (username, password_hash, email, nickname, role) VALUES (?, ?, ?, ?, ?)',
+        [username, passwordHash, email, nickname || username, role || 'user']
+    );
+
+    // 创建默认设置
+    await query('INSERT INTO user_settings (user_id) VALUES (?)', [result.lastID]);
+
+    await createAuditLog(req.userId, 'admin_create_user', { username, role: role || 'user' });
+
+    res.status(201).json({
+        success: true,
+        message: '用户创建成功',
+        data: { id: result.lastID, username }
+    });
+}));
+
+/**
  * 更新用户状态/权限
  */
 router.put('/users/:id', asyncHandler(async (req, res) => {

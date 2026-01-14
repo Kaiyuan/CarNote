@@ -5,11 +5,18 @@
         <TabView v-model:activeIndex="activeTab">
             <!-- 用户管理 -->
             <TabPanel header="用户管理">
-                <div class="mb-4 flex justify-content-between align-items-center">
+                <div class="mb-4 flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
                     <h2 class="m-0">注册用户</h2>
-                    <Button icon="pi pi-refresh" rounded text @click="loadUsers" />
+                    <div class="flex gap-2">
+                        <span class="p-input-icon-left">
+                            <i class="pi pi-search" />
+                            <InputText v-model="userSearch" placeholder="搜索用户名/昵称" />
+                        </span>
+                        <Button label="新建用户" icon="pi pi-plus" severity="success" @click="newUser" />
+                        <Button icon="pi pi-refresh" rounded text @click="loadUsers" />
+                    </div>
                 </div>
-                <DataTable :value="users" :loading="loading" stripedRows responsiveLayout="stack">
+                <DataTable :value="filteredUsers" :loading="loading" stripedRows responsiveLayout="stack">
                     <Column field="id" header="ID" style="width: 50px"></Column>
                     <Column field="username" header="用户名"></Column>
                     <Column field="nickname" header="昵称"></Column>
@@ -224,8 +231,16 @@
             </TabPanel>
         </TabView>
 
-        <!-- 用户编辑对话框 -->
-        <Dialog v-model:visible="userDialog" header="编辑用户" :modal="true" style="width: 400px">
+        <!-- 用户编辑/创建对话框 -->
+        <Dialog v-model:visible="userDialog" :header="userForm.id ? '编辑用户' : '新建用户'" :modal="true" style="width: 400px">
+            <div class="field mb-3" v-if="!userForm.id">
+                <label>用户名 *</label>
+                <InputText v-model="userForm.username" class="w-full" />
+            </div>
+            <div class="field mb-3" v-if="!userForm.id">
+                <label>初始密码 *</label>
+                <InputText v-model="userForm.password" type="password" class="w-full" />
+            </div>
             <div class="field mb-3">
                 <label>昵称</label>
                 <InputText v-model="userForm.nickname" class="w-full" />
@@ -240,7 +255,7 @@
             </div>
             <template #footer>
                 <Button label="取消" text @click="userDialog = false" />
-                <Button label="保存" @click="saveUser" />
+                <Button label="保存" @click="saveUser" :loading="saving" />
             </template>
         </Dialog>
 
@@ -432,6 +447,16 @@ const smtpSecure = computed({
     set: (val) => smtpConfig.value.smtp_secure = val ? 'true' : 'false'
 })
 
+const userSearch = ref('')
+const filteredUsers = computed(() => {
+    if (!userSearch.value) return users.value
+    const s = userSearch.value.toLowerCase()
+    return users.value.filter(u =>
+        u.username.toLowerCase().includes(s) ||
+        (u.nickname && u.nickname.toLowerCase().includes(s))
+    )
+})
+
 const loadUsers = async () => {
     loading.value = true
     try {
@@ -552,16 +577,30 @@ const editUser = (user) => {
     userDialog.value = true
 }
 
+const newUser = () => {
+    userForm.value = { role: 'user' }
+    userDialog.value = true
+}
+
 const saveUser = async () => {
+    saving.value = true
     try {
-        const res = await adminAPI.updateUser(userForm.value.id, userForm.value)
+        let res
+        if (userForm.value.id) {
+            res = await adminAPI.updateUser(userForm.value.id, userForm.value)
+        } else {
+            res = await adminAPI.createUser(userForm.value)
+        }
+
         if (res.success) {
-            toast.add({ severity: 'success', summary: '成功', detail: '用户信息已更新', life: 3000 })
+            toast.add({ severity: 'success', summary: '成功', detail: res.message, life: 3000 })
             userDialog.value = false
             loadUsers()
         }
     } catch (e) {
-        toast.add({ severity: 'error', summary: '错误', detail: e.message || '更新失败', life: 3000 })
+        toast.add({ severity: 'error', summary: '操作失败', detail: e.message || '保存失败' })
+    } finally {
+        saving.value = false
     }
 }
 

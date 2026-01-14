@@ -167,6 +167,7 @@ export const importAPI = {
 // 管理员 API
 export const adminAPI = {
     getUsers: () => api.get('/admin/users'),
+    createUser: (data) => api.post('/admin/users', data),
     updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
     adminResetPassword: (id) => api.post(`/admin/users/${id}/reset-password`),
     getSmtpConfig: () => api.get('/admin/settings/smtp'),
