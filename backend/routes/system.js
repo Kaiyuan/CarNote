@@ -10,6 +10,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 
 // 配置 Multer 用于图标上传
 const storage = multer.diskStorage({
@@ -20,12 +21,12 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname) || '.png';
-        cb(null, `site_icon_${Date.now()}${ext}`);
+        cb(null, `site_icon_original${ext}`);
     }
 });
 const upload = multer({
     storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB for PWA source
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) cb(null, true);
         else cb(new Error('只允许上传图片文件'));
@@ -33,7 +34,7 @@ const upload = multer({
 });
 
 /**
- * 上传站点图标
+ * 上传站点图标并生成 PWA 图标
  * POST /api/system/upload-icon
  */
 router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandler(async (req, res) => {
@@ -47,18 +48,65 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
         return res.status(400).json({ success: false, message: '未选择文件' });
     }
 
-    const iconUrl = `/uploads/${req.file.filename}`;
+    const uploadDir = process.env.UPLOAD_PATH || './uploads';
+    const originalPath = req.file.path;
 
-    // 更新设置
-    const key = 'site_icon';
-    const exists = await get("SELECT key FROM system_settings WHERE key = ?", [key]);
-    if (exists) {
-        await query("UPDATE system_settings SET value = ? WHERE key = ?", [iconUrl, key]);
-    } else {
-        await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [iconUrl, key]);
+    // 生成 PWA 所需的各种尺寸
+    try {
+        const timestamp = Date.now();
+        const icon192Name = `icon-192.png`;
+        const icon512Name = `icon-512.png`;
+        const faviconName = `favicon.png`;
+        const mainIconName = `site_icon_${timestamp}.png`; // 最终显示用的主体图标
+
+        // 生成 192x192
+        await sharp(originalPath)
+            .resize(192, 192, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .toFile(path.join(uploadDir, icon192Name));
+
+        // 生成 512x512
+        await sharp(originalPath)
+            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .toFile(path.join(uploadDir, icon512Name));
+
+        // 生成 favicon (32x32)
+        await sharp(originalPath)
+            .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .toFile(path.join(uploadDir, faviconName));
+
+        // 生成主显示图标 (比如 256x256)
+        await sharp(originalPath)
+            .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .toFile(path.join(uploadDir, mainIconName));
+
+        const iconUrl = `/uploads/${mainIconName}`;
+
+        // 更新数据库设置
+        const key = 'site_icon';
+        const exists = await get("SELECT key FROM system_settings WHERE key = ?", [key]);
+        if (exists) {
+            await query("UPDATE system_settings SET value = ? WHERE key = ?", [iconUrl, key]);
+        } else {
+            await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [iconUrl, key]);
+        }
+
+        res.json({
+            success: true,
+            message: '图标上传及 PWA 适配成功',
+            data: {
+                url: iconUrl,
+                pwaIcons: [
+                    { size: '192x192', url: `/uploads/${icon192Name}` },
+                    { size: '512x512', url: `/uploads/${icon512Name}` },
+                    { size: 'favicon', url: `/uploads/${faviconName}` }
+                ]
+            }
+        });
+
+    } catch (error) {
+        console.error('Sharp processing error:', error);
+        res.status(500).json({ success: false, message: '图片处理失败: ' + error.message });
     }
-
-    res.json({ success: true, message: '图标上传成功', data: { url: iconUrl } });
 }));
 
 /**

@@ -88,6 +88,50 @@ app.use('/api/system', require('./routes/system'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/locations', require('./routes/locations').router);
 
+// PWA 动态支持
+const { get, query } = require('./config/database');
+
+app.get('/manifest.json', async (req, res) => {
+    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('site_name', 'site_description')");
+    const config = {};
+    settings.forEach(s => config[s.key] = s.value);
+
+    const siteName = config['site_name'] || 'CarNote';
+    const siteDescription = config['site_description'] || '车辆管理系统';
+
+    res.json({
+        "name": siteName,
+        "short_name": siteName,
+        "description": siteDescription,
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#3B82F6",
+        "icons": [
+            { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+            { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+        ]
+    });
+});
+
+app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
+    const favPath = path.join(uploadDir, 'favicon.png');
+    if (fs.existsSync(favPath)) return res.sendFile(favPath);
+    res.status(404).end();
+});
+
+app.get('/icon-192.png', (req, res) => {
+    const iconPath = path.join(uploadDir, 'icon-192.png');
+    if (fs.existsSync(iconPath)) return res.sendFile(iconPath);
+    res.status(404).end();
+});
+
+app.get('/icon-512.png', (req, res) => {
+    const iconPath = path.join(uploadDir, 'icon-512.png');
+    if (fs.existsSync(iconPath)) return res.sendFile(iconPath);
+    res.status(404).end();
+});
+
 // 静态文件服务 - 前端构建产物
 if (fs.existsSync(FRONTEND_PATH)) {
     console.log('Serving frontend from:', FRONTEND_PATH);
