@@ -123,7 +123,7 @@ app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
     res.status(404).end();
 });
 
-app.get('/icon-192.png', (req, res) => {
+app.get(['/icon-192.png', '/pwa-192x192.png'], (req, res) => {
     const iconPath = path.join(uploadDir, 'icon-192.png');
     if (fs.existsSync(iconPath)) return res.sendFile(iconPath);
     res.status(404).end();

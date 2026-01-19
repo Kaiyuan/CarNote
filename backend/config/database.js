@@ -153,7 +153,9 @@ function query(sql, params = []) {
 
         const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
         if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
-            pgSql += ' RETURNING id';
+            if (!pgSql.includes('system_settings')) {
+                pgSql += ' RETURNING id';
+            }
         }
 
         return db.query(pgSql, params).then(result => {
