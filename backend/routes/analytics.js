@@ -388,8 +388,23 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
     }
 
     // 获取最近N个月的数据
-    const monthlyData = await query(
-        `SELECT 
+    const isPostgres = process.env.DB_TYPE === 'postgresql';
+
+    let sql;
+    if (isPostgres) {
+        sql = `SELECT 
+            TO_CHAR(log_date, 'YYYY-MM') as month,
+            AVG(consumption_per_100km) as avg_consumption,
+            SUM(amount) as total_amount,
+            SUM(cost) as total_cost,
+            SUM(COALESCE(mileage_diff, 0)) as total_mileage,
+            COUNT(*) as record_count
+         FROM energy_logs
+         WHERE vehicle_id = ? AND log_date >= NOW() - INTERVAL '${months} months'
+         GROUP BY month
+         ORDER BY month ASC`;
+    } else {
+        sql = `SELECT 
             strftime('%Y-%m', log_date) as month,
             AVG(consumption_per_100km) as avg_consumption,
             SUM(amount) as total_amount,
@@ -399,9 +414,10 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
          FROM energy_logs
          WHERE vehicle_id = ? AND log_date >= date('now', '-${months} months')
          GROUP BY strftime('%Y-%m', log_date)
-         ORDER BY month`,
-        [vehicleId]
-    );
+         ORDER BY month ASC`;
+    }
+
+    const monthlyData = await query(sql, [vehicleId]);
 
     res.json({
         success: true,
