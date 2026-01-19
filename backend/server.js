@@ -117,21 +117,39 @@ app.get('/manifest.json', async (req, res) => {
     });
 });
 
+// 默认静态资源路径 (Fallback)
+const DEFAULT_ASSETS_PATH = path.join(__dirname, '../frontend/src/assets');
+
 app.get(['/favicon.ico', '/favicon.png'], (req, res) => {
     const favPath = path.join(uploadDir, 'favicon.png');
     if (fs.existsSync(favPath)) return res.sendFile(favPath);
+
+    // Fallback to default asset
+    const defaultPath = path.join(DEFAULT_ASSETS_PATH, 'favicon.png');
+    if (fs.existsSync(defaultPath)) return res.sendFile(defaultPath);
+
     res.status(404).end();
 });
 
 app.get(['/icon-192.png', '/pwa-192x192.png'], (req, res) => {
     const iconPath = path.join(uploadDir, 'icon-192.png');
     if (fs.existsSync(iconPath)) return res.sendFile(iconPath);
+
+    // Fallback to default asset
+    const defaultPath = path.join(DEFAULT_ASSETS_PATH, 'icon-192.png');
+    if (fs.existsSync(defaultPath)) return res.sendFile(defaultPath);
+
     res.status(404).end();
 });
 
 app.get('/icon-512.png', (req, res) => {
     const iconPath = path.join(uploadDir, 'icon-512.png');
     if (fs.existsSync(iconPath)) return res.sendFile(iconPath);
+
+    // Fallback to default asset
+    const defaultPath = path.join(DEFAULT_ASSETS_PATH, 'icon-512.png');
+    if (fs.existsSync(defaultPath)) return res.sendFile(defaultPath);
+
     res.status(404).end();
 });
 
