@@ -58,8 +58,8 @@
       <Column field="consumption_per_100km" header="百公里能耗">
         <template #body="slotProps">
           <span v-if="slotProps.data.consumption_per_100km"
-            :class="{ 'text-green-600 font-bold': slotProps.data.consumption_per_100km < 8, 'text-orange-500': slotProps.data.consumption_per_100km > 12 }">
-            {{ slotProps.data.consumption_per_100km.toFixed(2) }}
+            :class="{ 'text-green-600 font-bold': Number(slotProps.data.consumption_per_100km) < 8, 'text-orange-500': Number(slotProps.data.consumption_per_100km) > 12 }">
+            {{ Number(slotProps.data.consumption_per_100km).toFixed(2) }}
           </span>
           <span v-else>--</span>
         </template>
@@ -546,8 +546,8 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString() + ' ' + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-const formatNumber = (num) => num ? num.toLocaleString() : 0
-const formatCurrency = (val) => val ? '¥' + val.toFixed(2) : '¥0.00'
+const formatNumber = (num) => num ? Number(num).toLocaleString() : 0
+const formatCurrency = (val) => val ? '¥' + Number(val).toFixed(2) : '¥0.00'
 
 const getTypeLabel = (type) => type === 'electric' ? '充电' : '加油'
 const getTypeSeverity = (type) => type === 'electric' ? 'success' : 'warning'
