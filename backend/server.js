@@ -61,7 +61,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 静态文件服务 - 上传的图片等
-const uploadDir = process.env.UPLOAD_PATH || './uploads';
+const uploadDir = path.isAbsolute(process.env.UPLOAD_PATH || './uploads')
+    ? (process.env.UPLOAD_PATH || './uploads')
+    : path.resolve(__dirname, process.env.UPLOAD_PATH || './uploads');
+
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }

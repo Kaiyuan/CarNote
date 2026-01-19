@@ -105,6 +105,8 @@ async function initSchema() {
             .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY')
             .replace(/BOOLEAN/g, 'BOOLEAN')
             .replace(/TIMESTAMP DEFAULT CURRENT_TIMESTAMP/g, 'TIMESTAMP DEFAULT NOW()')
+            .replace(/BOOLEAN\s+DEFAULT\s+1/gi, "BOOLEAN DEFAULT TRUE") // Fix boolean default 1
+            .replace(/BOOLEAN\s+DEFAULT\s+0/gi, "BOOLEAN DEFAULT FALSE") // Fix boolean default 0
             .replace(/IF NOT EXISTS/g, 'IF NOT EXISTS');
 
         try {
@@ -144,16 +146,33 @@ function query(sql, params = []) {
         });
     } else {
         // PostgreSQL 使用 $1, $2 占位符而不是 ?
-        const pgSql = sql.replace(/\?/g, (match, offset) => {
+        let pgSql = sql.replace(/\?/g, (match, offset) => {
             const index = sql.substring(0, offset).split('?').length;
             return `$${index}`;
         });
 
+        const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
+        if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
+            pgSql += ' RETURNING id';
+        }
+
         return db.query(pgSql, params).then(result => {
-            if (result.rows) {
+            // 如果是查询语句，直接返回 rows
+            if (pgSql.trim().toUpperCase().startsWith('SELECT')) {
                 return result.rows;
             }
-            return result;
+
+            // 兼容 SQLite 的非查询返回值
+            const resObj = {
+                changes: result.rowCount,
+                lastID: null
+            };
+
+            if (isInsert && result.rows && result.rows.length > 0) {
+                resObj.lastID = result.rows[0].id;
+            }
+
+            return resObj;
         });
     }
 }

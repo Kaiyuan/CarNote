@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
     nickname VARCHAR(50),
     avatar_url VARCHAR(255),
     role VARCHAR(20) DEFAULT 'user', -- 'admin' or 'user'
+    is_disabled BOOLEAN DEFAULT 0, -- 是否禁用
+    failed_login_attempts INTEGER DEFAULT 0, -- 登录失败次数
+    reset_password_token VARCHAR(100), -- 重置密码令牌
+    reset_password_expires TIMESTAMP, -- 令牌过期时间
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -31,21 +35,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- API 密钥表
-CREATE TABLE IF NOT EXISTS api_keys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    key_value VARCHAR(64) UNIQUE NOT NULL,
-    key_name VARCHAR(50),
-    vehicle_id INTEGER, -- 关联到特定车辆
-    is_active BOOLEAN DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_used_at TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
-);
-
--- 车辆表
+-- 车辆表 (需先于 api_keys 创建，因为 api_keys 引用它)
 CREATE TABLE IF NOT EXISTS vehicles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -60,6 +50,20 @@ CREATE TABLE IF NOT EXISTS vehicles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- API 密钥表
+CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    key_value VARCHAR(64) UNIQUE NOT NULL,
+    key_name VARCHAR(50),
+    vehicle_id INTEGER, -- 关联到特定车辆
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
 );
 
 -- 能耗记录表
@@ -139,6 +143,38 @@ CREATE TABLE IF NOT EXISTS part_replacements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
     FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE SET NULL
+);
+
+-- 登录日志表
+CREATE TABLE IF NOT EXISTS login_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(50),
+    ip_address VARCHAR(50),
+    success BOOLEAN DEFAULT 0,
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 审计日志表
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action VARCHAR(50),
+    details TEXT,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 共享地点表
+CREATE TABLE IF NOT EXISTS shared_locations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100),
+    address VARCHAR(255),
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(10, 7),
+    type VARCHAR(20),
+    usage_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 创建索引以提高查询性能

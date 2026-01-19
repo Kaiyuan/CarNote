@@ -27,7 +27,7 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     // 检查是否是第一个用户 以及 系统注册开关
     const userCount = await get('SELECT COUNT(*) as count FROM users');
-    const isFirstUser = userCount.count === 0;
+    const isFirstUser = parseInt(userCount.count) === 0;
 
     if (!isFirstUser) {
         const regSetting = await get("SELECT value FROM system_settings WHERE key = 'allow_registration'");

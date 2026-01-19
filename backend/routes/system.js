@@ -15,9 +15,10 @@ const sharp = require('sharp');
 // 配置 Multer 用于图标上传
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = process.env.UPLOAD_PATH || './uploads';
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        cb(null, uploadDir);
+        const uploadPath = process.env.UPLOAD_PATH || './uploads';
+        const absPath = path.isAbsolute(uploadPath) ? uploadPath : path.resolve(__dirname, '..', uploadPath);
+        if (!fs.existsSync(absPath)) fs.mkdirSync(absPath, { recursive: true });
+        cb(null, absPath);
     },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname) || '.png';
@@ -48,7 +49,8 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
         return res.status(400).json({ success: false, message: '未选择文件' });
     }
 
-    const uploadDir = process.env.UPLOAD_PATH || './uploads';
+    const uploadPath = process.env.UPLOAD_PATH || './uploads';
+    const uploadDir = path.isAbsolute(uploadPath) ? uploadPath : path.resolve(__dirname, '..', uploadPath);
     const originalPath = req.file.path;
 
     // 生成 PWA 所需的各种尺寸
@@ -87,7 +89,7 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
         if (exists) {
             await query("UPDATE system_settings SET value = ? WHERE key = ?", [iconUrl, key]);
         } else {
-            await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [iconUrl, key]);
+            await query("INSERT INTO system_settings (key, value) VALUES (?, ?)", [key, iconUrl]);
         }
 
         res.json({
