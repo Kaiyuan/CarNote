@@ -13,6 +13,7 @@ import 'primevue/resources/themes/lara-light-blue/theme.css'
 import 'primevue/resources/primevue.min.css'
 import 'primeicons/primeicons.css'
 import 'primeflex/primeflex.css'
+import './assets/styles/main.css'
 
 // PrimeVue 组件
 import Button from 'primevue/button'
