@@ -233,6 +233,7 @@
 
 <script setup>
 import { ref, onMounted, defineAsyncComponent } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { partsAPI, vehicleAPI, locationsAPI } from '../api'
 
@@ -535,7 +536,13 @@ const getHealthColor = (part) => {
 }
 
 onMounted(async () => {
+  const route = useRoute()
   await loadVehicles()
+  
+  if (route.query.vehicle_id) {
+    filters.value.vehicle_id = parseInt(route.query.vehicle_id)
+  }
+  
   loadParts()
 })
 </script>

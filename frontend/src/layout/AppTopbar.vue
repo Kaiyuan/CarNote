@@ -14,21 +14,13 @@
             </span>
 
             <!-- Notifications Bell -->
-            <div class="p-relative">
-                <Button 
-                    icon="pi pi-bell" 
-                    text 
-                    rounded 
-                    class="text-500" 
-                    @click="toggleNotifications"
-                    :badge="notificationCount > 0 ? notificationCount.toString() : null"
-                    badgeSeverity="danger"
-                />
-                
+            <div class="relative">
+                <Button icon="pi pi-bell" text rounded class="text-500" @click="toggleNotifications"
+                    :badge="notificationCount > 0 ? notificationCount.toString() : null" badgeSeverity="danger" />
+
                 <!-- Notification Panel -->
-                <div v-if="showNotifications" 
-                     class="notification-panel surface-0 shadow-4 border-round p-3"
-                     @click.stop>
+                <div v-if="showNotifications" class="notification-panel surface-0 shadow-4 border-round p-3"
+                    @click.stop>
                     <div class="flex justify-content-between align-items-center mb-3">
                         <h3 class="m-0 text-lg font-semibold">通知</h3>
                         <Button icon="pi pi-times" text rounded size="small" @click="showNotifications = false" />
@@ -38,8 +30,8 @@
                         <ProgressSpinner style="width: 40px; height: 40px" />
                     </div>
 
-                    <div v-else-if="!notifications || (!notifications.maintenanceReminders?.length && !notifications.partsReminders?.length && !notifications.announcements?.length)" 
-                         class="text-center text-500 p-4">
+                    <div v-else-if="!notifications || (!notifications.maintenanceReminders?.length && !notifications.partsReminders?.length && !notifications.announcements?.length)"
+                        class="text-center text-500 p-4">
                         <i class="pi pi-inbox text-4xl mb-2"></i>
                         <p>暂无新通知</p>
                     </div>
@@ -49,8 +41,8 @@
                         <div v-if="notifications.announcements?.length > 0" class="mb-3">
                             <small class="text-600 font-semibold">系统公告</small>
                             <div v-for="announcement in notifications.announcements" :key="'ann-' + announcement.id"
-                                 class="notification-item p-2 border-round mt-2 cursor-pointer hover:surface-100"
-                                 @click="viewAnnouncement(announcement)">
+                                class="notification-item p-2 border-round mt-2 cursor-pointer hover:surface-100"
+                                @click="viewAnnouncement(announcement)">
                                 <div class="flex align-items-start gap-2">
                                     <i class="pi pi-megaphone text-blue-500 mt-1"></i>
                                     <div class="flex-1">
@@ -65,12 +57,14 @@
                         <div v-if="notifications.maintenanceReminders?.length > 0" class="mb-3">
                             <small class="text-600 font-semibold">保养提醒</small>
                             <div v-for="reminder in notifications.maintenanceReminders" :key="'maint-' + reminder.id"
-                                 class="notification-item p-2 border-round mt-2 surface-50">
+                                class="notification-item p-2 border-round mt-2 surface-50 cursor-pointer hover:surface-100"
+                                @click="goToRemind('/maintenance', reminder.vehicle_id)">
                                 <div class="flex align-items-start gap-2">
                                     <i class="pi pi-wrench text-orange-500 mt-1"></i>
                                     <div class="flex-1">
                                         <div>{{ reminder.plate_number }} 即将到达保养里程</div>
-                                        <small class="text-600">还剩 {{ reminder.next_maintenance_mileage - reminder.current_mileage }} 公里</small>
+                                        <small class="text-600">还剩 {{ reminder.next_maintenance_mileage -
+                                            reminder.current_mileage }} 公里</small>
                                     </div>
                                 </div>
                             </div>
@@ -80,7 +74,8 @@
                         <div v-if="notifications.partsReminders?.length > 0" class="mb-3">
                             <small class="text-600 font-semibold">配件提醒</small>
                             <div v-for="part in notifications.partsReminders" :key="'part-' + part.id"
-                                 class="notification-item p-2 border-round mt-2 surface-50">
+                                class="notification-item p-2 border-round mt-2 surface-50 cursor-pointer hover:surface-100"
+                                @click="goToRemind('/parts', part.vehicle_id)">
                                 <div class="flex align-items-start gap-2">
                                     <i class="pi pi-cog text-red-500 mt-1"></i>
                                     <div class="flex-1">
@@ -106,12 +101,14 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSiteStore } from '../utils/siteStore'
 import { messagesAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
 
 const siteStore = useSiteStore()
 const toast = useToast()
+const router = useRouter()
 
 const showNotifications = ref(false)
 const notifications = ref(null)
@@ -169,6 +166,11 @@ const viewAnnouncement = (announcement) => {
         detail: announcement.content,
         life: 5000
     })
+}
+
+const goToRemind = (path, vehicleId) => {
+    showNotifications.value = false
+    router.push({ path, query: { vehicle_id: vehicleId } })
 }
 
 // Close notifications panel when clicking outside
