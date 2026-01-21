@@ -90,6 +90,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/system', require('./routes/system'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/locations', require('./routes/locations').router);
+app.use('/api/messages', require('./routes/messages'));
 
 // PWA 动态支持
 const { get, query } = require('./config/database');

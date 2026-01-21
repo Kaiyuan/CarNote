@@ -48,7 +48,7 @@
           <span class="font-bold text-xl text-900">{{ siteStore.state.siteName }}</span>
         </div>
         <div class="flex align-items-center">
-          <Button icon="pi pi-bell" text rounded class="text-500" />
+          <Button icon="pi pi-bell" text rounded class="text-500" @click="router.push('/messages')" />
         </div>
       </div>
 
@@ -84,6 +84,7 @@ const menuItems = computed(() => {
     { label: '能耗记录', icon: 'pi pi-bolt', path: '/energy' },
     { label: '保养维修', icon: 'pi pi-wrench', path: '/maintenance' },
     { label: '配件管理', icon: 'pi pi-box', path: '/parts' },
+    { label: '消息中心', icon: 'pi pi-megaphone', path: '/messages' },
   ]
 
   if (currentUser.value?.role === 'admin') {

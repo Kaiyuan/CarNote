@@ -79,5 +79,10 @@ app.component('Checkbox', Checkbox)
 app.component('Divider', Divider)
 app.component('ProgressSpinner', ProgressSpinner)
 
+import TabView from 'primevue/tabview'
+import TabPanel from 'primevue/tabpanel'
+app.component('TabView', TabView)
+app.component('TabPanel', TabPanel)
+
 // 挂载应用
 app.mount('#app')

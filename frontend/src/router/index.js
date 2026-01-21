@@ -15,6 +15,7 @@ const Analytics = () => import('../views/Analytics.vue')
 const Settings = () => import('../views/Settings.vue')
 const Admin = () => import('../views/Admin.vue')
 const ResetPassword = () => import('../views/ResetPassword.vue')
+const Messages = () => import('../views/Messages.vue')
 
 // 路由配置
 const routes = [
@@ -33,6 +34,12 @@ const routes = [
         path: '/vehicles',
         name: 'VehicleList',
         component: VehicleList,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/messages',
+        name: 'Messages',
+        component: Messages,
         meta: { requiresAuth: true }
     },
     {

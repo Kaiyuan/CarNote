@@ -177,6 +177,38 @@ CREATE TABLE IF NOT EXISTS shared_locations (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 公告表
+CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    type VARCHAR(20) DEFAULT 'info', -- info, warning, success, danger
+    created_by INTEGER NOT NULL,
+    is_pinned BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 工单表
+CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'open', -- open, in_progress, closed
+    priority VARCHAR(20) DEFAULT 'normal', -- low, normal, high, urgent
+    category VARCHAR(50),
+    admin_response TEXT,
+    responded_by INTEGER,
+    responded_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (responded_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+
 -- 创建索引以提高查询性能
 CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id);
 CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id);

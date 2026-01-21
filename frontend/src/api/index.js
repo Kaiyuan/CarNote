@@ -198,4 +198,18 @@ export const locationsAPI = {
     searchNearby: (params) => api.get('/locations/nearby', { params })
 }
 
+// Messages and Notifications API
+export const messagesAPI = {
+    getAnnouncements: (params) => api.get('/messages/announcements', { params }),
+    createAnnouncement: (data) => api.post('/messages/announcements', data),
+    updateAnnouncement: (id, data) => api.put(`/messages/announcements/${id}`, data),
+    deleteAnnouncement: (id) => api.delete(`/messages/announcements/${id}`),
+    getTickets: () => api.get('/messages/tickets'),
+    createTicket: (data) => api.post('/messages/tickets', data),
+    respondTicket: (id, data) => api.put(`/messages/tickets/${id}/respond`, data),
+    getMaintenanceReminders: () => api.get('/messages/maintenance-reminders'),
+    getPartsReminders: () => api.get('/messages/parts-reminders'),
+    getNotifications: () => api.get('/messages/notifications')
+}
+
 export default api;
