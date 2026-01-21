@@ -26,6 +26,9 @@
           {{ formatNumber(slotProps.data.current_mileage) }} km
         </template>
       </Column>
+      <Column field="purchase_date" header="购车时间" sortable>
+        <template #body="slotProps">{{ formatDate(slotProps.data.purchase_date) }}</template>
+      </Column>
       <Column header="操作">
         <template #body="slotProps">
           <Button icon="pi pi-pencil" text rounded @click="editVehicle(slotProps.data)" />
@@ -62,6 +65,10 @@
         <label>当前里程</label>
         <InputNumber v-model="vehicleForm.current_mileage" class="w-full" suffix=" km" />
       </div>
+      <div class="field">
+        <label>购车时间</label>
+        <Calendar v-model="vehicleForm.purchase_date" class="w-full" dateFormat="yy-mm-dd" showIcon />
+      </div>
 
       <template #footer>
         <Button label="取消" text @click="showDialog = false" />
@@ -92,7 +99,8 @@ const vehicleForm = ref({
   model: '',
   year: null,
   power_type: 'fuel',
-  current_mileage: 0
+  current_mileage: 0,
+  purchase_date: null
 })
 
 // 动力类型选项
@@ -177,8 +185,14 @@ const resetForm = () => {
     model: '',
     year: null,
     power_type: 'fuel',
-    current_mileage: 0
+    current_mileage: 0,
+    purchase_date: null
   }
+}
+
+const formatDate = (date) => {
+  if (!date) return '未知'
+  return new Date(date).toLocaleDateString()
 }
 
 const getPowerTypeLabel = (type) => {

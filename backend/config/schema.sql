@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     year INTEGER, -- 年份
     power_type VARCHAR(20) NOT NULL, -- 动力类型: fuel(燃油), electric(纯电), hybrid(混动)
     current_mileage INTEGER DEFAULT 0, -- 当前里程
+    purchase_date DATE, -- 购车时间
     photo_url VARCHAR(255), -- 车辆照片
     description TEXT, -- 说明
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

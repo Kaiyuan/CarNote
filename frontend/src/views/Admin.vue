@@ -81,8 +81,10 @@
                             <Column field="owner_name" header="所属用户"></Column>
                             <Column field="plate_number" header="车牌号"></Column>
                             <Column field="brand" header="品牌"></Column>
-                            <Column field="buy_date" header="购车日期">
-                                <template #body="slotProps">{{ formatDate(slotProps.data.buy_date) }}</template>
+                            <Column field="purchase_date" header="购车时间">
+                                <template #body="slotProps">
+                                    {{ formatDate(slotProps.data.purchase_date) }}
+                                </template>
                             </Column>
                             <Column header="操作">
                                 <template #body="slotProps">
@@ -385,6 +387,9 @@
             </div>
             <div class="field mb-3"><label>里程 (km)</label>
                 <InputNumber v-model="mgmtForm.current_mileage" class="w-full" />
+            </div>
+            <div class="field mb-3"><label>购车时间</label>
+                <Calendar v-model="mgmtForm.purchase_date" class="w-full" dateFormat="yy-mm-dd" showIcon />
             </div>
             <div class="field mb-3"><label>说明</label><Textarea v-model="mgmtForm.description" rows="2" class="w-full" />
             </div>

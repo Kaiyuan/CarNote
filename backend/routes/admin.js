@@ -148,10 +148,10 @@ router.get('/vehicles', asyncHandler(async (req, res) => {
 }));
 
 router.put('/vehicles/:id', asyncHandler(async (req, res) => {
-    const { plate_number, brand, model, year, power_type, current_mileage, description } = req.body;
+    const { plate_number, brand, model, year, power_type, current_mileage, purchase_date, description } = req.body;
     await query(
-        `UPDATE vehicles SET plate_number=?, brand=?, model=?, year=?, power_type=?, current_mileage=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [plate_number, brand, model, year, power_type, current_mileage, description, req.params.id]
+        `UPDATE vehicles SET plate_number=?, brand=?, model=?, year=?, power_type=?, current_mileage=?, purchase_date=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [plate_number, brand, model, year, power_type, current_mileage, purchase_date, description, req.params.id]
     );
     res.json({ success: true, message: '车辆信息已更新' });
 }));

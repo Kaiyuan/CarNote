@@ -21,6 +21,7 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
         year,
         power_type,
         current_mileage,
+        purchase_date,
         photo_url,
         description
     } = req.body;
@@ -64,9 +65,9 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
     // 插入车辆数据
     const result = await query(
         `INSERT INTO vehicles 
-         (user_id, plate_number, brand, model, year, power_type, current_mileage, photo_url, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [req.userId, plate_number, brand, model, year, power_type, current_mileage || 0, photo_url, description]
+         (user_id, plate_number, brand, model, year, power_type, current_mileage, purchase_date, photo_url, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [req.userId, plate_number, brand, model, year, power_type, current_mileage || 0, purchase_date, photo_url, description]
     );
 
     res.status(201).json({
@@ -213,6 +214,7 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         year,
         power_type,
         current_mileage,
+        purchase_date,
         photo_url,
         description
     } = req.body;
@@ -249,10 +251,10 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
     await query(
         `UPDATE vehicles 
          SET plate_number = ?, brand = ?, model = ?, year = ?, 
-             power_type = ?, current_mileage = ?, photo_url = ?, 
+             power_type = ?, current_mileage = ?, purchase_date = ?, photo_url = ?, 
              description = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [plate_number, brand, model, year, power_type, current_mileage, photo_url, description, req.params.id]
+        [plate_number, brand, model, year, power_type, current_mileage, purchase_date, photo_url, description, req.params.id]
     );
 
     res.json({
