@@ -130,12 +130,12 @@
             <h5 class="text-xl font-bold m-0 text-900">费用构成</h5>
             <Button icon="pi pi-ellipsis-h" text rounded aria-label="Menu" />
           </div>
-          <div class="flex justify-content-center align-items-center relative" style="height: 16rem">
-            <Chart type="doughnut" :data="expenseChartData" :options="doughnutOptions" class="w-full" />
+          <div class="flex justify-content-center align-items-center relative" style="height: 12rem">
+            <Chart type="doughnut" :data="expenseChartData" :options="pieOptions" class="w-full" />
             <!-- Center Text Overlay -->
             <div class="absolute flex flex-column align-items-center justify-content-center pointer-events-none">
-              <span class="text-sm text-500">总计</span>
-              <span class="text-xl font-bold text-900">{{ formatCurrency(overview.total_cost) }}</span>
+              <span class="text-xs text-500">总计</span>
+              <span class="text-lg font-bold text-900">{{ formatCurrency(overview.total_cost) }}</span>
             </div>
           </div>
           <div class="mt-4">
@@ -378,18 +378,20 @@ const monthlyTrendData = computed(() => {
   }
 })
 
-const doughnutOptions = {
+const pieOptions = {
   cutout: '70%',
-  plugins: { legend: { display: false } }
+  plugins: {
+    legend: { display: false }
+  }
 }
 
 const expenseChartData = computed(() => {
-  const d = expenseData.value || {}
+  const s = expenseData.value?.summary || {}
   return {
-    labels: ['能耗', '保养', '配件', '其他'],
+    labels: ['补能费用', '保养维修', '配件更换'],
     datasets: [{
-      data: [d.energy_cost || 0, d.maintenance_cost || 0, d.parts_cost || 0, d.other_cost || 0],
-      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+      data: [s.energy || 0, s.maintenance || 0, s.parts || 0],
+      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'],
       borderWidth: 0
     }]
   }
@@ -432,5 +434,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Translucent chart background trick if needed, but PrimeVue cards are white now */
+.w-full {
+  width: 50% !important;
+}
 </style>
