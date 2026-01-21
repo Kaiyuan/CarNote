@@ -90,6 +90,18 @@
             <InputText id="email" v-model="registerForm.email" placeholder="请输入邮箱（可选）" class="w-full" />
           </div>
 
+          <!-- Registration CAPTCHA -->
+          <div class="field">
+            <label for="reg-captcha">验证码 *</label>
+            <div class="flex gap-2 align-items-center">
+              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary"
+                style="min-width: 120px; text-align: center;">
+                {{ captchaQuestion }}
+              </div>
+              <InputText id="reg-captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1" />
+            </div>
+          </div>
+
           <Button label="注册" icon="pi pi-user-plus" class="w-full mt-3" @click="handleRegister" :loading="loading" />
 
           <div class="text-center mt-3">
@@ -116,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { userAPI, systemAPI } from '../api'
@@ -141,6 +153,19 @@ const showCaptcha = ref(false)
 const captchaQuestion = ref('')
 const captchaAnswer = ref('')
 const correctAnswer = ref(0)
+
+// Watch for register toggle to generate captcha
+watch(showRegister, (val) => {
+  if (val) {
+    generateCaptcha()
+  } else {
+    // Reset captcha on switching back to login if not needed
+    if (failedAttempts.value < 2) {
+      showCaptcha.value = false
+      captchaAnswer.value = ''
+    }
+  }
+})
 
 // Check system config
 onMounted(async () => {
@@ -263,6 +288,14 @@ const handleForgotPassword = async () => {
 const handleRegister = async () => {
   if (!registerForm.value.username || !registerForm.value.password) {
     toast.add({ severity: 'warn', summary: '提示', detail: '请输入用户名和密码', life: 3000 })
+    return
+  }
+
+  // 验证 CAPTCHA
+  const userAnswer = parseInt(captchaAnswer.value)
+  if (isNaN(userAnswer) || userAnswer !== correctAnswer.value) {
+    toast.add({ severity: 'error', summary: '验证失败', detail: '验证码错误，请重新输入', life: 3000 })
+    generateCaptcha()
     return
   }
 
