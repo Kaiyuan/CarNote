@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 CREATE TABLE IF NOT EXISTS vehicles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    plate_number VARCHAR(20) UNIQUE NOT NULL, -- 车牌号
+    plate_number VARCHAR(20) NOT NULL, -- 车牌号
     brand VARCHAR(50), -- 品牌
     model VARCHAR(100), -- 型号
     year INTEGER, -- 年份
@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS vehicles (
     description TEXT, -- 说明
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, plate_number) -- 同一个用户不能添加重复的车牌，但不同用户可以添加同一车牌
 );
 
 -- API 密钥表
