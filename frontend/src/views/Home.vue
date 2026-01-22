@@ -131,7 +131,7 @@
             <Button icon="pi pi-ellipsis-h" text rounded aria-label="Menu" />
           </div>
           <div class="flex justify-content-center align-items-center relative" style="height: 12rem">
-            <Chart type="doughnut" :data="expenseChartData" :options="pieOptions" class="w-full" />
+            <Chart type="doughnut" :data="expenseChartData" :options="pieOptions" class="expense-chart" />
             <!-- Center Text Overlay -->
             <div class="absolute flex flex-column align-items-center justify-content-center pointer-events-none">
               <span class="text-xs text-500">总计</span>
@@ -434,7 +434,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.w-full {
+.expense-chart {
   width: 50% !important;
 }
 </style>
