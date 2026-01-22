@@ -111,7 +111,7 @@ async function initSchema() {
 
         try {
             await db.query(pgSchema);
-            console.log('PostgreSQL 表结构创建成功');
+            // console.log('PostgreSQL 表结构创建成功');
         } catch (err) {
             console.error('创建 PostgreSQL 表结构失败:', err);
             throw err;
