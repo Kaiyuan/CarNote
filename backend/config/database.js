@@ -128,8 +128,9 @@ async function initSchema() {
 function query(sql, params = []) {
     if (DB_TYPE === 'sqlite') {
         return new Promise((resolve, reject) => {
-            // 判断是 SELECT 还是其他操作
-            if (sql.trim().toUpperCase().startsWith('SELECT')) {
+            // 判断是 SELECT/PRAGMA 还是其他操作
+            const upperSql = sql.trim().toUpperCase();
+            if (upperSql.startsWith('SELECT') || upperSql.startsWith('PRAGMA')) {
                 db.all(sql, params, (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);
@@ -210,6 +211,10 @@ async function initDatabase() {
 
         // 初始化表结构
         await initSchema();
+
+        // 执行自动迁移
+        const { autoMigrate } = require('./migrate');
+        await autoMigrate();
 
         return db;
     } catch (error) {

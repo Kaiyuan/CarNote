@@ -28,7 +28,12 @@ try {
 
     const formatLog = (level, args) => {
         const timestamp = new Date().toISOString();
-        const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : (arg === undefined ? 'undefined' : arg)).join(' ');
+        const message = args.map(arg => {
+            if (arg instanceof Error) {
+                return arg.stack || arg.message;
+            }
+            return typeof arg === 'object' ? JSON.stringify(arg) : (arg === undefined ? 'undefined' : arg);
+        }).join(' ');
         return `[${timestamp}] [${level}] ${message}\n`;
     };
 
