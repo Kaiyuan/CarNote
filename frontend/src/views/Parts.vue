@@ -162,7 +162,7 @@
 
       <div class="field">
         <label>费用 (元)</label>
-        <InputNumber v-model="replaceForm.cost" class="w-full" :min="0" :maxFractionDigits="2" />
+        <InputNumber v-model="replaceForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
       </div>
 
       <div class="field">

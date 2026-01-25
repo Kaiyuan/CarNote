@@ -102,11 +102,11 @@
       <div class="flex flex-column md:flex-row gap-3 mb-3">
         <div class="flex-1 field m-0">
           <label class="block mb-2">数量 ({{ getUnit(logForm.energy_type) }}) *</label>
-          <InputNumber v-model="logForm.amount" class="w-full" :min="0" :maxFractionDigits="2" />
+          <InputNumber v-model="logForm.amount" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
         </div>
         <div class="flex-1 field m-0">
           <label class="block mb-2">总费用 (元) *</label>
-          <InputNumber v-model="logForm.cost" class="w-full" :min="0" :maxFractionDigits="2" />
+          <InputNumber v-model="logForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
         </div>
       </div>
 

@@ -104,7 +104,7 @@
         </div>
         <div class="field col-6">
           <label>总费用 (元)</label>
-          <InputNumber v-model="recordForm.cost" class="w-full" :min="0" :maxFractionDigits="2" />
+          <InputNumber v-model="recordForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
         </div>
       </div>
 
