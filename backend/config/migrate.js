@@ -1,12 +1,61 @@
-/**
- * 数据库自动迁移与核查模块
- * 负责在系统启动时确保数据库健康，并在受保护的情况下修复结构
- */
-
 const { query, get, transaction } = require('./database');
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+/**
+ * 创建数据库备份
+ */
+async function createBackup() {
+    const DB_TYPE = process.env.DB_TYPE || 'sqlite';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupDir = path.resolve(process.cwd(), './data/backups');
+
+    try {
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+        }
+
+        if (DB_TYPE === 'sqlite') {
+            const dbPath = process.env.SQLITE_PATH || './data/carnote.db';
+            const sourcePath = path.resolve(process.cwd(), dbPath);
+            const backupPath = path.join(backupDir, `carnote_backup_${timestamp}.db`);
+
+            if (fs.existsSync(sourcePath)) {
+                fs.copyFileSync(sourcePath, backupPath);
+                console.log(`[备份] SQLite 数据库已备份至: ${backupPath}`);
+            }
+        } else if (DB_TYPE === 'postgresql') {
+            const host = process.env.PG_HOST || 'localhost';
+            const port = process.env.PG_PORT || 5432;
+            const database = process.env.PG_DATABASE || 'carnote';
+            const user = process.env.PG_USER || 'postgres';
+            const password = process.env.PG_PASSWORD;
+
+            const backupPath = path.join(backupDir, `carnote_backup_${timestamp}.sql`);
+
+            // 构建 pg_dump 命令
+            // 注意：这要求运行环境安装了 postgresql-client
+            const env = { ...process.env, PGPASSWORD: password };
+            try {
+                execSync(`pg_dump -h ${host} -p ${port} -U ${user} -f "${backupPath}" ${database}`, { env });
+                console.log(`[备份] PostgreSQL 数据库已备份至: ${backupPath}`);
+            } catch (err) {
+                console.warn(`[备份] PostgreSQL 自动备份失败 (可能未安装 pg_dump): ${err.message}`);
+                // 仅警告，不中断启动
+            }
+        }
+    } catch (error) {
+        console.error(`[备份] 数据库备份过程中出错:`, error);
+    }
+}
 
 async function autoMigrate() {
     console.log('开始检测数据库迁移...');
+
+    // 迁移前强制执行备份
+    await createBackup();
+
     const DB_TYPE = process.env.DB_TYPE || 'sqlite';
 
     try {
