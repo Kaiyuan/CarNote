@@ -84,5 +84,18 @@ import TabPanel from 'primevue/tabpanel'
 app.component('TabView', TabView)
 app.component('TabPanel', TabPanel)
 
+// --- VIP 模块加载钩子 ---
+if (typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__) {
+    try {
+        const vipModule = await import('@vip/index.js');
+        if (vipModule && typeof vipModule.init === 'function') {
+            await vipModule.init(app, router);
+        }
+    } catch (err) {
+        console.error('[VIP] 加载前端 VIP 模块失败:', err);
+    }
+}
+// ----------------------
+
 // 挂载应用
 app.mount('#app')

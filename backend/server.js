@@ -191,6 +191,21 @@ async function startServer() {
         await initDatabase();
         console.log('数据库初始化完成');
 
+        // --- VIP 模块加载钩子 (必须在数据库初始化后) ---
+        const vipModulePath = path.join(__dirname, '../vip/backend/index.js');
+        if (fs.existsSync(vipModulePath)) {
+            try {
+                const vipModule = require(vipModulePath);
+                if (typeof vipModule.init === 'function') {
+                    // 传入 express 实例，解决模块找不到 express 的问题
+                    await vipModule.init(app, express);
+                }
+            } catch (err) {
+                console.error('[VIP] 加载 VIP 模块失败:', err);
+            }
+        }
+        // ----------------------------------------------
+
         // 启动服务器
         app.listen(PORT, () => {
             console.log(`\n========================================`);

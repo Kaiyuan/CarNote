@@ -89,6 +89,9 @@ const menuItems = computed(() => {
 
   if (currentUser.value?.role === 'admin') {
     items.push({ label: '系统管理', icon: 'pi pi-shield', path: '/admin' })
+    if (siteStore.state.hasVip) {
+      items.push({ label: '会员管理', icon: 'pi pi-users', path: '/admin/membership' })
+    }
   }
 
   return items

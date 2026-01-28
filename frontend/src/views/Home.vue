@@ -11,17 +11,31 @@
           currentUser?.username }}</h2>
       </div>
       <div class="flex gap-2 align-items-center w-full md:w-auto overflow-hidden">
+        <!-- VIP: 多车对比开关 -->
+        <div v-if="isAdvanced" class="flex align-items-center bg-primary-50 px-3 py-2 border-round-xl mr-2">
+          <Checkbox v-model="comparisonMode" :binary="true" inputId="compMode" />
+          <label for="compMode" class="ml-2 text-primary font-bold text-sm cursor-pointer whitespace-nowrap">多车对比</label>
+        </div>
+
         <Button label="记一笔" icon="pi pi-plus" class="p-button-primary flex-shrink-0"
           @click="router.push('/energy?action=add')" />
-        <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
+        
+        <Dropdown v-if="!comparisonMode" v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
           placeholder="车辆" class="flex-auto md:w-14rem min-w-0" />
+        <div v-else class="flex-auto md:w-14rem bg-white border-round border-1 border-300 px-3 py-2 text-sm text-600">对比模式: 全车辆</div>
+
         <!-- 桌面端显示范围选择器 -->
-        <SelectButton v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
+        <SelectButton v-model="timeRange" :options="filteredTimeRanges" optionLabel="label" optionValue="value"
           :allowEmpty="false" class="hidden lg:flex flex-shrink-0" />
         <!-- 移动端显示范围下拉框 -->
-        <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value" placeholder="范围"
+        <Dropdown v-model="timeRange" :options="filteredTimeRanges" optionLabel="label" optionValue="value" placeholder="范围"
           class="flex-auto lg:hidden min-w-0" />
       </div>
+    </div>
+
+    <!-- VIP: 自定义时间范围日期选择 -->
+    <div v-if="timeRange === 'custom'" class="flex gap-2 mb-4 animate-fadein">
+        <Calendar v-model="customDates" selectionMode="range" :manualInput="false" placeholder="选择日期范围" class="w-full md:w-20rem" showIcon />
     </div>
 
     <!-- 空状态提示 -->
@@ -208,6 +222,27 @@ const timeRanges = [
   { label: '全部', value: 'all' }
 ]
 
+// --- VIP 相关逻辑 ---
+const comparisonMode = ref(false)
+const customDates = ref(null)
+const vipStore = typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__ ? (await import('@vip/utils/vipStore')).useVipStore() : null
+const isAdvanced = computed(() => {
+  if (!vipStore) return false
+  return ['advanced', 'premium'].includes(vipStore.state.status?.tier)
+})
+
+const filteredTimeRanges = computed(() => {
+  if (isAdvanced.value) {
+    return [...timeRanges, { label: '自定义', value: 'custom' }]
+  }
+  return timeRanges
+})
+
+// 多车对比数据存储
+const comparisonData = ref([])
+
+// ------------------
+
 // Fetch Vehicles
 const loadVehicles = async () => {
   try {
@@ -221,14 +256,48 @@ const loadVehicles = async () => {
 
 // Fetch Dashboard Data
 const loadDashboardData = async () => {
-  if (!selectedVehicleId.value) return
+  if (!selectedVehicleId.value && !comparisonMode.value) return
   loading.value = true
 
   try {
     const params = { range: timeRange.value }
+    
+    // 如果是自定义时间范围
+    if (timeRange.value === 'custom' && customDates.value && customDates.value[0] && customDates.value[1]) {
+        params.start_date = customDates.value[0].toISOString().split('T')[0]
+        params.end_date = customDates.value[1].toISOString().split('T')[0]
+        params.range = 'custom'
+    }
 
-    console.log('加载仪表盘数据，车辆ID:', selectedVehicleId.value)
-    console.log('参数:', params)
+    if (comparisonMode.value) {
+        // 对比模式：加载所有车辆的数据并聚合
+        const allData = await Promise.all(vehicles.value.map(async (v) => {
+            const [ov, ex, mon] = await Promise.all([
+                analyticsAPI.getOverview(v.id, params).catch(() => ({ success: false })),
+                analyticsAPI.getExpenses(v.id, params).catch(() => ({ success: false })),
+                analyticsAPI.getMonthlyTrend(v.id, params).catch(() => ({ success: false }))
+            ])
+            return { vehicle: v, overview: ov.data, expenses: ex.data, monthly: mon.data }
+        }))
+        
+        // 简单聚合总览数据
+        const summary = { total_mileage: 0, total_cost: 0, avg_consumption: 0, count: 0 }
+        allData.forEach(d => {
+            if (d.overview) {
+                summary.total_mileage += (d.overview.total_mileage || 0)
+                summary.total_cost += (d.overview.total_cost || 0)
+                summary.avg_consumption += (d.overview.avg_consumption || 0)
+                summary.count++
+            }
+        })
+        overview.value = {
+            total_mileage: summary.total_mileage,
+            total_cost: summary.total_cost,
+            avg_consumption: summary.count > 0 ? summary.avg_consumption / summary.count : 0
+        }
+        loading.value = false
+        return
+    }
 
     const [ovRes, exRes, monRes, actRes] = await Promise.all([
       analyticsAPI.getOverview(selectedVehicleId.value, params).catch(e => {
@@ -428,7 +497,18 @@ watch(timeRange, (newVal) => {
   }
 })
 
+watch(comparisonMode, () => {
+  loadDashboardData()
+})
+
+watch(customDates, (newVal) => {
+  if (newVal && newVal[0] && newVal[1]) {
+    loadDashboardData()
+  }
+})
+
 onMounted(() => {
+  if (vipStore) vipStore.fetchStatus()
   loadVehicles()
 })
 </script>

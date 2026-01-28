@@ -7,6 +7,9 @@
 
         <!-- Actions -->
         <div class="flex align-items-center gap-3">
+            <!-- VIP 会员状态 (由 VIP 模块注入) -->
+            <component :is="'VipMembershipBadge'" v-if="siteStore.state.hasVip" />
+
             <!-- Search Bar (Visual only for now) -->
             <span class="p-input-icon-left hidden md:block">
                 <i class="pi pi-search text-500" />

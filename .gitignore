@@ -138,3 +138,5 @@ dist
 # Data
 data/
 uploads/
+# 独立会员模块
+vip/

@@ -1,9 +1,23 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import path from 'path'
+import fs from 'fs'
+
+const vipFrontendPath = path.resolve(__dirname, '../vip/frontend');
+const hasVip = fs.existsSync(path.join(vipFrontendPath, 'index.js'));
 
 // Vite 配置
 export default defineConfig({
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './src'),
+            '@vip': vipFrontendPath
+        }
+    },
+    define: {
+        __HAS_VIP__: hasVip
+    },
     plugins: [
         vue(),
         VitePWA({

@@ -7,10 +7,15 @@ const state = reactive({
     siteIcon: null,
     allowRegistration: true,
     isFirstUser: false,
+    hasVip: false,
     loading: false
 })
 
 export const useSiteStore = () => {
+    const setHasVip = (val) => {
+        state.hasVip = val
+    }
+
     const fetchConfig = async () => {
         state.loading = true
         try {
@@ -70,6 +75,7 @@ export const useSiteStore = () => {
         state: readonly(state),
         fetchConfig,
         updateConfig,
+        setHasVip,
         setSiteIcon: (url) => { state.siteIcon = url }
     }
 }
