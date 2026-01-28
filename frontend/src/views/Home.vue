@@ -38,8 +38,13 @@
         <Calendar v-model="customDates" selectionMode="range" :manualInput="false" placeholder="选择日期范围" class="w-full md:w-20rem" showIcon />
     </div>
 
+    <!-- 加载中状态 -->
+    <div v-if="loading && !selectedVehicleId && !comparisonMode" class="flex justify-content-center align-items-center py-8">
+      <ProgressSpinner />
+    </div>
+
     <!-- 空状态提示 -->
-    <div v-if="!selectedVehicleId && !loading" class="text-center py-8">
+    <div v-else-if="!selectedVehicleId && !loading && !comparisonMode" class="text-center py-8">
       <div class="surface-card p-6 border-round-2xl shadow-1 inline-block">
         <i class="pi pi-car mb-3 text-primary" style="font-size: 4rem"></i>
         <div class="text-xl font-medium text-900 mb-2">开始您的车辆管理之旅</div>
@@ -198,10 +203,12 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSiteStore } from '../utils/siteStore'
 import { vehicleAPI, analyticsAPI, energyAPI, maintenanceAPI } from '../api' // Added energy/maintenance APIs
 import Chart from 'primevue/chart'
 
 const router = useRouter()
+const siteStore = useSiteStore()
 const currentUser = ref(JSON.parse(localStorage.getItem('currentUser') || '{}'))
 
 // State
@@ -225,14 +232,15 @@ const timeRanges = [
 // --- VIP 相关逻辑 ---
 const comparisonMode = ref(false)
 const customDates = ref(null)
-const vipStore = typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__ ? (await import('@vip/utils/vipStore')).useVipStore() : null
+const vipStore = ref(null)
+
 const isAdvanced = computed(() => {
-  if (!vipStore) return false
-  return ['advanced', 'premium'].includes(vipStore.state.status?.tier)
+  if (!siteStore.state.hasVip || !vipStore.value) return false
+  return ['advanced', 'premium'].includes(vipStore.value.state.status?.tier)
 })
 
 const filteredTimeRanges = computed(() => {
-  if (isAdvanced.value) {
+  if (siteStore.state.hasVip && isAdvanced.value) {
     return [...timeRanges, { label: '自定义', value: 'custom' }]
   }
   return timeRanges
@@ -245,13 +253,18 @@ const comparisonData = ref([])
 
 // Fetch Vehicles
 const loadVehicles = async () => {
+  loading.value = true
   try {
     const res = await vehicleAPI.getList()
     if (res.success && res.data.length > 0) {
       vehicles.value = res.data
       selectedVehicleId.value = res.data[0].id
     }
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
 }
 
 // Fetch Dashboard Data
@@ -507,9 +520,17 @@ watch(customDates, (newVal) => {
   }
 })
 
-onMounted(() => {
-  if (vipStore) vipStore.fetchStatus()
-  loadVehicles()
+onMounted(async () => {
+    if (typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__) {
+        try {
+            const { useVipStore } = await import('@vip/utils/vipStore');
+            vipStore.value = useVipStore();
+            vipStore.value.fetchStatus();
+        } catch (e) {
+            console.error('[VIP] 加载 Store 失败:', e);
+        }
+    }
+    loadVehicles()
 })
 </script>
 

@@ -12,7 +12,12 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
-            '@vip': vipFrontendPath
+            '@vip': vipFrontendPath,
+            // 确保位于项目外的 VIP 模块能正确解析这些核心依赖，并共用单例
+            'vue': path.resolve(__dirname, 'node_modules/vue'),
+            'primevue': path.resolve(__dirname, 'node_modules/primevue'),
+            '@/api': path.resolve(__dirname, 'src/api'),
+            '@/utils': path.resolve(__dirname, 'src/utils')
         }
     },
     define: {
@@ -45,6 +50,13 @@ export default defineConfig({
     ],
     server: {
         port: 53301,
+        // 允许 Vite 访问项目根目录之外的文件 (VIP 模块)
+        fs: {
+            allow: [
+                path.resolve(__dirname, '.'),
+                vipFrontendPath
+            ]
+        },
         proxy: {
             // API 代理到后端
             '/api': {

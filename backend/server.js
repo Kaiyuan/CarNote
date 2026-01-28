@@ -179,9 +179,6 @@ if (fs.existsSync(FRONTEND_PATH)) {
     console.warn('Frontend build not found at:', FRONTEND_PATH);
 }
 
-// 404 和错误处理
-app.use(notFoundHandler);
-app.use(errorHandler);
 
 // 启动服务器
 async function startServer() {
@@ -205,6 +202,10 @@ async function startServer() {
             }
         }
         // ----------------------------------------------
+
+        // 404 和错误处理 (必须在所有路由之后)
+        app.use(notFoundHandler);
+        app.use(errorHandler);
 
         // 启动服务器
         app.listen(PORT, () => {
