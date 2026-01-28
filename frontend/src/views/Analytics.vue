@@ -102,6 +102,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { vehicleAPI, analyticsAPI } from '../api'
+import logger from '../utils/logger'
 import Chart from 'primevue/chart'
 
 // 状态
@@ -132,7 +133,7 @@ const loadVehicles = async () => {
             }
         }
     } catch (error) {
-        console.error('Failed to load vehicles', error)
+        logger.error('Failed to load vehicles', error)
     }
 }
 
@@ -157,7 +158,7 @@ const loadAllData = async () => {
         if (monthlyRes.success) monthlyData.value = monthlyRes.data
 
     } catch (error) {
-        console.error('Failed to load analytics', error)
+        logger.error('Failed to load analytics', error)
     }
 }
 

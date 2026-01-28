@@ -3,7 +3,65 @@
         <h1 class="text-3xl font-bold mb-4">系统管理</h1>
 
         <TabView :activeIndex="activeTab" @update:activeIndex="activeTab = $event">
-            <!-- 1. 会员审核 (New) -->
+            <!-- 1. 爱发电集成 (New Category) -->
+            <TabPanel header="爱发电配置">
+                <div class="grid">
+                    <div class="col-12 lg:col-6">
+                        <Card class="shadow-2 h-full">
+                            <template #title>Webhook 自动化设置</template>
+                            <template #content>
+                                <div class="bg-blue-50 p-3 border-round mb-4 text-sm text-blue-800 line-height-3">
+                                    配置 Webhook Token 和 API Key 后，系统将能够通过爱发电的回调自动激活会员权益。<br />
+                                    <strong>Webhook URL:</strong> <code
+                                        class="bg-white px-2 py-1 border-round">{{ getWebhookUrl() }}</code>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>API Key (用于 URL 校验)</label>
+                                    <div class="p-inputgroup">
+                                        <InputText v-model="siteBranding.afdian_webhook_key" placeholder="点击右侧按钮生成" />
+                                        <Button icon="pi pi-refresh" @click="generateWebhookKey"
+                                            v-tooltip.top="'生成随机密钥'" />
+                                    </div>
+                                    <small class="text-500">点击保存后，此密钥将持久化到数据库中。</small>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>Webhook Token</label>
+                                    <InputText v-model="siteBranding.afdian_webhook_token" type="password"
+                                        placeholder="从爱发电开发者后台获取" class="w-full" />
+                                </div>
+                                <Button label="保存 Webhook 配置" icon="pi pi-save" @click="saveBranding"
+                                    class="w-full mt-2" :loading="savingBranding" />
+                            </template>
+                        </Card>
+                    </div>
+
+                    <div class="col-12 lg:col-6">
+                        <Card class="shadow-2 h-full">
+                            <template #title>赞助链接设置</template>
+                            <template #content>
+                                <div class="field mb-3">
+                                    <label>精英会员赞助 URL (¥30/年)</label>
+                                    <InputText v-model="siteBranding.afdian_advanced_url"
+                                        placeholder="https://afdian.com/..." class="w-full" />
+                                </div>
+                                <div class="field mb-4">
+                                    <label>高级会员赞助 URL (¥200/年)</label>
+                                    <InputText v-model="siteBranding.afdian_premium_url"
+                                        placeholder="https://afdian.com/..." class="w-full" />
+                                </div>
+                                <p class="text-xs text-500 mb-3 bg-gray-50 p-2 border-round">
+                                    <i class="pi pi-info-circle mr-1"></i>
+                                    用户在“会员中心”选择对应套餐时，将点击跳转至此处配置的 URL 完成支付。
+                                </p>
+                                <Button label="保存链接设置" icon="pi pi-link" @click="saveBranding" class="w-full"
+                                    :loading="savingBranding" />
+                            </template>
+                        </Card>
+                    </div>
+                </div>
+            </TabPanel>
+
+            <!-- 2. 会员审核 (Old 1) -->
             <TabPanel header="会员审核">
                 <div class="mb-4 flex justify-content-between align-items-center">
                     <h2 class="m-0">待审核赞助订单</h2>
@@ -84,7 +142,7 @@
                                 <Tag :value="getVipTierLabel(slotProps.data.vip_tier)"
                                     :severity="slotProps.data.vip_tier === 'premium' ? 'warning' : 'info'" />
                                 <small class="text-500 mt-1" v-if="slotProps.data.vip_expiry">
-                                    {{ new Date(slotProps.data.vip_expiry).toLocaleDateString() }} 到期
+                                    {{ formatMemberDate(slotProps.data.vip_expiry) }} 到期
                                 </small>
                             </div>
                             <span v-else class="text-500 text-sm">普通用户</span>
@@ -320,6 +378,10 @@
                                     <Checkbox v-model="siteBranding.allow_registration" :binary="true" />
                                     <label class="ml-2">允许新用户注册</label>
                                 </div>
+                                <div class="field-checkbox mb-4">
+                                    <Checkbox v-model="siteBranding.debug_mode" :binary="true" />
+                                    <label class="ml-2">调试模式 (控制台输出)</label>
+                                </div>
                                 <Button label="保存站点设置" icon="pi pi-save" @click="saveBranding" class="w-full"
                                     :loading="savingBranding" />
                             </template>
@@ -358,40 +420,6 @@
                                         class="w-full" />
                                 </div>
                                 <Button label="保存配置" @click="saveSmtp" class="w-full mt-2" :loading="saving" />
-                            </template>
-                        </Card>
-                    </div>
-                    <div class="col-12 md:col-6 lg:col-4">
-                        <Card class="shadow-2">
-                            <template #title>爱发电 (Aifadian) 集成</template>
-                            <template #content>
-                                <div class="bg-blue-50 p-3 border-round mb-4 text-sm text-blue-800 line-height-3">
-                                    配置 Webhook Token 和 API Key 后，系统将能够通过爱发电的回调自动激活会员权益。<br />
-                                    <strong>Webhook URL:</strong> <code
-                                        class="bg-white px-2 py-1 border-round">{{ getWebhookUrl() }}</code>
-                                </div>
-                                <div class="field mb-3">
-                                    <label>API Key (用于 URL 校验)</label>
-                                    <div class="p-inputgroup">
-                                        <InputText v-model="siteBranding.afdian_webhook_key" placeholder="点击右侧按钮生成" />
-                                        <Button icon="pi pi-refresh" @click="generateWebhookKey"
-                                            v-tooltip.top="'生成随机密钥'" />
-                                    </div>
-                                    <small class="text-500">此密钥将包含在爱发电回调 URL 中，作为第一层安全校验。</small>
-                                </div>
-                                <div class="field mb-3">
-                                    <label>Webhook Token</label>
-                                    <InputText v-model="siteBranding.afdian_webhook_token" type="password"
-                                        placeholder="从爱发电开发者后台获取" class="w-full" />
-                                </div>
-                                <div class="text-xs text-500 mb-3">
-                                    <i class="pi pi-info-circle mr-1"></i>
-                                    当订单金额匹配时支持自动激活：<br />
-                                    - ¥30.00: 精英会员 (1年)<br />
-                                    - ¥200.00: 高级会员 (1年)
-                                </div>
-                                <Button label="保存爱发电设置" icon="pi pi-save" @click="saveBranding" class="w-full"
-                                    :loading="savingBranding" />
                             </template>
                         </Card>
                     </div>
@@ -655,7 +683,10 @@ const loadBranding = async () => {
         site_description: siteStore.state.siteDescription,
         allow_registration: siteStore.state.allowRegistration,
         afdian_webhook_token: siteStore.state.afdianWebhookToken || '',
-        afdian_webhook_key: siteStore.state.afdianWebhookKey || ''
+        afdian_webhook_key: siteStore.state.afdianWebhookKey || '',
+        afdian_advanced_url: siteStore.state.afdianAdvancedUrl || '',
+        afdian_premium_url: siteStore.state.afdianPremiumUrl || '',
+        debug_mode: siteStore.state.debugMode
     }
 }
 
@@ -1025,18 +1056,24 @@ const deleteLocation = async (id) => {
 
 // Watch active tab to load data lazily
 watch(activeTab, (idx) => {
-    if (idx === 0) loadOrders()
-    if (idx === 1) loadUsers()
-    if (idx === 2) loadMgmtRecords()
-    if (idx === 3) loadLogs()
-    if (idx === 4) loadAdminLocations()
-    if (idx === 5) {
+    if (idx === 0) loadBranding() // 爱发电配置
+    if (idx === 1) loadOrders()   // 会员审核
+    if (idx === 2) loadUsers()
+    if (idx === 3) loadMgmtRecords()
+    if (idx === 4) loadLogs()
+    if (idx === 5) loadAdminLocations()
+    if (idx === 6) {
         loadSmtp()
-        loadBranding()
+        loadBranding() // 系统设置
     }
 })
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
+const formatMemberDate = (d) => {
+    if (!d) return '';
+    const date = new Date(d);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+};
 const formatDateTime = (d) => d ? new Date(d).toLocaleString() : ''
 
 onMounted(() => {

@@ -67,15 +67,14 @@
       <Column header="操作">
         <template #body="slotProps">
           <Button icon="pi pi-pencil" text rounded @click="editLog(slotProps.data)" />
-          <Button icon="pi pi-trash" text rounded severity="danger"
-            @click="() => { console.log('Delete clicked!', slotProps.data.id); deleteLog(slotProps.data.id); }" />
+          <Button icon="pi pi-trash" text rounded severity="danger" @click="() => { deleteLog(slotProps.data.id); }" />
         </template>
       </Column>
     </DataTable>
 
     <!-- 添加/编辑对话框 -->
-    <Dialog v-model:visible="showDialog" :header="editingLog ? '编辑记录' : '添加能耗记录'" :modal="true"
-      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
+    <Dialog :visible="showDialog" @update:visible="showDialog = $event" :header="editingLog ? '编辑记录' : '添加能耗记录'"
+      :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="logForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -102,11 +101,13 @@
       <div class="flex flex-column md:flex-row gap-3 mb-3">
         <div class="flex-1 field m-0">
           <label class="block mb-2">数量 ({{ getUnit(logForm.energy_type) }}) *</label>
-          <InputNumber v-model="logForm.amount" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
+          <InputNumber v-model="logForm.amount" class="w-full" :min="0" :maxFractionDigits="2"
+            :inputProps="{ inputmode: 'decimal' }" />
         </div>
         <div class="flex-1 field m-0">
           <label class="block mb-2">总费用 (元) *</label>
-          <InputNumber v-model="logForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
+          <InputNumber v-model="logForm.cost" class="w-full" :min="0" :maxFractionDigits="2"
+            :inputProps="{ inputmode: 'decimal' }" />
         </div>
       </div>
 
@@ -143,7 +144,7 @@
       </template>
     </Dialog>
     <!-- 地图选择对话框 -->
-    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+    <Dialog :visible="showMapDialog" @update:visible="showMapDialog = $event" header="选择位置" :modal="true"
       :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker v-if="showMapDialog" :initialLat="logForm.location_lat" :initialLng="logForm.location_lng"
         @confirm="onLocationSelected" />
@@ -156,6 +157,7 @@ import { ref, onMounted, computed, defineAsyncComponent, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter, useRoute } from 'vue-router'
 import { energyAPI, vehicleAPI, locationsAPI } from '../api'
+import logger from '../utils/logger'
 
 const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
 
@@ -210,7 +212,7 @@ const loadVehicles = async () => {
       vehicles.value = res.data
     }
   } catch (error) {
-    console.error('Failed to load vehicles', error)
+    logger.error('Failed to load vehicles', error)
   }
 }
 
@@ -223,9 +225,9 @@ const loadLogs = async () => {
       params.vehicle_id = filters.value.vehicle_id
     }
 
-    console.log('正在加载能耗记录，参数:', params)
+    logger.debug('正在加载能耗记录，参数:', params)
     const res = await energyAPI.getList(params)
-    console.log('API 响应:', res)
+    logger.debug('API 响应:', res)
 
     if (res.success) {
       // 处理多种可能的响应格式
@@ -235,19 +237,19 @@ const loadLogs = async () => {
         if (Array.isArray(res.data)) {
           // 格式1: { success: true, data: [...] }
           logsData = res.data
-          console.log('使用格式1: data 是数组')
+          logger.debug('使用格式1: data 是数组')
         } else if (res.data.logs && Array.isArray(res.data.logs)) {
           // 格式2: { success: true, data: { logs: [...], pagination: {...} } }
           logsData = res.data.logs
-          console.log('使用格式2: data.logs 是数组')
+          logger.debug('使用格式2: data.logs 是数组')
         } else if (typeof res.data === 'object') {
           // 格式3: data 是对象但不是数组，尝试转换
-          console.warn('未知的 data 格式:', res.data)
+          logger.warn('未知的 data 格式:', res.data)
           logsData = []
         }
       }
 
-      console.log('解析后的日志数据:', logsData)
+      logger.debug('解析后的日志数据:', logsData)
 
       // Backend already returns plate_number in the data, just use it directly
       logs.value = logsData.map(log => ({
@@ -256,18 +258,18 @@ const loadLogs = async () => {
         vehicle_plate: log.plate_number || vehicles.value.find(v => v.id === log.vehicle_id)?.plate_number || '未知车辆'
       }))
 
-      console.log('最终日志列表:', logs.value)
+      logger.debug('最终日志列表:', logs.value)
 
       if (logs.value.length === 0) {
         toast.add({ severity: 'info', summary: '提示', detail: '暂无能耗记录', life: 3000 })
       }
     } else {
-      console.error('API 返回 success: false')
+      logger.error('API 返回 success: false')
       toast.add({ severity: 'error', summary: '错误', detail: res.message || '加载失败', life: 3000 })
     }
   } catch (error) {
-    console.error('加载能耗记录失败:', error)
-    console.error('错误详情:', error.response || error.message)
+    logger.error('加载能耗记录失败:', error)
+    logger.debug('错误详情:', error.response || error.message)
     const errorMsg = error.response?.data?.message || error.message || '加载记录失败'
     toast.add({ severity: 'error', summary: '错误', detail: errorMsg, life: 3000 })
   } finally {
@@ -355,14 +357,14 @@ const deleteLog = async (id) => {
   console.log('删除记录被调用, ID:', id)
 
   if (!window.confirm('确定要删除这条记录吗？')) {
-    console.log('用户取消删除')
+    logger.debug('用户取消删除')
     return
   }
 
-  console.log('开始删除记录...')
+  logger.debug('开始删除记录...')
   try {
     const res = await energyAPI.delete(id)
-    console.log('删除 API 响应:', res)
+    logger.debug('删除 API 响应:', res)
 
     if (res.success) {
       toast.add({ severity: 'success', summary: '成功', detail: '删除成功', life: 3000 })
@@ -371,7 +373,7 @@ const deleteLog = async (id) => {
       toast.add({ severity: 'error', summary: '错误', detail: res.message || '删除失败', life: 3000 })
     }
   } catch (error) {
-    console.error('删除记录失败:', error)
+    logger.error('删除记录失败:', error)
     toast.add({ severity: 'error', summary: '错误', detail: error.message || '删除失败', life: 3000 })
   }
 }
@@ -403,7 +405,7 @@ const searchNearby = async (lat, lng) => {
       nearbyLocations.value = res.data
     }
   } catch (e) {
-    console.error('Nearby search failed', e)
+    logger.error('Nearby search failed', e)
   }
 }
 
@@ -516,7 +518,7 @@ const importData = async (event) => {
           const res = await energyAPI.create(record)
           if (res.success) successCount++
         } catch (err) {
-          console.error('导入记录失败:', err)
+          logger.error('导入记录失败:', err)
         }
       }
 

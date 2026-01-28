@@ -76,8 +76,8 @@
     </DataTable>
 
     <!-- 添加/编辑对话框 -->
-    <Dialog v-model:visible="showDialog" :header="editingRecord ? '编辑记录' : '添加保养/维修记录'" :modal="true"
-      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
+    <Dialog :visible="showDialog" @update:visible="showDialog = $event" :header="editingRecord ? '编辑记录' : '添加保养/维修记录'"
+      :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '600px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="recordForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -104,7 +104,8 @@
         </div>
         <div class="field col-6">
           <label>总费用 (元)</label>
-          <InputNumber v-model="recordForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
+          <InputNumber v-model="recordForm.cost" class="w-full" :min="0" :maxFractionDigits="2"
+            :inputProps="{ inputmode: 'decimal' }" />
         </div>
       </div>
 
@@ -160,7 +161,7 @@
     </Dialog>
 
     <!-- 地图选择对话框 -->
-    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+    <Dialog :visible="showMapDialog" @update:visible="showMapDialog = $event" header="选择位置" :modal="true"
       :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker :initialLat="recordForm.location_lat" :initialLng="recordForm.location_lng"
         @confirm="onLocationSelected" />
@@ -173,6 +174,7 @@ import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { maintenanceAPI, vehicleAPI, locationsAPI } from '../api'
+import logger from '../utils/logger'
 
 const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
 
@@ -227,7 +229,7 @@ const loadVehicles = async () => {
       vehicles.value = res.data
     }
   } catch (error) {
-    console.error('Failed to load vehicles', error)
+    logger.error('Failed to load vehicles', error)
   }
 }
 
@@ -339,7 +341,7 @@ const searchNearby = async (lat, lng) => {
       nearbyLocations.value = res.data
     }
   } catch (e) {
-    console.error('Nearby search failed', e)
+    logger.error('Nearby search failed', e)
   }
 }
 

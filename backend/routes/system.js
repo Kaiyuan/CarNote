@@ -117,7 +117,7 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
  */
 router.get('/config', asyncHandler(async (req, res) => {
     // 获取配置项
-    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token')");
+    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode', 'afdian_advanced_url', 'afdian_premium_url')");
     const config = {};
     settings.forEach(s => config[s.key] = s.value);
 
@@ -141,7 +141,10 @@ router.get('/config', asyncHandler(async (req, res) => {
             siteIcon,
             siteDescription,
             afdianWebhookToken,
-            afdianWebhookKey: config['afdian_webhook_key'] || ''
+            afdianWebhookKey: config['afdian_webhook_key'] || '',
+            debugMode: config['debug_mode'] === 'true',
+            afdianAdvancedUrl: config['afdian_advanced_url'] || 'https://afdian.com/a/kaiyuan',
+            afdianPremiumUrl: config['afdian_premium_url'] || 'https://afdian.com/a/kaiyuan'
         }
     });
 }));
@@ -158,7 +161,7 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
     }
 
     const updates = req.body;
-    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key'];
+    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode', 'afdian_advanced_url', 'afdian_premium_url'];
 
     for (const key of allowedKeys) {
         if (updates[key] !== undefined) {

@@ -87,8 +87,8 @@
     </div>
 
     <!-- 添加/编辑配件对话框 -->
-    <Dialog v-model:visible="showDialog" :header="editingPart ? '编辑配件' : '添加新配件'" :modal="true"
-      :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
+    <Dialog :visible="showDialog" @update:visible="showDialog = $event" :header="editingPart ? '编辑配件' : '添加新配件'"
+      :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
       <div class="field">
         <label>车辆 *</label>
         <Dropdown v-model="partForm.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
@@ -141,7 +141,7 @@
     </Dialog>
 
     <!-- 更换配件记录对话框 -->
-    <Dialog v-model:visible="showReplaceDialog" header="记录配件更换" :modal="true"
+    <Dialog :visible="showReplaceDialog" @update:visible="showReplaceDialog = $event" header="记录配件更换" :modal="true"
       :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
       <div v-if="replacingPart" class="mb-4 surface-100 p-3 border-round">
         <div class="font-bold mb-1">正在更换: {{ replacingPart.part_name }}</div>
@@ -162,7 +162,8 @@
 
       <div class="field">
         <label>费用 (元)</label>
-        <InputNumber v-model="replaceForm.cost" class="w-full" :min="0" :maxFractionDigits="2" :inputProps="{ inputmode: 'decimal' }" />
+        <InputNumber v-model="replaceForm.cost" class="w-full" :min="0" :maxFractionDigits="2"
+          :inputProps="{ inputmode: 'decimal' }" />
       </div>
 
       <div class="field">
@@ -199,14 +200,14 @@
     </Dialog>
 
     <!-- 地图选择对话框 -->
-    <Dialog v-model:visible="showMapDialog" header="选择位置" :modal="true"
+    <Dialog :visible="showMapDialog" @update:visible="showMapDialog = $event" header="选择位置" :modal="true"
       :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }">
       <LocationPicker :initialLat="replaceForm.location_lat" :initialLng="replaceForm.location_lng"
         @confirm="onLocationSelected" />
     </Dialog>
 
     <!-- 历史记录对话框 -->
-    <Dialog v-model:visible="showHistoryDialog" header="配件更换历史" :modal="true"
+    <Dialog :visible="showHistoryDialog" @update:visible="showHistoryDialog = $event" header="配件更换历史" :modal="true"
       :breakpoints="{ '960px': '90vw', '640px': '95vw' }" :style="{ width: '800px', maxWidth: '95vw' }" maximizable>
       <DataTable :value="historyRecords" :loading="historyLoading" stripedRows paginator :rows="10"
         responsiveLayout="stack" breakpoint="960px" class="responsive-table">
@@ -236,6 +237,7 @@ import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { partsAPI, vehicleAPI, locationsAPI } from '../api'
+import logger from '../utils/logger'
 
 const LocationPicker = defineAsyncComponent(() => import('../components/LocationPicker.vue'))
 
@@ -295,7 +297,7 @@ const loadVehicles = async () => {
       vehicles.value = res.data
     }
   } catch (error) {
-    console.error('Failed to load vehicles', error)
+    logger.error('Failed to load vehicles', error)
   }
 }
 
@@ -429,7 +431,7 @@ const searchNearby = async (lat, lng) => {
       nearbyLocations.value = res.data
     }
   } catch (e) {
-    console.error('Nearby search failed', e)
+    logger.error('Nearby search failed', e)
   }
 }
 
@@ -538,11 +540,11 @@ const getHealthColor = (part) => {
 onMounted(async () => {
   const route = useRoute()
   await loadVehicles()
-  
+
   if (route.query.vehicle_id) {
     filters.value.vehicle_id = parseInt(route.query.vehicle_id)
   }
-  
+
   loadParts()
 })
 </script>

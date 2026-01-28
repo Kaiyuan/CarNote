@@ -7,6 +7,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import PrimeVue from 'primevue/config'
+import logger from './utils/logger'
 
 // PrimeVue 样式
 import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -97,7 +98,7 @@ const startApp = async () => {
                 await vipModule.init(app, router);
             }
         } catch (err) {
-            console.error('[VIP] 加载前端 VIP 模块失败:', err);
+            logger.error('[VIP] 加载前端 VIP 模块失败:', err);
         }
     }
 }

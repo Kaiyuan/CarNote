@@ -108,6 +108,7 @@ import { useRouter } from 'vue-router'
 import { useSiteStore } from '../utils/siteStore'
 import { messagesAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
+import logger from '../utils/logger'
 
 const siteStore = useSiteStore()
 const toast = useToast()
@@ -140,7 +141,7 @@ const loadNotifications = async () => {
             notifications.value = res.data
         }
     } catch (error) {
-        console.error('Failed to load notifications:', error)
+        logger.error('Failed to load notifications:', error)
     } finally {
         loading.value = false
     }

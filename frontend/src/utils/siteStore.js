@@ -10,6 +10,9 @@ const state = reactive({
     hasVip: false,
     afdianWebhookToken: '',
     afdianWebhookKey: '',
+    afdianAdvancedUrl: '',
+    afdianPremiumUrl: '',
+    debugMode: false,
     loading: false
 })
 
@@ -30,6 +33,9 @@ export const useSiteStore = () => {
                 state.isFirstUser = res.data.isFirstUser
                 state.afdianWebhookToken = res.data.afdianWebhookToken || ''
                 state.afdianWebhookKey = res.data.afdianWebhookKey || ''
+                state.debugMode = res.data.debugMode || false
+                state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
+                state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
 
                 // Update document title and meta
                 document.title = state.siteName
@@ -72,6 +78,15 @@ export const useSiteStore = () => {
                 }
                 if (updates.afdian_webhook_key !== undefined) {
                     state.afdianWebhookKey = updates.afdian_webhook_key
+                }
+                if (updates.debug_mode !== undefined) {
+                    state.debugMode = updates.debug_mode === 'true' || updates.debug_mode === true
+                }
+                if (updates.afdian_advanced_url !== undefined) {
+                    state.afdianAdvancedUrl = updates.afdian_advanced_url
+                }
+                if (updates.afdian_premium_url !== undefined) {
+                    state.afdianPremiumUrl = updates.afdian_premium_url
                 }
                 return true
             }

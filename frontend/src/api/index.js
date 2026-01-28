@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios'
+import logger from '../utils/logger'
 
 // 创建 axios 实例
 const api = axios.create({
@@ -28,10 +29,11 @@ api.interceptors.request.use(
 // 响应拦截器 - 统一处理错误
 api.interceptors.response.use(
     response => {
+        logger.info(`API Success [${response.config.method.toUpperCase()}] ${response.config.url}`, response.data);
         return response.data
     },
     error => {
-        console.error('API 请求错误:', error)
+        logger.error(`API Error [${error.config?.method?.toUpperCase()}] ${error.config?.url}:`, error.response?.data || error.message);
 
         // 401 未授权，跳转到登录页
         if (error.response?.status === 401) {

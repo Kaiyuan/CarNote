@@ -113,7 +113,8 @@
     </Card>
 
     <!-- 忘记密码对话框 -->
-    <Dialog v-model:visible="showForgotDialog" header="忘记密码" :modal="true" style="width: 400px">
+    <Dialog :visible="showForgotDialog" @update:visible="showForgotDialog = $event" header="忘记密码" :modal="true"
+      style="width: 400px">
       <p class="text-600 mb-4">请输入您的邮箱，我们将向您发送重置密码的链接。</p>
       <div class="field">
         <label for="forgot-email">注册邮箱</label>
@@ -133,6 +134,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { userAPI, systemAPI } from '../api'
 import { useSiteStore } from '../utils/siteStore'
+import logger from '../utils/logger'
 
 const siteStore = useSiteStore()
 const router = useRouter()
@@ -179,7 +181,7 @@ onMounted(async () => {
       toast.add({ severity: 'info', summary: '欢迎', detail: '系统初次运行，请注册管理员账号', life: 5000 })
     }
   } catch (e) {
-    console.error('Failed to fetch system config', e)
+    logger.error('Failed to fetch system config', e)
   }
 })
 
