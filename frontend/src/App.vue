@@ -6,7 +6,7 @@
   <div id="app" class="layout-wrapper surface-ground min-h-screen flex relative">
 
     <!-- Mobile Sidebar (Drawer) -->
-    <Sidebar v-model:visible="mobileMenuVisible">
+    <Sidebar :visible="mobileMenuVisible" @update:visible="mobileMenuVisible = $event">
       <div class="flex flex-column align-items-center mb-5">
         <div class="flex align-items-center justify-content-center border-circle bg-primary mb-3 overflow-hidden"
           style="width: 3rem; height: 3rem">
@@ -87,11 +87,12 @@ const menuItems = computed(() => {
     { label: '消息中心', icon: 'pi pi-megaphone', path: '/messages' },
   ]
 
+  if (siteStore.state.hasVip) {
+    items.push({ label: '会员中心', icon: 'pi pi-users', path: '/membership' })
+  }
+
   if (currentUser.value?.role === 'admin') {
     items.push({ label: '系统管理', icon: 'pi pi-shield', path: '/admin' })
-    if (siteStore.state.hasVip) {
-      items.push({ label: '会员管理', icon: 'pi pi-users', path: '/admin/membership' })
-    }
   }
 
   return items

@@ -38,8 +38,8 @@
     </DataTable>
 
     <!-- 添加/编辑对话框 -->
-    <Dialog v-model:visible="showDialog" :header="editingVehicle ? '编辑车辆' : '添加车辆'" :modal="true"
-      :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
+    <Dialog :visible="showDialog" @update:visible="showDialog = $event" :header="editingVehicle ? '编辑车辆' : '添加车辆'"
+      :modal="true" :breakpoints="{ '960px': '75vw', '640px': '95vw' }" :style="{ width: '500px' }">
       <div class="field">
         <label>车牌号 *</label>
         <InputText v-model="vehicleForm.plate_number" class="w-full" />

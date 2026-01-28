@@ -2,8 +2,50 @@
     <div>
         <h1 class="text-3xl font-bold mb-4">系统管理</h1>
 
-        <TabView v-model:activeIndex="activeTab">
-            <!-- 用户管理 -->
+        <TabView :activeIndex="activeTab" @update:activeIndex="activeTab = $event">
+            <!-- 1. 会员审核 (New) -->
+            <TabPanel header="会员审核">
+                <div class="mb-4 flex justify-content-between align-items-center">
+                    <h2 class="m-0">待审核赞助订单</h2>
+                    <Button icon="pi pi-refresh" rounded text @click="loadOrders" />
+                </div>
+                <DataTable :value="orders" :loading="loadingOrders" stripedRows paginator :rows="10"
+                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+                    <Column field="username" header="申请人">
+                        <template #body="slotProps">
+                            {{ slotProps.data.nickname || slotProps.data.username }}
+                        </template>
+                    </Column>
+                    <Column field="order_id" header="爱发电订单号">
+                        <template #body="slotProps">
+                            <code class="bg-gray-100 p-1 border-round">{{ slotProps.data.order_id }}</code>
+                        </template>
+                    </Column>
+                    <Column field="tier" header="申请等级">
+                        <template #body="slotProps">
+                            <Tag :value="getVipTierLabel(slotProps.data.tier)" severity="info" />
+                        </template>
+                    </Column>
+                    <Column field="status" header="状态">
+                        <template #body="slotProps">
+                            <Tag :value="slotProps.data.status" :severity="getStatusSeverity(slotProps.data.status)" />
+                        </template>
+                    </Column>
+                    <Column header="操作">
+                        <template #body="slotProps">
+                            <div class="flex gap-2" v-if="slotProps.data.status === 'pending'">
+                                <Button icon="pi pi-check" severity="success" rounded text
+                                    @click="openVerifyDialog(slotProps.data, 'approved')" v-tooltip.top="'批准'" />
+                                <Button icon="pi pi-times" severity="danger" rounded text
+                                    @click="openVerifyDialog(slotProps.data, 'rejected')" v-tooltip.top="'驳回'" />
+                            </div>
+                            <span v-else class="text-xs text-500">{{ slotProps.data.admin_note || '已处理' }}</span>
+                        </template>
+                    </Column>
+                </DataTable>
+            </TabPanel>
+
+            <!-- 2. 用户管理 -->
             <TabPanel header="用户管理">
                 <div class="mb-4 flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
                     <h2 class="m-0">注册用户</h2>
@@ -33,6 +75,19 @@
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.role"
                                 :severity="slotProps.data.role === 'admin' ? 'danger' : 'success'" />
+                        </template>
+                    </Column>
+                    <Column header="会员状态">
+                        <template #body="slotProps">
+                            <div v-if="slotProps.data.vip_tier && slotProps.data.vip_tier !== 'ordinary'"
+                                class="flex flex-column">
+                                <Tag :value="getVipTierLabel(slotProps.data.vip_tier)"
+                                    :severity="slotProps.data.vip_tier === 'premium' ? 'warning' : 'info'" />
+                                <small class="text-500 mt-1" v-if="slotProps.data.vip_expiry">
+                                    {{ new Date(slotProps.data.vip_expiry).toLocaleDateString() }} 到期
+                                </small>
+                            </div>
+                            <span v-else class="text-500 text-sm">普通用户</span>
                         </template>
                     </Column>
                     <Column field="is_disabled" header="状态">
@@ -306,13 +361,47 @@
                             </template>
                         </Card>
                     </div>
+                    <div class="col-12 md:col-6 lg:col-4">
+                        <Card class="shadow-2">
+                            <template #title>爱发电 (Aifadian) 集成</template>
+                            <template #content>
+                                <div class="bg-blue-50 p-3 border-round mb-4 text-sm text-blue-800 line-height-3">
+                                    配置 Webhook Token 和 API Key 后，系统将能够通过爱发电的回调自动激活会员权益。<br />
+                                    <strong>Webhook URL:</strong> <code
+                                        class="bg-white px-2 py-1 border-round">{{ getWebhookUrl() }}</code>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>API Key (用于 URL 校验)</label>
+                                    <div class="p-inputgroup">
+                                        <InputText v-model="siteBranding.afdian_webhook_key" placeholder="点击右侧按钮生成" />
+                                        <Button icon="pi pi-refresh" @click="generateWebhookKey"
+                                            v-tooltip.top="'生成随机密钥'" />
+                                    </div>
+                                    <small class="text-500">此密钥将包含在爱发电回调 URL 中，作为第一层安全校验。</small>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>Webhook Token</label>
+                                    <InputText v-model="siteBranding.afdian_webhook_token" type="password"
+                                        placeholder="从爱发电开发者后台获取" class="w-full" />
+                                </div>
+                                <div class="text-xs text-500 mb-3">
+                                    <i class="pi pi-info-circle mr-1"></i>
+                                    当订单金额匹配时支持自动激活：<br />
+                                    - ¥30.00: 精英会员 (1年)<br />
+                                    - ¥200.00: 高级会员 (1年)
+                                </div>
+                                <Button label="保存爱发电设置" icon="pi pi-save" @click="saveBranding" class="w-full"
+                                    :loading="savingBranding" />
+                            </template>
+                        </Card>
+                    </div>
                 </div>
             </TabPanel>
         </TabView>
 
         <!-- 用户编辑/创建对话框 -->
-        <Dialog v-model:visible="userDialog" :header="userForm.id ? '编辑用户' : '新建用户'" :modal="true"
-            :breakpoints="{ '960px': '75vw', '640px': '90vw' }" style="width: 400px">
+        <Dialog :visible="userDialog" @update:visible="userDialog = $event" :header="userForm.id ? '编辑用户' : '新建用户'"
+            :modal="true" :breakpoints="{ '960px': '75vw', '640px': '90vw' }" style="width: 400px">
             <div class="field mb-3" v-if="!userForm.id">
                 <label>用户名 *</label>
                 <InputText v-model="userForm.username" class="w-full" />
@@ -333,6 +422,22 @@
                 <label>角色</label>
                 <Dropdown v-model="userForm.role" :options="['admin', 'user']" class="w-full" />
             </div>
+
+            <div v-if="siteStore.state.hasVip" class="border-top-1 surface-border pt-3 mt-3">
+                <h3 class="text-sm font-bold mb-2">会员管理</h3>
+                <div class="field mb-3">
+                    <label>会员等级</label>
+                    <Dropdown v-model="userForm.vip_tier" :options="[
+                        { label: '普通用户', value: 'ordinary' },
+                        { label: '精英会员 (30/年)', value: 'advanced' },
+                        { label: '高级会员 (200/年)', value: 'premium' }
+                    ]" optionLabel="label" optionValue="value" class="w-full" />
+                </div>
+                <div class="field mb-3" v-if="userForm.vip_tier !== 'ordinary'">
+                    <label>会员有效期</label>
+                    <Calendar v-model="userForm.vip_expiry" class="w-full" dateFormat="yy-mm-dd" showIcon />
+                </div>
+            </div>
             <template #footer>
                 <Button label="取消" text @click="userDialog = false" />
                 <Button label="保存" @click="saveUser" :loading="saving" />
@@ -340,7 +445,7 @@
         </Dialog>
 
         <!-- 站点编辑对话框 -->
-        <Dialog v-model:visible="locationDialog" header="编辑位置站点" :modal="true"
+        <Dialog :visible="locationDialog" @update:visible="locationDialog = $event" header="编辑位置站点" :modal="true"
             :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3">
                 <label>名称</label>
@@ -367,8 +472,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (车辆) -->
-        <Dialog v-model:visible="mgmtDialogs.vehicle" header="编辑车辆" :modal="true"
-            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
+        <Dialog :visible="mgmtDialogs.vehicle" @update:visible="mgmtDialogs.vehicle = $event" header="编辑车辆"
+            :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>牌号</label>
                 <InputText v-model="mgmtForm.plate_number" class="w-full" />
             </div>
@@ -400,8 +505,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (能耗) -->
-        <Dialog v-model:visible="mgmtDialogs.energy" header="编辑能耗记录" :modal="true"
-            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
+        <Dialog :visible="mgmtDialogs.energy" @update:visible="mgmtDialogs.energy = $event" header="编辑能耗记录"
+            :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>日期</label>
                 <Calendar v-model="mgmtForm.log_date" class="w-full" dateFormat="yy-mm-dd" showTime hourFormat="24" />
             </div>
@@ -431,8 +536,8 @@
         </Dialog>
 
         <!-- 通用管理项编辑对话框 (保养) -->
-        <Dialog v-model:visible="mgmtDialogs.maintenance" header="编辑保养记录" :modal="true"
-            :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
+        <Dialog :visible="mgmtDialogs.maintenance" @update:visible="mgmtDialogs.maintenance = $event" header="编辑保养记录"
+            :modal="true" :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>日期</label>
                 <Calendar v-model="mgmtForm.maintenance_date" class="w-full" dateFormat="yy-mm-dd" />
             </div>
@@ -452,7 +557,7 @@
         </Dialog>
 
         <!-- 配件编辑对话框 -->
-        <Dialog v-model:visible="mgmtDialogs.part" header="编辑配件信息" :modal="true"
+        <Dialog :visible="mgmtDialogs.part" @update:visible="mgmtDialogs.part = $event" header="编辑配件信息" :modal="true"
             :breakpoints="{ '960px': '85vw', '640px': '95vw' }" style="width: 450px">
             <div class="field mb-3"><label>配件名称</label>
                 <InputText v-model="mgmtForm.name" class="w-full" />
@@ -470,7 +575,8 @@
         </Dialog>
 
         <!-- 密码重置显示对话框 -->
-        <Dialog v-model:visible="showGeneratedPwd" header="密码已重置" :modal="true" style="width: 400px">
+        <Dialog :visible="showGeneratedPwd" @update:visible="showGeneratedPwd = $event" header="密码已重置" :modal="true"
+            style="width: 400px">
             <div class="text-center py-4">
                 <p>该用户的新密码已生成：</p>
                 <div class="text-2xl font-bold p-3 surface-200 border-round mb-4 select-all">
@@ -480,12 +586,27 @@
                 <Button label="确定" @click="showGeneratedPwd = false" class="w-full mt-3" />
             </div>
         </Dialog>
+
+        <!-- 审核备注弹窗 (New) -->
+        <Dialog :visible="verifyDialog" @update:visible="verifyDialog = $event" header="会员申请审核" :modal="true"
+            style="width: 400px">
+            <div class="p-field mt-2">
+                <label class="block mb-2 font-bold">审核意见 (可选):</label>
+                <Textarea v-model="verifyNote" rows="3" class="w-full" placeholder="输入驳回理由或备注信息" />
+            </div>
+            <template #footer>
+                <Button label="取消" text @click="verifyDialog = false" />
+                <Button :label="verifyAction === 'approved' ? '批准申请' : '确认驳回'"
+                    :severity="verifyAction === 'approved' ? 'success' : 'danger'" @click="confirmVerify"
+                    :loading="verifying" />
+            </template>
+        </Dialog>
     </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { adminAPI, systemAPI } from '../api'
+import api, { adminAPI, systemAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
@@ -508,6 +629,15 @@ const mgmtData = ref({
     parts: []
 })
 const mgmtVehicles = ref([])
+// 会员审核相关
+const orders = ref([])
+const loadingOrders = ref(false)
+const verifyDialog = ref(false)
+const verifyAction = ref('')
+const selectedOrder = ref(null)
+const verifyNote = ref('')
+const verifying = ref(false)
+
 // 站点品牌
 const siteBranding = ref({
     site_name: '',
@@ -522,7 +652,10 @@ const loadBranding = async () => {
     await siteStore.fetchConfig()
     siteBranding.value = {
         site_name: siteStore.state.siteName,
-        allow_registration: siteStore.state.allowRegistration
+        site_description: siteStore.state.siteDescription,
+        allow_registration: siteStore.state.allowRegistration,
+        afdian_webhook_token: siteStore.state.afdianWebhookToken || '',
+        afdian_webhook_key: siteStore.state.afdianWebhookKey || ''
     }
 }
 
@@ -598,6 +731,62 @@ const filteredUsers = computed(() => {
         (u.nickname && u.nickname.toLowerCase().includes(s))
     )
 })
+
+const getVipTierLabel = (tier) => {
+    const labels = {
+        'ordinary': '普通用户',
+        'advanced': '精英会员',
+        'premium': '高级会员'
+    };
+    return labels[tier] || tier;
+};
+
+const getStatusSeverity = (status) => {
+    const map = { 'pending': 'warning', 'approved': 'success', 'rejected': 'danger' };
+    return map[status] || 'info';
+};
+
+const loadOrders = async () => {
+    loadingOrders.value = true;
+    try {
+        const res = await api.get('/membership/admin/orders');
+        if (res.success) {
+            orders.value = res.data;
+        }
+    } catch (e) {
+        console.error('加载订单失败', e);
+    } finally {
+        loadingOrders.value = false;
+    }
+};
+
+const openVerifyDialog = (order, action) => {
+    selectedOrder.value = order;
+    verifyAction.value = action;
+    verifyNote.value = '';
+    verifyDialog.value = true;
+};
+
+const confirmVerify = async () => {
+    verifying.value = true;
+    try {
+        const res = await api.post('/membership/admin/verify-order', {
+            id: selectedOrder.value.id,
+            status: verifyAction.value,
+            admin_note: verifyNote.value
+        });
+        if (res.success) {
+            toast.add({ severity: 'success', summary: '已处理', life: 3000 });
+            verifyDialog.value = false;
+            loadOrders();
+            loadUsers(); // 刷新用户列表以显示最新等级
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: '审核失败', detail: e.message });
+    } finally {
+        verifying.value = false;
+    }
+};
 
 const loadUsers = async () => {
     loading.value = true
@@ -714,8 +903,25 @@ const loadAdminLocations = async () => {
     }
 }
 
+const getWebhookUrl = () => {
+    const key = siteBranding.value.afdian_webhook_key || '{API_KEY}';
+    return window.location.origin + '/api/membership/webhook/afdian/' + key;
+};
+
+const generateWebhookKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    siteBranding.value.afdian_webhook_key = result;
+};
+
 const editUser = (user) => {
     userForm.value = { ...user }
+    if (userForm.value.vip_expiry) {
+        userForm.value.vip_expiry = new Date(userForm.value.vip_expiry);
+    }
     userDialog.value = true
 }
 
@@ -819,11 +1025,12 @@ const deleteLocation = async (id) => {
 
 // Watch active tab to load data lazily
 watch(activeTab, (idx) => {
-    if (idx === 0) loadUsers()
-    if (idx === 1) loadMgmtRecords()
-    if (idx === 2) loadLogs()
-    if (idx === 3) loadAdminLocations()
-    if (idx === 4) {
+    if (idx === 0) loadOrders()
+    if (idx === 1) loadUsers()
+    if (idx === 2) loadMgmtRecords()
+    if (idx === 3) loadLogs()
+    if (idx === 4) loadAdminLocations()
+    if (idx === 5) {
         loadSmtp()
         loadBranding()
     }
@@ -833,7 +1040,9 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
 const formatDateTime = (d) => d ? new Date(d).toLocaleString() : ''
 
 onMounted(() => {
+    loadOrders()
     loadUsers()
+    loadAdminLocations() // Pre-load some critical data
 })
 </script>
 

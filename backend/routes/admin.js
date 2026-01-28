@@ -9,10 +9,15 @@ const { asyncHandler } = require('../middleware/errorHandler');
 router.use(authenticateUser, isAdmin);
 
 /**
- * 获取所有用户列表
+ * 获取所有用户列表 (整合会员状态)
  */
 router.get('/users', asyncHandler(async (req, res) => {
-    const users = await query('SELECT id, username, email, nickname, role, is_disabled, failed_login_attempts, created_at FROM users');
+    const users = await query(`
+        SELECT u.id, u.username, u.email, u.nickname, u.role, u.is_disabled, u.failed_login_attempts, u.created_at,
+               m.tier as vip_tier, m.expiry_date as vip_expiry
+        FROM users u
+        LEFT JOIN memberships m ON u.id = m.user_id
+    `);
     res.json({ success: true, data: users });
 }));
 
@@ -37,8 +42,19 @@ router.post('/users', asyncHandler(async (req, res) => {
         [username, passwordHash, email, nickname || username, role || 'user']
     );
 
+    const newUserId = result.lastID;
+
     // 创建默认设置
-    await query('INSERT INTO user_settings (user_id) VALUES (?)', [result.lastID]);
+    await query('INSERT INTO user_settings (user_id) VALUES (?)', [newUserId]);
+
+    // 会员权限初始化 (如果传入)
+    const { vip_tier, vip_expiry } = req.body;
+    if (vip_tier && vip_tier !== 'ordinary') {
+        await query(`
+            INSERT INTO memberships (user_id, tier, expiry_date, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `, [newUserId, vip_tier, vip_expiry]);
+    }
 
     await createAuditLog(req.userId, 'admin_create_user', { username, role: role || 'user' });
 
@@ -53,7 +69,7 @@ router.post('/users', asyncHandler(async (req, res) => {
  * 更新用户状态/权限
  */
 router.put('/users/:id', asyncHandler(async (req, res) => {
-    const { role, is_disabled, nickname, email } = req.body;
+    const { role, is_disabled, nickname, email, vip_tier, vip_expiry } = req.body;
     const targetId = req.params.id;
 
     if (targetId == req.userId && is_disabled) {
@@ -70,6 +86,18 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
          WHERE id = ?`,
         [role, is_disabled, nickname, email, targetId]
     );
+
+    // 会员权限更新 (如果传入)
+    if (vip_tier) {
+        await query(`
+            INSERT INTO memberships (user_id, tier, expiry_date, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                tier = excluded.tier,
+                expiry_date = excluded.expiry_date,
+                updated_at = excluded.updated_at
+        `, [targetId, vip_tier, vip_expiry]);
+    }
 
     await createAuditLog(req.userId, 'update_user', { targetId, role, is_disabled });
     res.json({ success: true, message: '用户信息已更新' });

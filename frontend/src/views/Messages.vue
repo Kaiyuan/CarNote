@@ -19,8 +19,8 @@
                 </div>
                 <div v-else class="grid">
                     <div v-for="ann in announcements" :key="ann.id" class="col-12">
-                        <div class="p-3 border-round surface-0 shadow-1 hover:shadow-2 transition-duration-200 border-left-3" 
-                             :class="getSeverityBorder(ann.type)">
+                        <div class="p-3 border-round surface-0 shadow-1 hover:shadow-2 transition-duration-200 border-left-3"
+                            :class="getSeverityBorder(ann.type)">
                             <div class="flex justify-content-between align-items-start">
                                 <div class="flex align-items-center gap-2 mb-2">
                                     <Tag v-if="ann.is_pinned" value="置顶" severity="danger" />
@@ -28,8 +28,10 @@
                                     <Tag :value="getTypeLabel(ann.type)" :severity="ann.type" />
                                 </div>
                                 <div v-if="isAdmin" class="flex gap-1">
-                                    <Button icon="pi pi-pencil" text rounded size="small" @click="openAnnouncementDialog(ann)" />
-                                    <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="deleteAnnouncement(ann.id)" />
+                                    <Button icon="pi pi-pencil" text rounded size="small"
+                                        @click="openAnnouncementDialog(ann)" />
+                                    <Button icon="pi pi-trash" text rounded severity="danger" size="small"
+                                        @click="deleteAnnouncement(ann.id)" />
                                 </div>
                             </div>
                             <p class="text-700 m-0 white-space-pre-wrap">{{ ann.content }}</p>
@@ -49,7 +51,8 @@
                     <Button v-if="!isAdmin" label="提交工单" icon="pi pi-plus" @click="showTicketDialog = true" />
                 </div>
 
-                <DataTable :value="tickets" :loading="loadingTickets" stripedRows responsiveLayout="stack" breakpoint="960px">
+                <DataTable :value="tickets" :loading="loadingTickets" stripedRows responsiveLayout="stack"
+                    breakpoint="960px">
                     <Column field="title" header="标题"></Column>
                     <Column field="category" header="分类">
                         <template #body="slotProps">
@@ -58,7 +61,8 @@
                     </Column>
                     <Column field="status" header="状态">
                         <template #body="slotProps">
-                            <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" />
+                            <Tag :value="getStatusLabel(slotProps.data.status)"
+                                :severity="getStatusSeverity(slotProps.data.status)" />
                         </template>
                     </Column>
                     <Column header="时间">
@@ -86,9 +90,11 @@
                             </h3>
                             <div v-if="maintenanceReminders.length === 0" class="text-500">暂无保养提醒</div>
                             <div v-else class="flex flex-column gap-3">
-                                <div v-for="rem in maintenanceReminders" :key="'mr-'+rem.id" class="surface-0 p-3 border-round shadow-1 border-left-3 border-orange-500">
+                                <div v-for="rem in maintenanceReminders" :key="'mr-' + rem.id"
+                                    class="surface-0 p-3 border-round shadow-1 border-left-3 border-orange-500">
                                     <div class="font-bold mb-1">{{ rem.plate_number }}</div>
-                                    <div class="text-700">距离下次保养里程还剩: <span class="text-orange-600 font-bold">{{ rem.next_maintenance_mileage - rem.current_mileage }} km</span></div>
+                                    <div class="text-700">距离下次保养里程还剩: <span class="text-orange-600 font-bold">{{
+                                        rem.next_maintenance_mileage - rem.current_mileage }} km</span></div>
                                     <router-link :to="'/maintenance?vehicle_id=' + rem.vehicle_id">
                                         <Button label="去记录保养" text size="small" class="mt-2 p-0" />
                                     </router-link>
@@ -106,9 +112,12 @@
                             </h3>
                             <div v-if="partsReminders.length === 0" class="text-500">暂无配件提醒</div>
                             <div v-else class="flex flex-column gap-3">
-                                <div v-for="part in partsReminders" :key="'pr-'+part.id" class="surface-0 p-3 border-round shadow-1 border-left-3 border-red-500">
+                                <div v-for="part in partsReminders" :key="'pr-' + part.id"
+                                    class="surface-0 p-3 border-round shadow-1 border-left-3 border-red-500">
                                     <div class="font-bold mb-1">{{ part.plate_number }} - {{ part.name }}</div>
-                                    <div class="text-700">建议更换里程: {{ part.installed_mileage + part.recommended_replacement_mileage }} km</div>
+                                    <div class="text-700">建议更换里程: {{ part.installed_mileage +
+                                        part.recommended_replacement_mileage
+                                        }} km</div>
                                     <div class="text-500 small">当前里程: {{ part.current_mileage }} km</div>
                                     <router-link :to="'/parts?vehicle_id=' + part.vehicle_id">
                                         <Button label="查看配件详情" text size="small" class="mt-2 p-0" />
@@ -122,7 +131,8 @@
         </TabView>
 
         <!-- 公告弹窗 -->
-        <Dialog v-model:visible="showAnnouncementDialog" :header="editingAnnouncement ? '编辑公告' : '发布新公告'" modal class="p-fluid w-full max-w-28rem">
+        <Dialog :visible="showAnnouncementDialog" @update:visible="showAnnouncementDialog = $event"
+            :header="editingAnnouncement ? '编辑公告' : '发布新公告'" modal class="p-fluid w-full max-w-28rem">
             <div class="field mt-2">
                 <label>标题</label>
                 <InputText v-model="annForm.title" placeholder="公告标题" />
@@ -146,15 +156,18 @@
         </Dialog>
 
         <!-- 工单详情/回复弹窗 -->
-        <Dialog v-model:visible="showTicketDetail" header="工单详情" modal class="w-full max-w-30rem">
+        <Dialog :visible="showTicketDetail" @update:visible="showTicketDetail = $event" header="工单详情" modal
+            class="w-full max-w-30rem">
             <div v-if="selectedTicket">
                 <div class="mb-4">
                     <div class="flex justify-content-between align-items-center mb-2">
-                        <Tag :value="getStatusLabel(selectedTicket.status)" :severity="getStatusSeverity(selectedTicket.status)" />
+                        <Tag :value="getStatusLabel(selectedTicket.status)"
+                            :severity="getStatusSeverity(selectedTicket.status)" />
                         <small class="text-500">{{ formatDate(selectedTicket.created_at) }}</small>
                     </div>
                     <h2 class="m-0 text-xl font-bold">{{ selectedTicket.title }}</h2>
-                    <p class="surface-100 p-3 border-round text-800 white-space-pre-wrap">{{ selectedTicket.content }}</p>
+                    <p class="surface-100 p-3 border-round text-800 white-space-pre-wrap">{{ selectedTicket.content }}
+                    </p>
                 </div>
 
                 <div v-if="selectedTicket.admin_response" class="mb-4">
@@ -176,7 +189,8 @@
                     </div>
                     <div class="field p-fluid">
                         <label class="mb-2 block">更改状态</label>
-                        <Dropdown v-model="responseForm.status" :options="statusOptions" optionLabel="label" optionValue="value" />
+                        <Dropdown v-model="responseForm.status" :options="statusOptions" optionLabel="label"
+                            optionValue="value" />
                     </div>
                     <div class="flex justify-content-end gap-2 mt-3">
                         <Button label="提交回复" @click="submitTicketResponse" :loading="saving" />
@@ -186,7 +200,8 @@
         </Dialog>
 
         <!-- 新建工单弹窗 -->
-        <Dialog v-model:visible="showTicketDialog" header="新建工单" modal class="p-fluid w-full max-w-28rem">
+        <Dialog :visible="showTicketDialog" @update:visible="showTicketDialog = $event" header="新建工单" modal
+            class="p-fluid w-full max-w-28rem">
             <div class="field mt-2">
                 <label>标题</label>
                 <InputText v-model="ticketForm.title" placeholder="简单描述您的问题" />
@@ -272,7 +287,7 @@ const loadData = async () => {
             messagesAPI.getMaintenanceReminders(),
             messagesAPI.getPartsReminders()
         ])
-        
+
         if (annRes.success) announcements.value = annRes.data.announcements
         if (tickRes.success) tickets.value = tickRes.data
         if (maintRes.success) maintenanceReminders.value = maintRes.data
@@ -306,7 +321,7 @@ const saveAnnouncement = async () => {
         } else {
             res = await messagesAPI.createAnnouncement(annForm.value)
         }
-        
+
         if (res.success) {
             toast.add({ severity: 'success', summary: '成功', detail: res.message })
             showAnnouncementDialog.value = false
@@ -352,9 +367,9 @@ const submitTicket = async () => {
 
 const viewTicket = (ticket) => {
     selectedTicket.value = ticket
-    responseForm.value = { 
-        admin_response: ticket.admin_response || '', 
-        status: ticket.status === 'open' ? 'in_progress' : ticket.status 
+    responseForm.value = {
+        admin_response: ticket.admin_response || '',
+        status: ticket.status === 'open' ? 'in_progress' : ticket.status
     }
     showTicketDetail.value = true
 }

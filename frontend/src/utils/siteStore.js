@@ -8,6 +8,8 @@ const state = reactive({
     allowRegistration: true,
     isFirstUser: false,
     hasVip: false,
+    afdianWebhookToken: '',
+    afdianWebhookKey: '',
     loading: false
 })
 
@@ -26,6 +28,8 @@ export const useSiteStore = () => {
                 state.siteIcon = res.data.siteIcon
                 state.allowRegistration = res.data.allowRegistration
                 state.isFirstUser = res.data.isFirstUser
+                state.afdianWebhookToken = res.data.afdianWebhookToken || ''
+                state.afdianWebhookKey = res.data.afdianWebhookKey || ''
 
                 // Update document title and meta
                 document.title = state.siteName
@@ -62,6 +66,12 @@ export const useSiteStore = () => {
                 }
                 if (updates.allow_registration !== undefined) {
                     state.allowRegistration = updates.allow_registration
+                }
+                if (updates.afdian_webhook_token !== undefined) {
+                    state.afdianWebhookToken = updates.afdian_webhook_token
+                }
+                if (updates.afdian_webhook_key !== undefined) {
+                    state.afdianWebhookKey = updates.afdian_webhook_key
                 }
                 return true
             }

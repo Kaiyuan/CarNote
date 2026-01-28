@@ -15,6 +15,7 @@ export default defineConfig({
             '@vip': vipFrontendPath,
             // 确保位于项目外的 VIP 模块能正确解析这些核心依赖，并共用单例
             'vue': path.resolve(__dirname, 'node_modules/vue'),
+            'vue-router': path.resolve(__dirname, 'node_modules/vue-router'),
             'primevue': path.resolve(__dirname, 'node_modules/primevue'),
             '@/api': path.resolve(__dirname, 'src/api'),
             '@/utils': path.resolve(__dirname, 'src/utils')

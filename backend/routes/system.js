@@ -117,7 +117,7 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
  */
 router.get('/config', asyncHandler(async (req, res) => {
     // 获取配置项
-    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description')");
+    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token')");
     const config = {};
     settings.forEach(s => config[s.key] = s.value);
 
@@ -126,6 +126,7 @@ router.get('/config', asyncHandler(async (req, res) => {
     const siteName = config['site_name'] || 'CarNote';
     const siteIcon = config['site_icon'] || null;
     const siteDescription = config['site_description'] || '';
+    const afdianWebhookToken = config['afdian_webhook_token'] || '';
 
     // 检查是否已初始化（是否有用户）
     const userCount = await get("SELECT COUNT(*) as count FROM users");
@@ -138,7 +139,9 @@ router.get('/config', asyncHandler(async (req, res) => {
             isFirstUser,
             siteName,
             siteIcon,
-            siteDescription
+            siteDescription,
+            afdianWebhookToken,
+            afdianWebhookKey: config['afdian_webhook_key'] || ''
         }
     });
 }));
@@ -155,7 +158,7 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
     }
 
     const updates = req.body;
-    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description'];
+    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key'];
 
     for (const key of allowedKeys) {
         if (updates[key] !== undefined) {
