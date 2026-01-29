@@ -23,8 +23,8 @@
 
         <Dropdown v-if="!comparisonMode" v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number"
           optionValue="id" placeholder="车辆" class="flex-auto md:w-14rem min-w-0" />
-        <div v-else class="flex-auto md:w-14rem bg-white border-round border-1 border-300 px-3 py-2 text-sm text-600">
-          对比模式: 全车辆</div>
+        <MultiSelect v-else v-model="selectedVehicleIds" :options="vehicles" optionLabel="plate_number" optionValue="id"
+          placeholder="选择对比车辆" class="flex-auto md:w-14rem min-w-0" display="chip" />
 
         <!-- 桌面端显示范围选择器 -->
         <SelectButton v-model="timeRange" :options="filteredTimeRanges" optionLabel="label" optionValue="value"
@@ -219,6 +219,7 @@ const currentUser = ref(JSON.parse(localStorage.getItem('currentUser') || '{}'))
 // State
 const vehicles = ref([])
 const selectedVehicleId = ref(null)
+const selectedVehicleIds = ref([]) // 多车对比选中的车辆 IDs
 const timeRange = ref('year') // default to year
 const loading = ref(false)
 
@@ -288,8 +289,17 @@ const loadDashboardData = async () => {
     }
 
     if (comparisonMode.value) {
-      // 对比模式：加载所有车辆的数据并聚合
-      const allData = await Promise.all(vehicles.value.map(async (v) => {
+      // 对比模式：加载选中车辆的数据并聚合
+      const vehiclesToCompare = selectedVehicleIds.value.length > 0
+        ? vehicles.value.filter(v => selectedVehicleIds.value.includes(v.id))
+        : vehicles.value
+
+      if (vehiclesToCompare.length === 0) {
+        loading.value = false
+        return
+      }
+
+      const allData = await Promise.all(vehiclesToCompare.map(async (v) => {
         const [ov, ex, mon] = await Promise.all([
           analyticsAPI.getOverview(v.id, params).catch(() => ({ success: false })),
           analyticsAPI.getExpenses(v.id, params).catch(() => ({ success: false })),
@@ -515,8 +525,18 @@ watch(timeRange, (newVal) => {
   }
 })
 
-watch(comparisonMode, () => {
+watch(comparisonMode, (newVal) => {
+  if (newVal && vehicles.value.length > 0) {
+    // 切换到对比模式时，默认选中所有车辆
+    selectedVehicleIds.value = vehicles.value.map(v => v.id)
+  }
   loadDashboardData()
+})
+
+watch(selectedVehicleIds, () => {
+  if (comparisonMode.value) {
+    loadDashboardData()
+  }
 })
 
 watch(customDates, (newVal) => {

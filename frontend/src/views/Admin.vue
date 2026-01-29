@@ -3,105 +3,95 @@
         <h1 class="text-3xl font-bold mb-4">系统管理</h1>
 
         <TabView :activeIndex="activeTab" @update:activeIndex="activeTab = $event">
-            <!-- 1. 爱发电集成 (New Category) -->
-            <TabPanel header="爱发电配置">
+            <!-- 1. 系统设置 (原 341) -->
+            <TabPanel header="系统设置">
                 <div class="grid">
-                    <div class="col-12 lg:col-6">
-                        <Card class="shadow-2 h-full">
-                            <template #title>Webhook 自动化设置</template>
+                    <!-- 站点基础设置 -->
+                    <div class="col-12 md:col-6 lg:col-4">
+                        <Card class="shadow-2">
+                            <template #title>站点基础信息</template>
                             <template #content>
-                                <div class="bg-blue-50 p-3 border-round mb-4 text-sm text-blue-800 line-height-3">
-                                    配置 Webhook Token 和 API Key 后，系统将能够通过爱发电的回调自动激活会员权益。<br />
-                                    <strong>Webhook URL:</strong> <code
-                                        class="bg-white px-2 py-1 border-round">{{ getWebhookUrl() }}</code>
+                                <div class="field mb-3">
+                                    <label>网站名称</label>
+                                    <InputText v-model="siteBranding.site_name" placeholder="例如: 我的爱车日志"
+                                        class="w-full" />
                                 </div>
                                 <div class="field mb-3">
-                                    <label>API Key (用于 URL 校验)</label>
-                                    <div class="p-inputgroup">
-                                        <InputText v-model="siteBranding.afdian_webhook_key" placeholder="点击右侧按钮生成" />
-                                        <Button icon="pi pi-refresh" @click="generateWebhookKey"
-                                            v-tooltip.top="'生成随机密钥'" />
+                                    <label>网站描述 (Meta)</label>
+                                    <Textarea v-model="siteBranding.site_description" rows="2" class="w-full"
+                                        placeholder="用于 SEO 或 PWA 描述" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>网站图标 (PWA)</label>
+                                    <div class="flex align-items-center gap-3">
+                                        <div class="border-circle bg-primary overflow-hidden flex align-items-center justify-content-center"
+                                            style="width: 4rem; height: 4rem; flex-shrink: 0">
+                                            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
+                                                style="width: 100%; height: 100%; object-fit: cover" />
+                                            <i v-else class="pi pi-car text-2xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <input type="file" ref="iconInput" hidden accept="image/*"
+                                                @change="onIconFileSelect" />
+                                            <Button label="上传图标" icon="pi pi-upload" severity="secondary"
+                                                @click="$refs.iconInput.click()" class="p-button-sm w-full"
+                                                :loading="uploadingIcon" />
+                                            <p class="text-xs text-500 mt-2">推荐分辨率 512x512</p>
+                                        </div>
                                     </div>
-                                    <small class="text-500">点击保存后，此密钥将持久化到数据库中。</small>
                                 </div>
-                                <div class="field mb-3">
-                                    <label>Webhook Token</label>
-                                    <InputText v-model="siteBranding.afdian_webhook_token" type="password"
-                                        placeholder="从爱发电开发者后台获取" class="w-full" />
+                                <div class="field-checkbox mb-4">
+                                    <Checkbox v-model="siteBranding.allow_registration" :binary="true" />
+                                    <label class="ml-2">允许新用户注册</label>
                                 </div>
-                                <Button label="保存 Webhook 配置" icon="pi pi-save" @click="saveBranding"
-                                    class="w-full mt-2" :loading="savingBranding" />
-                            </template>
-                        </Card>
-                    </div>
-
-                    <div class="col-12 lg:col-6">
-                        <Card class="shadow-2 h-full">
-                            <template #title>赞助链接设置</template>
-                            <template #content>
-                                <div class="field mb-3">
-                                    <label>精英会员赞助 URL (¥30/年)</label>
-                                    <InputText v-model="siteBranding.afdian_advanced_url"
-                                        placeholder="https://afdian.com/..." class="w-full" />
+                                <div class="field-checkbox mb-4">
+                                    <Checkbox v-model="siteBranding.debug_mode" :binary="true" />
+                                    <label class="ml-2">调试模式 (控制台输出)</label>
                                 </div>
-                                <div class="field mb-4">
-                                    <label>高级会员赞助 URL (¥200/年)</label>
-                                    <InputText v-model="siteBranding.afdian_premium_url"
-                                        placeholder="https://afdian.com/..." class="w-full" />
-                                </div>
-                                <p class="text-xs text-500 mb-3 bg-gray-50 p-2 border-round">
-                                    <i class="pi pi-info-circle mr-1"></i>
-                                    用户在“会员中心”选择对应套餐时，将点击跳转至此处配置的 URL 完成支付。
-                                </p>
-                                <Button label="保存链接设置" icon="pi pi-link" @click="saveBranding" class="w-full"
+                                <Button label="保存站点设置" icon="pi pi-save" @click="saveBranding" class="w-full"
                                     :loading="savingBranding" />
                             </template>
                         </Card>
                     </div>
+
+                    <div class="col-12 md:col-6 lg:col-4">
+                        <Card class="shadow-2">
+                            <template #title>SMTP 邮箱设置</template>
+                            <template #content>
+                                <div class="field mb-3">
+                                    <label>SMTP 服务器</label>
+                                    <InputText v-model="smtpConfig.smtp_host" placeholder="smtp.example.com"
+                                        class="w-full" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>端口</label>
+                                    <InputNumber v-model="smtpConfig.smtp_port" :useGrouping="false" placeholder="465"
+                                        class="w-full" />
+                                </div>
+                                <div class="field-checkbox mb-3">
+                                    <Checkbox v-model="smtpSecure" :binary="true" />
+                                    <label class="ml-2">使用 SSL (Secure)</label>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>用户名</label>
+                                    <InputText v-model="smtpConfig.smtp_user" class="w-full" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>密码/授权码</label>
+                                    <InputText v-model="smtpConfig.smtp_pass" type="password" class="w-full" />
+                                </div>
+                                <div class="field mb-3">
+                                    <label>发件人 (From)</label>
+                                    <InputText v-model="smtpConfig.smtp_from" placeholder="noreply@domain.com"
+                                        class="w-full" />
+                                </div>
+                                <Button label="保存配置" @click="saveSmtp" class="w-full mt-2" :loading="saving" />
+                            </template>
+                        </Card>
+                    </div>
                 </div>
             </TabPanel>
 
-            <!-- 2. 会员审核 (Old 1) -->
-            <TabPanel header="会员审核">
-                <div class="mb-4 flex justify-content-between align-items-center">
-                    <h2 class="m-0">待审核赞助订单</h2>
-                    <Button icon="pi pi-refresh" rounded text @click="loadOrders" />
-                </div>
-                <DataTable :value="orders" :loading="loadingOrders" stripedRows paginator :rows="10"
-                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                    <Column field="username" header="申请人">
-                        <template #body="slotProps">
-                            {{ slotProps.data.nickname || slotProps.data.username }}
-                        </template>
-                    </Column>
-                    <Column field="order_id" header="爱发电订单号">
-                        <template #body="slotProps">
-                            <code class="bg-gray-100 p-1 border-round">{{ slotProps.data.order_id }}</code>
-                        </template>
-                    </Column>
-                    <Column field="tier" header="申请等级">
-                        <template #body="slotProps">
-                            <Tag :value="getVipTierLabel(slotProps.data.tier)" severity="info" />
-                        </template>
-                    </Column>
-                    <Column field="status" header="状态">
-                        <template #body="slotProps">
-                            <Tag :value="slotProps.data.status" :severity="getStatusSeverity(slotProps.data.status)" />
-                        </template>
-                    </Column>
-                    <Column header="操作">
-                        <template #body="slotProps">
-                            <div class="flex gap-2" v-if="slotProps.data.status === 'pending'">
-                                <Button icon="pi pi-check" severity="success" rounded text
-                                    @click="openVerifyDialog(slotProps.data, 'approved')" v-tooltip.top="'批准'" />
-                                <Button icon="pi pi-times" severity="danger" rounded text
-                                    @click="openVerifyDialog(slotProps.data, 'rejected')" v-tooltip.top="'驳回'" />
-                            </div>
-                            <span v-else class="text-xs text-500">{{ slotProps.data.admin_note || '已处理' }}</span>
-                        </template>
-                    </Column>
-                </DataTable>
-            </TabPanel>
 
             <!-- 2. 用户管理 -->
             <TabPanel header="用户管理">
@@ -142,7 +132,7 @@
                                 <Tag :value="getVipTierLabel(slotProps.data.vip_tier)"
                                     :severity="slotProps.data.vip_tier === 'premium' ? 'warning' : 'info'" />
                                 <small class="text-500 mt-1" v-if="slotProps.data.vip_expiry">
-                                    {{ formatMemberDate(slotProps.data.vip_expiry) }} 到期
+                                    {{ formatDateTime(slotProps.data.vip_expiry) }} 到期
                                 </small>
                             </div>
                             <span v-else class="text-500 text-sm">普通用户</span>
@@ -272,7 +262,7 @@
                 </TabView>
             </TabPanel>
 
-            <!-- 登录日志 -->
+            <!-- 审计与日志 (原 276) -->
             <TabPanel header="审计与日志">
                 <DataTable :value="loginLogs" :loading="loading" stripedRows paginator :rows="20"
                     responsiveLayout="stack" breakpoint="960px" class="responsive-table">
@@ -292,138 +282,14 @@
                 </DataTable>
             </TabPanel>
 
-            <!-- 站点管理 -->
-            <TabPanel header="站点管理">
-                <div class="mb-4 flex flex-wrap justify-content-between align-items-center gap-2">
-                    <h2 class="m-0 text-xl md:text-2xl">共享站点/店面</h2>
-                    <Button icon="pi pi-refresh" rounded text @click="loadAdminLocations" />
-                </div>
-                <DataTable :value="adminLocations" :loading="loading" stripedRows paginator :rows="10"
-                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                    <Column field="name" header="名称" sortable
-                        style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    </Column>
-                    <Column field="type" header="类型">
-                        <template #body="slotProps">
-                            <Tag :value="slotProps.data.type" severity="info" />
-                        </template>
-                    </Column>
-                    <Column field="latitude" header="纬度">
-                        <template #body="slotProps">
-                            <span class="block overflow-hidden text-overflow-ellipsis white-space-nowrap"
-                                style="max-width: 80px" :title="slotProps.data.latitude">
-                                {{ slotProps.data.latitude }}
-                            </span>
-                        </template>
-                    </Column>
-                    <Column field="longitude" header="经度">
-                        <template #body="slotProps">
-                            <span class="block overflow-hidden text-overflow-ellipsis white-space-nowrap"
-                                style="max-width: 80px" :title="slotProps.data.longitude">
-                                {{ slotProps.data.longitude }}
-                            </span>
-                        </template>
-                    </Column>
-                    <Column field="usage_count" header="使用次数" sortable></Column>
-                    <Column header="操作">
-                        <template #body="slotProps">
-                            <div class="flex gap-2">
-                                <Button icon="pi pi-pencil" rounded text @click="editLocation(slotProps.data)" />
-                                <Button icon="pi pi-trash" rounded text severity="danger"
-                                    @click="deleteLocation(slotProps.data.id)" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
+            <!-- 6. 会员审核 (VIP ONLY) -->
+            <TabPanel header="会员审核" v-if="siteStore.state.hasVip">
+                <component :is="'VipMembershipAudit'" />
             </TabPanel>
 
-            <!-- 系统设置 -->
-            <TabPanel header="系统设置">
-                <div class="grid">
-                    <!-- 站点基础设置 -->
-                    <div class="col-12 md:col-6 lg:col-4">
-                        <Card class="shadow-2">
-                            <template #title>站点基础信息</template>
-                            <template #content>
-                                <div class="field mb-3">
-                                    <label>网站名称</label>
-                                    <InputText v-model="siteBranding.site_name" placeholder="例如: 我的爱车日志"
-                                        class="w-full" />
-                                </div>
-                                <div class="field mb-3">
-                                    <label>网站描述 (Meta)</label>
-                                    <Textarea v-model="siteBranding.site_description" rows="2" class="w-full"
-                                        placeholder="用于 SEO 或 PWA 描述" />
-                                </div>
-                                <div class="field mb-3">
-                                    <label>网站图标 (PWA)</label>
-                                    <div class="flex align-items-center gap-3">
-                                        <div class="border-circle bg-primary overflow-hidden flex align-items-center justify-content-center"
-                                            style="width: 4rem; height: 4rem; flex-shrink: 0">
-                                            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
-                                                style="width: 100%; height: 100%; object-fit: cover" />
-                                            <i v-else class="pi pi-car text-2xl"></i>
-                                        </div>
-                                        <div class="flex-1">
-                                            <input type="file" ref="iconInput" hidden accept="image/*"
-                                                @change="onIconFileSelect" />
-                                            <Button label="上传图标" icon="pi pi-upload" severity="secondary"
-                                                @click="$refs.iconInput.click()" class="p-button-sm w-full"
-                                                :loading="uploadingIcon" />
-                                            <p class="text-xs text-500 mt-2">推荐分辨率 512x512</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="field-checkbox mb-4">
-                                    <Checkbox v-model="siteBranding.allow_registration" :binary="true" />
-                                    <label class="ml-2">允许新用户注册</label>
-                                </div>
-                                <div class="field-checkbox mb-4">
-                                    <Checkbox v-model="siteBranding.debug_mode" :binary="true" />
-                                    <label class="ml-2">调试模式 (控制台输出)</label>
-                                </div>
-                                <Button label="保存站点设置" icon="pi pi-save" @click="saveBranding" class="w-full"
-                                    :loading="savingBranding" />
-                            </template>
-                        </Card>
-                    </div>
-
-                    <div class="col-12 md:col-6 lg:col-4">
-                        <Card class="shadow-2">
-                            <template #title>SMTP 邮箱设置</template>
-                            <template #content>
-                                <div class="field mb-3">
-                                    <label>SMTP 服务器</label>
-                                    <InputText v-model="smtpConfig.smtp_host" placeholder="smtp.example.com"
-                                        class="w-full" />
-                                </div>
-                                <div class="field mb-3">
-                                    <label>端口</label>
-                                    <InputNumber v-model="smtpConfig.smtp_port" :useGrouping="false" placeholder="465"
-                                        class="w-full" />
-                                </div>
-                                <div class="field-checkbox mb-3">
-                                    <Checkbox v-model="smtpSecure" :binary="true" />
-                                    <label class="ml-2">使用 SSL (Secure)</label>
-                                </div>
-                                <div class="field mb-3">
-                                    <label>用户名</label>
-                                    <InputText v-model="smtpConfig.smtp_user" class="w-full" />
-                                </div>
-                                <div class="field mb-3">
-                                    <label>密码/授权码</label>
-                                    <InputText v-model="smtpConfig.smtp_pass" type="password" class="w-full" />
-                                </div>
-                                <div class="field mb-3">
-                                    <label>发件人 (From)</label>
-                                    <InputText v-model="smtpConfig.smtp_from" placeholder="noreply@domain.com"
-                                        class="w-full" />
-                                </div>
-                                <Button label="保存配置" @click="saveSmtp" class="w-full mt-2" :loading="saving" />
-                            </template>
-                        </Card>
-                    </div>
-                </div>
+            <!-- 7. 爱发电配置 (VIP ONLY) -->
+            <TabPanel header="爱发电配置" v-if="siteStore.state.hasVip">
+                <component :is="'VipAfdianConfig'" />
             </TabPanel>
         </TabView>
 
@@ -451,21 +317,9 @@
                 <Dropdown v-model="userForm.role" :options="['admin', 'user']" class="w-full" />
             </div>
 
-            <div v-if="siteStore.state.hasVip" class="border-top-1 surface-border pt-3 mt-3">
-                <h3 class="text-sm font-bold mb-2">会员管理</h3>
-                <div class="field mb-3">
-                    <label>会员等级</label>
-                    <Dropdown v-model="userForm.vip_tier" :options="[
-                        { label: '普通用户', value: 'ordinary' },
-                        { label: '精英会员 (30/年)', value: 'advanced' },
-                        { label: '高级会员 (200/年)', value: 'premium' }
-                    ]" optionLabel="label" optionValue="value" class="w-full" />
-                </div>
-                <div class="field mb-3" v-if="userForm.vip_tier !== 'ordinary'">
-                    <label>会员有效期</label>
-                    <Calendar v-model="userForm.vip_expiry" class="w-full" dateFormat="yy-mm-dd" showIcon />
-                </div>
-            </div>
+            <component :is="'VipUserEditorExtra'" v-if="siteStore.state.hasVip" :tier="userForm.vip_tier"
+                :expiry="userForm.vip_expiry" @update:tier="userForm.vip_tier = $event"
+                @update:expiry="userForm.vip_expiry = $event" />
             <template #footer>
                 <Button label="取消" text @click="userDialog = false" />
                 <Button label="保存" @click="saveUser" :loading="saving" />
@@ -657,20 +511,12 @@ const mgmtData = ref({
     parts: []
 })
 const mgmtVehicles = ref([])
-// 会员审核相关
-const orders = ref([])
-const loadingOrders = ref(false)
-const verifyDialog = ref(false)
-const verifyAction = ref('')
-const selectedOrder = ref(null)
-const verifyNote = ref('')
-const verifying = ref(false)
-
 // 站点品牌
 const siteBranding = ref({
     site_name: '',
     site_description: '',
-    allow_registration: true
+    allow_registration: true,
+    debug_mode: false
 })
 const uploadingIcon = ref(false)
 const savingBranding = ref(false)
@@ -682,10 +528,6 @@ const loadBranding = async () => {
         site_name: siteStore.state.siteName,
         site_description: siteStore.state.siteDescription,
         allow_registration: siteStore.state.allowRegistration,
-        afdian_webhook_token: siteStore.state.afdianWebhookToken || '',
-        afdian_webhook_key: siteStore.state.afdianWebhookKey || '',
-        afdian_advanced_url: siteStore.state.afdianAdvancedUrl || '',
-        afdian_premium_url: siteStore.state.afdianPremiumUrl || '',
         debug_mode: siteStore.state.debugMode
     }
 }
@@ -770,53 +612,6 @@ const getVipTierLabel = (tier) => {
         'premium': '高级会员'
     };
     return labels[tier] || tier;
-};
-
-const getStatusSeverity = (status) => {
-    const map = { 'pending': 'warning', 'approved': 'success', 'rejected': 'danger' };
-    return map[status] || 'info';
-};
-
-const loadOrders = async () => {
-    loadingOrders.value = true;
-    try {
-        const res = await api.get('/membership/admin/orders');
-        if (res.success) {
-            orders.value = res.data;
-        }
-    } catch (e) {
-        console.error('加载订单失败', e);
-    } finally {
-        loadingOrders.value = false;
-    }
-};
-
-const openVerifyDialog = (order, action) => {
-    selectedOrder.value = order;
-    verifyAction.value = action;
-    verifyNote.value = '';
-    verifyDialog.value = true;
-};
-
-const confirmVerify = async () => {
-    verifying.value = true;
-    try {
-        const res = await api.post('/membership/admin/verify-order', {
-            id: selectedOrder.value.id,
-            status: verifyAction.value,
-            admin_note: verifyNote.value
-        });
-        if (res.success) {
-            toast.add({ severity: 'success', summary: '已处理', life: 3000 });
-            verifyDialog.value = false;
-            loadOrders();
-            loadUsers(); // 刷新用户列表以显示最新等级
-        }
-    } catch (e) {
-        toast.add({ severity: 'error', summary: '审核失败', detail: e.message });
-    } finally {
-        verifying.value = false;
-    }
 };
 
 const loadUsers = async () => {
@@ -1056,30 +851,22 @@ const deleteLocation = async (id) => {
 
 // Watch active tab to load data lazily
 watch(activeTab, (idx) => {
-    if (idx === 0) loadBranding() // 爱发电配置
-    if (idx === 1) loadOrders()   // 会员审核
-    if (idx === 2) loadUsers()
-    if (idx === 3) loadMgmtRecords()
-    if (idx === 4) loadLogs()
-    if (idx === 5) loadAdminLocations()
-    if (idx === 6) {
+    if (idx === 0) {
+        loadBranding()
         loadSmtp()
-        loadBranding() // 系统设置
     }
+    if (idx === 1) loadUsers()
+    if (idx === 2) loadMgmtRecords()
+    if (idx === 3) loadLogs()
+    if (idx === 4) loadAdminLocations()
 })
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
-const formatMemberDate = (d) => {
-    if (!d) return '';
-    const date = new Date(d);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-};
 const formatDateTime = (d) => d ? new Date(d).toLocaleString() : ''
 
 onMounted(() => {
-    loadOrders()
-    loadUsers()
-    loadAdminLocations() // Pre-load some critical data
+    loadBranding()
+    loadSmtp()
 })
 </script>
 

@@ -82,8 +82,10 @@ app.component('ProgressSpinner', ProgressSpinner)
 
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
+import MultiSelect from 'primevue/multiselect'
 app.component('TabView', TabView)
 app.component('TabPanel', TabPanel)
+app.component('MultiSelect', MultiSelect)
 
 // --- VIP 模块加载封装 ---
 const startApp = async () => {
