@@ -3,8 +3,13 @@
 
 # 1. 前端构建阶段
 FROM node:18-alpine AS frontend-builder
+WORKDIR /app
+# 复制所有 package.json
+COPY frontend/package*.json ./frontend/
+# 复制 VIP 模块（包含可能的 package.json 或资源）
+COPY vip/ ./vip/
+
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ .
 RUN npm run build
@@ -12,8 +17,8 @@ RUN npm run build
 # 2. 后端运行阶段
 FROM node:18-alpine
 
-# 安装 PostgreSQL 客户端工具用于备份
-RUN apk add --no-color --no-cache postgresql-client
+# 安装 PostgreSQL 客户端工具用于备份 (从 edge 仓库获取最新版本以匹配服务器)
+RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main postgresql-client
 
 WORKDIR /app
 
@@ -24,6 +29,9 @@ RUN npm ci --only=production
 
 # 复制后端代码
 COPY backend/ .
+
+# 复制 VIP 模块代码
+COPY vip/ /app/vip/
 
 # 复制前端构建产物
 WORKDIR /app

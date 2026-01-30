@@ -15,8 +15,8 @@ RUN npm ci --only=production
 # 生产阶段
 FROM node:18-alpine
 
-# 安装 PostgreSQL 客户端工具用于备份
-RUN apk add --no-color --no-cache postgresql-client
+# 安装 PostgreSQL 客户端工具用于备份 (从 edge 仓库获取最新版本以匹配服务器)
+RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main postgresql-client
 
 WORKDIR /app
 
