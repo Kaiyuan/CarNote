@@ -11,6 +11,10 @@ RUN npm run build
 
 # 2. 后端运行阶段
 FROM node:18-alpine
+
+# 安装 PostgreSQL 客户端工具用于备份
+RUN apk add --no-color --no-cache postgresql-client
+
 WORKDIR /app
 
 # 复制后端依赖配置

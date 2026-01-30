@@ -17,6 +17,12 @@ services:
       - PORT=53300
       - DB_TYPE=sqlite
       - SQLITE_PATH=/app/data/carnote.db
+      # - DB_TYPE=postgresql
+      # - PG_HOST=172.20.0.1
+      # - PG_PORT=5432
+      # - PG_DATABASE=carnote
+      # - PG_USER=carnote
+      # - PG_PASSWORD=postgresqlPassword
       - UPLOAD_PATH=/app/uploads
       - JWT_SECRET=${JWT_SECRET:-carnote-production-secret-change-this}
       - CORS_ORIGIN=http://localhost

@@ -15,6 +15,9 @@ RUN npm ci --only=production
 # 生产阶段
 FROM node:18-alpine
 
+# 安装 PostgreSQL 客户端工具用于备份
+RUN apk add --no-color --no-cache postgresql-client
+
 WORKDIR /app
 
 # 从构建阶段复制依赖

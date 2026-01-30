@@ -142,7 +142,11 @@ router.put('/settings/smtp', asyncHandler(async (req, res) => {
     const config = req.body;
     for (const key in config) {
         if (key.startsWith('smtp_')) {
-            await query("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", [key, String(config[key])]);
+            await query(`
+                INSERT INTO system_settings (key, value) 
+                VALUES (?, ?) 
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            `, [key, String(config[key])]);
         }
     }
     await createAuditLog(req.userId, 'update_smtp_settings', 'SMTP config updated');
