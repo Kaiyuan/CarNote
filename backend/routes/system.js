@@ -130,7 +130,7 @@ router.get('/config', asyncHandler(async (req, res) => {
 
     // 检查是否已初始化（是否有用户）
     const userCount = await get("SELECT COUNT(*) as count FROM users");
-    const isFirstUser = userCount.count === 0;
+    const isFirstUser = Number(userCount.count) === 0;
 
     res.json({
         success: true,

@@ -146,15 +146,24 @@ function query(sql, params = []) {
             }
         });
     } else {
+        // PostgreSQL 不支持 PRAGMA 指令，直接返回成功以兼容 SQLite 代码
+        if (sql.trim().toUpperCase().startsWith('PRAGMA')) {
+            return Promise.resolve({ changes: 0, lastID: null });
+        }
+
         // PostgreSQL 使用 $1, $2 占位符而不是 ?
         let pgSql = sql.replace(/\?/g, (match, offset) => {
             const index = sql.substring(0, offset).split('?').length;
             return `$${index}`;
         });
 
+        // 兼容性修正：PostgreSQL LIKE 是区分大小写的，这里统一转为 ILIKE 以匹配 SQLite 行为
+        pgSql = pgSql.replace(/\s+LIKE\s+/gi, ' ILIKE ');
+
         const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
         if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
-            if (!pgSql.includes('system_settings')) {
+            // 排除没有 id 列的表 (memberships 使用 user_id 作为主键)
+            if (!pgSql.includes('system_settings') && !pgSql.includes('memberships')) {
                 pgSql += ' RETURNING id';
             }
         }
@@ -162,7 +171,19 @@ function query(sql, params = []) {
         return db.query(pgSql, params).then(result => {
             // 如果是查询语句，直接返回 rows
             if (pgSql.trim().toUpperCase().startsWith('SELECT')) {
-                return result.rows;
+                // 修正：确保 COUNT(*)、SUM、AVG 等聚合函数返回的是数字而非字符串
+                const rows = result.rows.map(row => {
+                    const newRow = { ...row };
+                    for (const key in newRow) {
+                        // 如果键包含 count, sum, avg 或 total，尝试转换为数字
+                        if (/count|sum|avg|total|mileage|cost|amount/i.test(key) && typeof newRow[key] === 'string') {
+                            const val = Number(newRow[key]);
+                            if (!isNaN(val)) newRow[key] = val;
+                        }
+                    }
+                    return newRow;
+                });
+                return rows;
             }
 
             // 兼容 SQLite 的非查询返回值

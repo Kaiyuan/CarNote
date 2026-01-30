@@ -49,31 +49,35 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
     }
 
     // 根据时间粒度构建查询
-    let dateFormat;
+    const isPostgres = process.env.DB_TYPE === 'postgresql';
+    let periodSql;
     let groupBy;
 
-    // SQLite 和 PostgreSQL 的日期格式化不同，这里使用 SQLite 格式
-    switch (period) {
-        case 'day':
-            dateFormat = "%Y-%m-%d";
-            groupBy = "DATE(log_date)";
-            break;
-        case 'month':
-            dateFormat = "%Y-%m";
-            groupBy = "strftime('%Y-%m', log_date)";
-            break;
-        case 'year':
-            dateFormat = "%Y";
-            groupBy = "strftime('%Y', log_date)";
-            break;
-        default:
-            dateFormat = "%Y-%m";
-            groupBy = "strftime('%Y-%m', log_date)";
+    if (isPostgres) {
+        // PostgreSQL 格式
+        const pgFormats = {
+            'day': 'YYYY-MM-DD',
+            'month': 'YYYY-MM',
+            'year': 'YYYY'
+        };
+        const fmt = pgFormats[period] || 'YYYY-MM';
+        periodSql = `TO_CHAR(log_date, '${fmt}')`;
+        groupBy = periodSql;
+    } else {
+        // SQLite 格式
+        const sqliteFormats = {
+            'day': '%Y-%m-%d',
+            'month': '%Y-%m',
+            'year': '%Y'
+        };
+        const fmt = sqliteFormats[period] || '%Y-%m';
+        periodSql = `strftime('${fmt}', log_date)`;
+        groupBy = periodSql;
     }
 
     let sql = `
         SELECT 
-            strftime('${dateFormat}', log_date) as period,
+            ${periodSql} as period,
             energy_type,
             COUNT(*) as record_count,
             SUM(amount) as total_amount,
