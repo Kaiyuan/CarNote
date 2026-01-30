@@ -59,8 +59,8 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     targetId = existing[0].id;
                 } else {
                     const result = await query(
-                        'INSERT INTO vehicles (user_id, plate_number, brand, model, year, color, vin, engine_number, current_mileage, power_type, purchase_date, purchase_price, insurance_expiry, inspection_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [userId, vehicle.plate_number, vehicle.brand, vehicle.model, vehicle.year, vehicle.color, vehicle.vin, vehicle.engine_number, vehicle.current_mileage, vehicle.power_type, vehicle.purchase_date, vehicle.purchase_price, vehicle.insurance_expiry, vehicle.inspection_expiry]
+                        'INSERT INTO vehicles (user_id, plate_number, brand, model, year, power_type, current_mileage, purchase_date, photo_url, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [userId, vehicle.plate_number, vehicle.brand, vehicle.model, vehicle.year, vehicle.power_type, vehicle.current_mileage, vehicle.purchase_date, vehicle.photo_url, vehicle.description]
                     );
                     targetId = result.lastID;
                 }
