@@ -87,8 +87,8 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     if (!newVehicleId) continue;
 
                     await query(
-                        'INSERT INTO maintenance_records (vehicle_id, maintenance_date, mileage, type, description, cost, shop_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        [newVehicleId, record.maintenance_date, record.mileage, record.type, record.description, record.cost, record.shop_name, record.notes]
+                        'INSERT INTO maintenance_records (vehicle_id, maintenance_date, mileage, type, service_provider, description, cost, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                        [newVehicleId, record.maintenance_date, record.mileage, record.type, record.service_provider || record.shop_name, record.description, record.cost, record.notes]
                     );
                 }
             }
@@ -100,22 +100,23 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     if (!newVehicleId) continue;
 
                     const result = await query(
-                        'INSERT INTO parts (vehicle_id, name, brand, model, category, purchase_date, warranty_period, lifespan_mileage, lifespan_months, last_replacement_mileage, last_replacement_date, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [newVehicleId, part.name, part.brand, part.model, part.category, part.purchase_date, part.warranty_period, part.lifespan_mileage, part.lifespan_months, part.last_replacement_mileage, part.last_replacement_date, part.status, part.notes]
+                        'INSERT INTO parts (vehicle_id, name, part_number, installed_date, installed_mileage, recommended_replacement_mileage, recommended_replacement_months, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [newVehicleId, part.name, part.part_number, part.installed_date, part.installed_mileage, part.recommended_replacement_mileage, part.recommended_replacement_months, part.status, part.notes]
                     );
-                    partIdMap.set(part.id, result.lastID);
+                    partIdMap.set(part.id, { newId: result.lastID, vehicleId: newVehicleId });
                 }
             }
 
             // 5. 导入配件更换记录
             if (data.partReplacements) {
                 for (const replacement of data.partReplacements) {
-                    const newPartId = partIdMap.get(replacement.part_id);
-                    if (!newPartId) continue;
+                    const partInfo = partIdMap.get(replacement.part_id);
+                    const newVehicleId = partInfo ? partInfo.vehicleId : vehicleIdMap.get(replacement.vehicle_id);
+                    if (!newVehicleId) continue;
 
                     await query(
-                        'INSERT INTO part_replacements (part_id, replacement_date, mileage, cost, shop_name, notes) VALUES (?, ?, ?, ?, ?, ?)',
-                        [newPartId, replacement.replacement_date, replacement.mileage, replacement.cost, replacement.shop_name, replacement.notes]
+                        'INSERT INTO part_replacements (vehicle_id, part_id, replacement_date, mileage, cost, service_provider, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [newVehicleId, partInfo ? partInfo.newId : null, replacement.replacement_date, replacement.mileage, replacement.cost, replacement.service_provider || replacement.shop_name, replacement.notes]
                     );
                 }
             }

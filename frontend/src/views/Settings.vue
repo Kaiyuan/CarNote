@@ -472,7 +472,9 @@ const onFileChange = async (event) => {
         const reader = new FileReader()
         reader.onload = async (e) => {
             try {
-                const data = JSON.parse(e.target.result)
+                // 移除可能存在的 BOM 字符并解析
+                const jsonText = e.target.result.replace(/^\uFEFF/, '');
+                const data = JSON.parse(jsonText)
                 if (!validateBackupFormat(data)) {
                     toast.add({ severity: 'error', summary: '格式错误', detail: '非有效的备份文件', life: 3000 })
                     return

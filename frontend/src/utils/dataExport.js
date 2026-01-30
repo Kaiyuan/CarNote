@@ -36,7 +36,9 @@ export const convertToCSV = (data, columns) => {
  * @param {string} mimeType - MIME 类型
  */
 export const downloadFile = (content, fileName, mimeType = 'text/csv;charset=utf-8;') => {
-    const blob = new Blob([`\uFEFF${content}`], { type: mimeType });
+    // 只有 CSV 才需要 BOM (\uFEFF) 以方便 Excel 正确识别编码
+    const isCSV = mimeType.includes('csv');
+    const blob = new Blob([isCSV ? `\uFEFF${content}` : content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);

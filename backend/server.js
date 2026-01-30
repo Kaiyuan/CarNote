@@ -96,6 +96,8 @@ app.use('/api/system', require('./routes/system'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/locations', require('./routes/locations').router);
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/export', require('./routes/export'));
+app.use('/api/import', require('./routes/import'));
 
 // PWA 动态支持
 const { get, query } = require('./config/database');
