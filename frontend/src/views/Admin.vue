@@ -291,6 +291,11 @@
             <TabPanel header="爱发电配置" v-if="siteStore.state.hasVip">
                 <component :is="'VipAfdianConfig'" />
             </TabPanel>
+
+            <!-- 8. 兑换码管理 (VIP ONLY) -->
+            <TabPanel header="兑换码管理" v-if="siteStore.state.hasVip">
+                <component :is="'VipRedemptionManager'" />
+            </TabPanel>
         </TabView>
 
         <!-- 用户编辑/创建对话框 -->

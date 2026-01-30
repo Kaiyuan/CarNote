@@ -89,20 +89,21 @@ app.component('MultiSelect', MultiSelect)
 
 // --- VIP 模块加载封装 ---
 const startApp = async () => {
-    // 立即挂载应用，不要在挂载前 await，防止 UI 阻塞
-    app.mount('#app')
-
+    // 先加载 VIP 模块（如果存在）
     if (typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__) {
         try {
-            // 异步加载 VIP 模块
             const vipModule = await import('@vip/index.js');
             if (vipModule && typeof vipModule.init === 'function') {
+                logger.info('[VIP] 正在加载前端 VIP 模块...');
                 await vipModule.init(app, router);
             }
         } catch (err) {
             logger.error('[VIP] 加载前端 VIP 模块失败:', err);
         }
     }
+
+    // 挂载应用
+    app.mount('#app');
 }
 
 startApp();

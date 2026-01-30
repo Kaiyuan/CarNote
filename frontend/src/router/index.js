@@ -17,6 +17,17 @@ const Admin = () => import('../views/Admin.vue')
 const ResetPassword = () => import('../views/ResetPassword.vue')
 const Messages = () => import('../views/Messages.vue')
 
+// VIP 会员中心路由 - 条件导入
+const MembershipAdmin = () => {
+    // 检查 VIP 模块是否存在
+    if (typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__) {
+        return import('@vip/views/MembershipAdmin.vue')
+    } else {
+        // 如果 VIP 模块不存在，返回一个占位组件
+        return Promise.resolve({ default: { template: '<div>VIP 模块未安装</div>' } })
+    }
+}
+
 // 路由配置
 const routes = [
     {
@@ -40,6 +51,12 @@ const routes = [
         path: '/messages',
         name: 'Messages',
         component: Messages,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/membership',
+        name: 'MemberCenter',
+        component: MembershipAdmin,
         meta: { requiresAuth: true }
     },
     {
