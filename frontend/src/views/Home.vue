@@ -99,7 +99,7 @@
             <div>
               <span class="block text-500 font-medium mb-3">平均能耗</span>
               <div class="text-900 font-medium text-xl">
-                {{ overview.avg_consumption ? overview.avg_consumption.toFixed(1) : '--' }}
+                {{ overview.avg_consumption ? Number(overview.avg_consumption).toFixed(1) : '--' }}
                 <span class="text-sm text-500">{{ unit }}</span>
               </div>
             </div>
@@ -504,8 +504,8 @@ const expenseList = computed(() => {
 })
 
 // Formatters
-const formatNumber = (n) => n ? n.toLocaleString() : 0
-const formatCurrency = (v) => v ? '¥' + v.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '¥0.00'
+const formatNumber = (n) => n ? Number(n).toLocaleString() : 0
+const formatCurrency = (v) => v ? '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '¥0.00'
 const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
 const getActivityLabel = (t) => t === 'energy' ? '能耗' : '保养'
 const getActivitySeverity = (t) => t === 'energy' ? 'info' : 'warning'
