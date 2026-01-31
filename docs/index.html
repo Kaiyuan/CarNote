@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarNote - 您的专属车辆管理管家</title>
+    <meta name="description" content="一个功能完整的车辆记录管理系统，支持油耗、电耗追踪、保养管理、配件跟踪和数据分析。">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <preconnect href="https://fonts.googleapis.com">
+    <preconnect href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <img src="assets/logo-192.png" alt="CarNote Logo">
+                <span>CarNote</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">功能特性</a>
+                <a href="#deployment">部署指南</a>
+                <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="github-link"><i class="fab fa-github"></i> GitHub</a>
+            </div>
+            <div class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <header class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>您的专属<span class="gradient-text">车辆管理</span>管家</h1>
+                <p class="hero-subtitle">全能型车辆记录与数据分析平台。追踪油耗电耗、管理保养维修、掌控车辆全生命周期成本。私有化部署，数据完全掌握在自己手中。</p>
+                <div class="hero-buttons">
+                    <a href="https://carnote.boxks.com" target="_blank" class="btn btn-primary"><i class="fas fa-rocket"></i> 在线演示</a>
+                    <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="btn btn-secondary"><i class="fab fa-github"></i> 源码下载</a>
+                </div>
+                <div class="tech-stack-icons">
+                    <span title="Docker"><i class="fab fa-docker"></i></span>
+                    <span title="Vue.js"><i class="fab fa-vuejs"></i></span>
+                    <span title="Node.js"><i class="fab fa-node-js"></i></span>
+                    <span title="SQLite/PostgreSQL"><i class="fas fa-database"></i></span>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="browser-mockup">
+                    <div class="browser-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                        <div class="url-bar">carnote.boxks.com</div>
+                    </div>
+                    <img src="assets/carnote-index.png" alt="CarNote 仪表盘界面">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 功能特性区域 -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>核心功能特性</h2>
+                <p>精心打磨的每一个细节，只为更好的用车体验</p>
+            </div>
+            
+            <div class="features-grid">
+                <!-- 1. 多车辆管理 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-blue">
+                        <i class="fas fa-car"></i>
+                    </div>
+                    <h3>多车辆管理</h3>
+                    <p>完美支持燃油车、纯电车及混动车型。统一管理家中所有车辆，一键切换视角。</p>
+                </div>
+
+                <!-- 2. 能耗追踪 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-green">
+                        <i class="fas fa-gas-pump"></i>
+                    </div>
+                    <h3>能耗精准追踪</h3>
+                    <p>自动计算百公里油耗/电耗。支持"加满"逻辑算法，精确统计每一次补能的里程差与成本。</p>
+                </div>
+
+                <!-- 3. 保养管理 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-purple">
+                        <i class="fas fa-wrench"></i>
+                    </div>
+                    <h3>保养维修记录</h3>
+                    <p>记录每一次保养详情、费用及单据。智能预测下次保养时间与里程，告别逾期焦虑。</p>
+                </div>
+
+                <!-- 4. 配件追踪 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-orange">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h3>全车配件追踪</h3>
+                    <p>甚至连雨刮器、轮胎、电瓶都能独立追踪。记录更换历史、供应商信息及保修状态。</p>
+                </div>
+
+                <!-- 5. 数据分析 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-cyan">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3>深度数据分析</h3>
+                    <p>直观的仪表盘展示月度费用趋势、能耗曲线及位置热力图。让每一分钱花得明明白白。</p>
+                </div>
+
+                <!-- 6. PWA 支持 -->
+                <div class="feature-card">
+                    <div class="icon-box bg-red">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>全功能 PWA</h3>
+                    <p>支持安装到手机主屏幕，提供类原生 App 的流畅体验。随时随地，快速记账。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 部署与开源 -->
+    <section id="deployment" class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>准备好开始了吗？</h2>
+                <p>基于 Docker 容器化技术，您可以轻松在 NAS、服务器或个人电脑上部署您私有的 CarNote。</p>
+                <div class="code-preview">
+                    <code>docker-compose up -d</code>
+                </div>
+                <div class="cta-buttons">
+                    <a href="https://github.com/Kaiyuan/CarNote#快速开始" target="_blank" class="btn btn-outline-white">查看部署文档</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="assets/logo-192.png" alt="CarNote">
+                    <span>CarNote</span>
+                </div>
+                <div class="footer-links">
+                    <a href="https://github.com/Kaiyuan/CarNote">GitHub 仓库</a>
+                    <a href="https://github.com/Kaiyuan/CarNote/issues">问题反馈</a>
+                    <a href="https://carnote.boxks.com">在线演示</a>
+                </div>
+                <div class="copyright">
+                    &copy; 2024-2026 CarNote Project. Open Source under MIT License.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        //简单的移动端菜单切换
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            document.querySelector('.nav-links').classList.toggle('active');
+        });
+    </script>
+</body>
+</html>
