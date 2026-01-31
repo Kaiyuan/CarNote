@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,11 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <preconnect href="https://fonts.googleapis.com">
-    <preconnect href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.loli.net">
+    <link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
+    <link href="https://fonts.loli.net/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <!-- 导航栏 -->
     <nav class="navbar">
@@ -23,7 +25,8 @@
             <div class="nav-links">
                 <a href="#features">功能特性</a>
                 <a href="#deployment">部署指南</a>
-                <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="github-link"><i class="fab fa-github"></i> GitHub</a>
+                <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="github-link"><i
+                        class="fab fa-github"></i> GitHub</a>
             </div>
             <div class="mobile-menu-btn">
                 <i class="fas fa-bars"></i>
@@ -38,8 +41,10 @@
                 <h1>您的专属<span class="gradient-text">车辆管理</span>管家</h1>
                 <p class="hero-subtitle">全能型车辆记录与数据分析平台。追踪油耗电耗、管理保养维修、掌控车辆全生命周期成本。私有化部署，数据完全掌握在自己手中。</p>
                 <div class="hero-buttons">
-                    <a href="https://carnote.boxks.com" target="_blank" class="btn btn-primary"><i class="fas fa-rocket"></i> 在线演示</a>
-                    <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="btn btn-secondary"><i class="fab fa-github"></i> 源码下载</a>
+                    <a href="https://carnote.boxks.com" target="_blank" class="btn btn-primary"><i
+                            class="fas fa-rocket"></i> 在线演示</a>
+                    <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="btn btn-secondary"><i
+                            class="fab fa-github"></i> 源码下载</a>
                 </div>
                 <div class="tech-stack-icons">
                     <span title="Docker"><i class="fab fa-docker"></i></span>
@@ -69,7 +74,7 @@
                 <h2>核心功能特性</h2>
                 <p>精心打磨的每一个细节，只为更好的用车体验</p>
             </div>
-            
+
             <div class="features-grid">
                 <!-- 1. 多车辆管理 -->
                 <div class="feature-card">
@@ -138,7 +143,8 @@
                     <code>docker-compose up -d</code>
                 </div>
                 <div class="cta-buttons">
-                    <a href="https://github.com/Kaiyuan/CarNote#快速开始" target="_blank" class="btn btn-outline-white">查看部署文档</a>
+                    <a href="https://github.com/Kaiyuan/CarNote#快速开始" target="_blank"
+                        class="btn btn-outline-white">查看部署文档</a>
                 </div>
             </div>
         </div>
@@ -166,9 +172,10 @@
 
     <script>
         //简单的移动端菜单切换
-        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function () {
             document.querySelector('.nav-links').classList.toggle('active');
         });
     </script>
 </body>
+
 </html>

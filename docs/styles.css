@@ -23,6 +23,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
+    font-family: "Sarasa Term SC", "Helvetica Neue", Ubuntu, Helvetica, "Source Han Serif", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "WenQuanYi Zen Hei", "Apple LiGothic Medium", "ST Heiti", "WenQuanYi Zen Hei Sharp", Inter, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
 }
 
 .container {
@@ -99,7 +100,7 @@ body {
     padding-top: 140px;
     padding-bottom: 80px;
     background: radial-gradient(circle at top right, #dbeafe 0%, transparent 40%),
-                radial-gradient(circle at bottom left, #dcfce7 0%, transparent 40%);
+        radial-gradient(circle at bottom left, #dcfce7 0%, transparent 40%);
     overflow: hidden;
 }
 
@@ -222,9 +223,17 @@ body {
     margin-right: 6px;
 }
 
-.red { background-color: #ef4444; }
-.yellow { background-color: #f59e0b; }
-.green { background-color: #22c55e; }
+.red {
+    background-color: #ef4444;
+}
+
+.yellow {
+    background-color: #f59e0b;
+}
+
+.green {
+    background-color: #22c55e;
+}
 
 .url-bar {
     background: white;
@@ -301,12 +310,35 @@ body {
     margin-bottom: 24px;
 }
 
-.bg-blue { background: #DBEAFE; color: #2563EB; }
-.bg-green { background: #D1FAE5; color: #059669; }
-.bg-purple { background: #E9D5FF; color: #7C3AED; }
-.bg-orange { background: #FFEDD5; color: #EA580C; }
-.bg-cyan { background: #CFFAFE; color: #0891B2; }
-.bg-red { background: #FEE2E2; color: #DC2626; }
+.bg-blue {
+    background: #DBEAFE;
+    color: #2563EB;
+}
+
+.bg-green {
+    background: #D1FAE5;
+    color: #059669;
+}
+
+.bg-purple {
+    background: #E9D5FF;
+    color: #7C3AED;
+}
+
+.bg-orange {
+    background: #FFEDD5;
+    color: #EA580C;
+}
+
+.bg-cyan {
+    background: #CFFAFE;
+    color: #0891B2;
+}
+
+.bg-red {
+    background: #FEE2E2;
+    color: #DC2626;
+}
 
 .feature-card h3 {
     font-size: 1.25rem;
@@ -426,15 +458,15 @@ footer {
     .nav-links {
         display: none;
     }
-    
+
     .mobile-menu-btn {
         display: block;
     }
-    
+
     .hero h1 {
         font-size: 2.5rem;
     }
-    
+
     .hero {
         padding-top: 100px;
         padding-bottom: 40px;
