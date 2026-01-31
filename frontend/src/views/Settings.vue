@@ -109,10 +109,10 @@
                         <div class="mb-4">
                             <p class="text-sm text-600 mb-2">备份与恢复（JSON 格式）</p>
                             <div class="flex flex-wrap gap-2">
-                                <Button label="导出全量数据" icon="pi pi-download" size="small" outlined
-                                    @click="exportFullData" :loading="exporting" />
-                                <Button label="导入全量数据" icon="pi pi-upload" size="small" outlined @click="triggerImport"
-                                    :loading="validating" />
+                                <Button label="导出全量数据" icon="pi pi-upload" size="small" outlined @click="exportFullData"
+                                    :loading="exporting" />
+                                <Button label="导入全量数据" icon="pi pi-download" size="small" outlined
+                                    @click="triggerImport" :loading="validating" />
                                 <input type="file" ref="importFile" style="display: none" accept=".json"
                                     @change="onFileChange" />
                             </div>
