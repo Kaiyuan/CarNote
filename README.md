@@ -1,6 +1,6 @@
 # CarNote - 车记录
 
-![CarNote Logo](https://raw.githubusercontent.com/Kaiyuan/CarNote/refs/heads/main/frontend/src/assets/pwa-192.png)
+![CarNote banner](https://kaiyuan.github.io/CarNote//assets/carnote-web-banner.png)
 
 一个功能完整的车辆记录管理系统，支持油耗、电耗追踪、保养管理、配件跟踪和数据分析。
 
