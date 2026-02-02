@@ -48,6 +48,11 @@
 
 1. **获取 docker-compose.yml**
    将项目根目录下的 `docker-compose.yml` 保存到本地。
+   新建 `.env` 文件并填写相应的目录
+   ```
+   carnote_data=/volume1/docker/carnote/data
+   carnote_uploads=/volume1/docker/carnote/uploads
+   ```
 
 2. **启动服务**
    ```bash
