@@ -10,6 +10,7 @@ const state = reactive({
     hasVip: false,
     afdianWebhookToken: '',
     afdianWebhookKey: '',
+    afdianHomeUrl: '',
     afdianAdvancedUrl: '',
     afdianPremiumUrl: '',
     debugMode: false,
@@ -34,6 +35,7 @@ export const useSiteStore = () => {
                 state.afdianWebhookToken = res.data.afdianWebhookToken || ''
                 state.afdianWebhookKey = res.data.afdianWebhookKey || ''
                 state.debugMode = res.data.debugMode || false
+                state.afdianHomeUrl = res.data.afdianHomeUrl || ''
                 state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
                 state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
 
@@ -81,6 +83,9 @@ export const useSiteStore = () => {
                 }
                 if (updates.debug_mode !== undefined) {
                     state.debugMode = updates.debug_mode === 'true' || updates.debug_mode === true
+                }
+                if (updates.afdian_home_url !== undefined) {
+                    state.afdianHomeUrl = updates.afdian_home_url
                 }
                 if (updates.afdian_advanced_url !== undefined) {
                     state.afdianAdvancedUrl = updates.afdian_advanced_url

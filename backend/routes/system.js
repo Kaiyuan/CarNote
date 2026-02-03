@@ -117,7 +117,19 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
  */
 router.get('/config', asyncHandler(async (req, res) => {
     // 获取配置项
-    const settings = await query("SELECT key, value FROM system_settings WHERE key IN ('allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode', 'afdian_advanced_url', 'afdian_premium_url')");
+    constsettingsKeys = [
+        'allow_registration', 'site_name', 'site_icon', 'site_description',
+        'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
+        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url'
+    ];
+    // 使用 map 构造参数化查询的字符串
+    const placeholders = settingsKeys.map(() => '?').join(',');
+
+    // 注意：SQLite 和 MySQL 的 IN 语法在 node-sqlite3/pg 中通常需要小心处理数组。
+    // 这里为了简单和安全，我们手动构建查询。
+    // 但是由于 keys 是硬编码的，我们可以直接列出。
+    const settings = await query(`SELECT key, value FROM system_settings WHERE key IN (${placeholders})`, settingsKeys);
+
     const config = {};
     settings.forEach(s => config[s.key] = s.value);
 
@@ -143,6 +155,7 @@ router.get('/config', asyncHandler(async (req, res) => {
             afdianWebhookToken,
             afdianWebhookKey: config['afdian_webhook_key'] || '',
             debugMode: config['debug_mode'] === 'true',
+            afdianHomeUrl: config['afdian_home_url'] || 'https://afdian.com/a/kaiyuan',
             afdianAdvancedUrl: config['afdian_advanced_url'] || 'https://afdian.com/a/kaiyuan',
             afdianPremiumUrl: config['afdian_premium_url'] || 'https://afdian.com/a/kaiyuan'
         }
@@ -161,7 +174,11 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
     }
 
     const updates = req.body;
-    const allowedKeys = ['allow_registration', 'site_name', 'site_icon', 'site_description', 'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode', 'afdian_advanced_url', 'afdian_premium_url'];
+    const allowedKeys = [
+        'allow_registration', 'site_name', 'site_icon', 'site_description',
+        'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
+        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url'
+    ];
 
     for (const key of allowedKeys) {
         if (updates[key] !== undefined) {
