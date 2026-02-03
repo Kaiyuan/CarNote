@@ -317,9 +317,253 @@ const openAddDialog = () => {
   showDialog.value = true
 }
 
-// ... (editLog, saveLog, deleteLog, etc. - unchanged)
 
-// ...
+// 编辑记录
+const editLog = (log) => {
+  editingLog.value = log
+  logForm.value = {
+    ...log,
+    log_date: new Date(log.log_date),
+    is_full: log.is_full === 1 || log.is_full === true
+  }
+  showDialog.value = true
+}
+
+// 保存记录
+const saveLog = async () => {
+  if (!logForm.value.vehicle_id || !logForm.value.mileage || !logForm.value.amount || !logForm.value.cost) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '请填写所有必填项', life: 3000 })
+    return
+  }
+
+  saving.value = true
+  try {
+    const data = {
+      ...logForm.value,
+      is_full: logForm.value.is_full ? 1 : 0
+    }
+
+    let res
+    if (editingLog.value) {
+      res = await energyAPI.update(editingLog.value.id, data)
+    } else {
+      res = await energyAPI.create(data)
+    }
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '成功', detail: res.message, life: 3000 })
+      showDialog.value = false
+      loadLogs()
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '错误', detail: error.message || '保存失败', life: 3000 })
+  } finally {
+    saving.value = false
+  }
+}
+
+// 删除记录
+const deleteLog = async (id) => {
+  console.log('删除记录被调用, ID:', id)
+
+  if (!window.confirm('确定要删除这条记录吗？')) {
+    logger.debug('用户取消删除')
+    return
+  }
+
+  logger.debug('开始删除记录...')
+  try {
+    const res = await energyAPI.delete(id)
+    logger.debug('删除 API 响应:', res)
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '成功', detail: '删除成功', life: 3000 })
+      loadLogs()
+    } else {
+      toast.add({ severity: 'error', summary: '错误', detail: res.message || '删除失败', life: 3000 })
+    }
+  } catch (error) {
+    logger.error('删除记录失败:', error)
+    toast.add({ severity: 'error', summary: '错误', detail: error.message || '删除失败', life: 3000 })
+  }
+}
+
+// 获取浏览器当前位置
+const getCurrentLocation = () => {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+      logForm.value.location_lat = lat
+      logForm.value.location_lng = lng
+
+      toast.add({ severity: 'success', summary: '已获取位置', detail: '坐标已自动填入', life: 2000 })
+      searchNearby(lat, lng)
+    }, (error) => {
+      toast.add({ severity: 'error', summary: '错误', detail: '无法获取位置: ' + error.message, life: 3000 })
+    });
+  } else {
+    toast.add({ severity: 'warn', summary: '不支持', detail: '您的浏览器不支持地理位置', life: 3000 })
+  }
+}
+
+// 搜索附近站点
+const searchNearby = async (lat, lng) => {
+  try {
+    const res = await locationsAPI.searchNearby({ lat, lng })
+    if (res.success) {
+      nearbyLocations.value = res.data
+    }
+  } catch (e) {
+    logger.error('Nearby search failed', e)
+  }
+}
+
+const selectNearby = (loc) => {
+  logForm.value.location_name = loc.name
+  logForm.value.location_lat = loc.latitude
+  logForm.value.location_lng = loc.longitude
+  toast.add({ severity: 'info', summary: '已选择站点', detail: loc.name, life: 2000 })
+}
+
+const onLocationSelected = (loc) => {
+  logForm.value.location_lat = loc.lat
+  logForm.value.location_lng = loc.lng
+  showMapDialog.value = false
+  searchNearby(loc.lat, loc.lng)
+}
+
+// 日期选择后自动关闭（Calendar组件会自动处理）
+const onDateSelect = () => {
+  // PrimeVue Calendar会自动关闭，无需额外处理
+}
+
+// 导出数据为CSV
+const exportData = () => {
+  if (logs.value.length === 0) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '没有数据可导出', life: 3000 })
+    return
+  }
+
+  const headers = ['日期', '车牌号', '里程(km)', '能源类型', '数量', '费用(元)', '单价', '百公里能耗', '位置', '备注']
+  const rows = logs.value.map(log => [
+    formatDate(log.log_date),
+    log.vehicle_plate || log.plate_number,
+    log.mileage,
+    log.energy_type === 'fuel' ? '燃油' : '电能',
+    log.amount,
+    log.cost || '',
+    log.unit_price || '',
+    log.consumption_per_100km || '',
+    log.location_name || '',
+    log.notes || ''
+  ])
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+
+  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', `能耗记录_${new Date().toISOString().split('T')[0]}.csv`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  toast.add({ severity: 'success', summary: '成功', detail: `已导出 ${logs.value.length} 条记录`, life: 3000 })
+}
+
+// 导入CSV数据
+const importData = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    try {
+      const text = e.target.result
+      const lines = text.split('\n').filter(line => line.trim())
+
+      if (lines.length < 2) {
+        toast.add({ severity: 'error', summary: '错误', detail: 'CSV文件格式不正确', life: 3000 })
+        return
+      }
+
+      const records = []
+      for (let i = 1; i < lines.length; i++) {
+        const cells = lines[i].split(',').map(cell => cell.replace(/^"|"$/g, '').trim())
+        if (cells.length < 5) continue
+
+        const vehicle = vehicles.value.find(v => v.plate_number === cells[1])
+        if (!vehicle) {
+          console.warn(`未找到车牌 ${cells[1]} 对应的车辆，跳过该记录`)
+          continue
+        }
+
+        records.push({
+          vehicle_id: vehicle.id,
+          log_date: cells[0],
+          mileage: parseFloat(cells[2]),
+          energy_type: cells[3] === '燃油' ? 'fuel' : 'electric',
+          amount: parseFloat(cells[4]),
+          cost: cells[5] ? parseFloat(cells[5]) : null,
+          unit_price: cells[6] ? parseFloat(cells[6]) : null,
+          location_name: cells[8] || null,
+          notes: cells[9] || null
+        })
+      }
+
+      if (records.length === 0) {
+        toast.add({ severity: 'warn', summary: '提示', detail: '没有有效的记录可导入', life: 3000 })
+        return
+      }
+
+      let successCount = 0
+      for (const record of records) {
+        try {
+          const res = await energyAPI.create(record)
+          if (res.success) successCount++
+        } catch (err) {
+          logger.error('导入记录失败:', err)
+        }
+      }
+
+      toast.add({
+        severity: 'success',
+        summary: '导入完成',
+        detail: `成功导入 ${successCount}/${records.length} 条记录`,
+        life: 5000
+      })
+
+      loadLogs()
+    } catch (error) {
+      console.error('导入失败:', error)
+      toast.add({ severity: 'error', summary: '错误', detail: '导入失败，请检查文件格式', life: 3000 })
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  reader.readAsText(file, 'UTF-8')
+}
+
+// 格式化工具函数
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString() + ' ' + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatNumber = (num) => num ? Number(num).toLocaleString() : 0
+const formatCurrency = (val) => val ? '¥' + Number(val).toFixed(2) : '¥0.00'
+
+const getTypeLabel = (type) => type === 'electric' ? '充电' : '加油'
+const getTypeSeverity = (type) => type === 'electric' ? 'success' : 'warning'
+const getUnit = (type) => type === 'electric' ? 'kWh' : 'L'
+
 
 onMounted(async () => {
   await loadVehicles()
