@@ -108,10 +108,10 @@
                 </div>
                 <DataTable :value="filteredUsers" :loading="loading" stripedRows responsiveLayout="stack"
                     breakpoint="960px" class="responsive-table">
-                    <Column field="id" header="ID" style="width: 50px"></Column>
-                    <Column field="username" header="用户名"></Column>
-                    <Column field="nickname" header="昵称"></Column>
-                    <Column field="email" header="邮箱">
+                    <Column field="id" header="ID" sortable style="width: 50px"></Column>
+                    <Column field="username" header="用户名" sortable></Column>
+                    <Column field="nickname" header="昵称" sortable></Column>
+                    <Column field="email" header="邮箱" sortable>
                         <template #body="slotProps">
                             <span class="text-overflow-ellipsis overflow-hidden white-space-nowrap block"
                                 style="max-width: 150px" :title="slotProps.data.email">
@@ -119,7 +119,7 @@
                             </span>
                         </template>
                     </Column>
-                    <Column field="role" header="角色">
+                    <Column field="role" header="角色" sortable>
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.role"
                                 :severity="slotProps.data.role === 'admin' ? 'danger' : 'success'" />
@@ -138,7 +138,7 @@
                             <span v-else class="text-500 text-sm">普通用户</span>
                         </template>
                     </Column>
-                    <Column field="is_disabled" header="状态">
+                    <Column field="is_disabled" header="状态" sortable>
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.is_disabled ? '禁用' : '正常'"
                                 :severity="slotProps.data.is_disabled ? 'danger' : 'success'" />
@@ -181,10 +181,10 @@
                     <TabPanel header="车辆列表">
                         <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="10"
                             responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                            <Column field="owner_name" header="所属用户"></Column>
-                            <Column field="plate_number" header="车牌号"></Column>
-                            <Column field="brand" header="品牌"></Column>
-                            <Column field="purchase_date" header="购车时间">
+                            <Column field="owner_name" header="所属用户" sortable></Column>
+                            <Column field="plate_number" header="车牌号" sortable></Column>
+                            <Column field="brand" header="品牌" sortable></Column>
+                            <Column field="purchase_date" header="购车时间" sortable>
                                 <template #body="slotProps">
                                     {{ formatDate(slotProps.data.purchase_date) }}
                                 </template>
@@ -202,13 +202,13 @@
                     <TabPanel header="能耗记录">
                         <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10"
                             responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                            <Column field="owner_name" header="用户"></Column>
-                            <Column field="plate_number" header="车辆"></Column>
-                            <Column field="log_date" header="日期">
+                            <Column field="owner_name" header="用户" sortable></Column>
+                            <Column field="plate_number" header="车辆" sortable></Column>
+                            <Column field="log_date" header="日期" sortable>
                                 <template #body="slotProps">{{ formatDate(slotProps.data.log_date) }}</template>
                             </Column>
-                            <Column field="amount" header="数量"></Column>
-                            <Column field="cost" header="花费"></Column>
+                            <Column field="amount" header="数量" sortable></Column>
+                            <Column field="cost" header="花费" sortable></Column>
                             <Column header="操作">
                                 <template #body="slotProps">
                                     <Button icon="pi pi-pencil" text rounded
@@ -222,12 +222,12 @@
                     <TabPanel header="保养维修">
                         <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="10"
                             responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                            <Column field="owner_name" header="用户"></Column>
-                            <Column field="plate_number" header="车辆"></Column>
-                            <Column field="maintenance_date" header="日期">
+                            <Column field="owner_name" header="用户" sortable></Column>
+                            <Column field="plate_number" header="车辆" sortable></Column>
+                            <Column field="maintenance_date" header="日期" sortable>
                                 <template #body="slotProps">{{ formatDate(slotProps.data.maintenance_date) }}</template>
                             </Column>
-                            <Column field="description" header="项目"
+                            <Column field="description" header="项目" sortable
                                 style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             </Column>
                             <Column header="操作">
@@ -243,12 +243,12 @@
                     <TabPanel header="配件管理">
                         <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="10"
                             responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                            <Column field="owner_name" header="用户"></Column>
-                            <Column field="plate_number" header="车辆"></Column>
-                            <Column field="name" header="配件名"
+                            <Column field="owner_name" header="用户" sortable></Column>
+                            <Column field="plate_number" header="车辆" sortable></Column>
+                            <Column field="name" header="配件名" sortable
                                 style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             </Column>
-                            <Column field="status" header="状态"></Column>
+                            <Column field="status" header="状态" sortable></Column>
                             <Column header="操作">
                                 <template #body="slotProps">
                                     <Button icon="pi pi-pencil" text rounded
@@ -266,14 +266,14 @@
             <TabPanel header="审计与日志">
                 <DataTable :value="loginLogs" :loading="loading" stripedRows paginator :rows="20"
                     responsiveLayout="stack" breakpoint="960px" class="responsive-table">
-                    <Column field="attempt_time" header="时间">
+                    <Column field="attempt_time" header="时间" sortable>
                         <template #body="slotProps">
                             {{ formatDateTime(slotProps.data.attempt_time) }}
                         </template>
                     </Column>
-                    <Column field="username" header="用户名"></Column>
-                    <Column field="ip_address" header="IP 地址"></Column>
-                    <Column field="success" header="结果">
+                    <Column field="username" header="用户名" sortable></Column>
+                    <Column field="ip_address" header="IP 地址" sortable></Column>
+                    <Column field="success" header="结果" sortable>
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.success ? '成功' : '失败'"
                                 :severity="slotProps.data.success ? 'success' : 'danger'" />
