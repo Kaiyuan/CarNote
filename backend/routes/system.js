@@ -117,7 +117,7 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
  */
 router.get('/config', asyncHandler(async (req, res) => {
     // 获取配置项
-    constsettingsKeys = [
+    const settingsKeys = [
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
         'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url'
