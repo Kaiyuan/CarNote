@@ -139,6 +139,27 @@
 
           <Button label="提交验证" icon="pi pi-check" class="w-full mt-2" @click="handleVerify" :loading="loading" />
 
+          <div class="mt-4 pt-3 border-top-1 border-100">
+            <template v-if="!showResendCaptcha">
+              <p class="text-sm text-600 text-center mb-2">没收到验证邮件？</p>
+              <Button label="重新发送记录" icon="pi pi-send" text class="w-full p-button-sm" @click="prepareResend" />
+            </template>
+            <div v-else class="surface-100 p-3 border-round">
+              <p class="text-xs font-bold mb-2">人机验证后重发</p>
+              <div class="flex gap-2 align-items-center mb-2">
+                <div class="p-2 surface-200 border-round font-bold flex align-items-center justify-content-center"
+                  style="min-width: 80px; height: 38px; cursor: pointer;" @click="getResendCaptcha" title="点击刷新">
+                  {{ resendCaptchaQuestion || '...' }}
+                </div>
+                <InputText v-model="resendCaptchaAnswer" placeholder="答案" class="flex-1 p-inputtext-sm" />
+              </div>
+              <div class="flex gap-2">
+                <Button label="取消" text size="small" @click="showResendCaptcha = false" />
+                <Button label="确认重发" size="small" class="flex-1" @click="handleResend" :loading="resending" />
+              </div>
+            </div>
+          </div>
+
           <div class="text-center mt-3">
             <Button label="返回登录" link @click="cancelVerify" class="p-0" />
           </div>
@@ -231,6 +252,12 @@ const excessiveFailures = ref(false)
 const forgotCaptchaQuestion = ref('')
 const forgotCaptchaAnswer = ref('')
 const forgotCaptchaKey = ref('')
+
+const showResendCaptcha = ref(false)
+const resending = ref(false)
+const resendCaptchaQuestion = ref('')
+const resendCaptchaAnswer = ref('')
+const resendCaptchaKey = ref('')
 
 // CAPTCHA 相关
 const failedAttempts = ref(0)
@@ -400,6 +427,47 @@ const handleVerify = async () => {
 const cancelVerify = () => {
   showVerification.value = false
   showRegister.value = false
+  showResendCaptcha.value = false
+}
+
+const prepareResend = () => {
+  showResendCaptcha.value = true
+  getResendCaptcha()
+}
+
+const getResendCaptcha = async () => {
+  try {
+    const res = await userAPI.getCaptcha()
+    if (res.success) {
+      resendCaptchaQuestion.value = res.data.question
+      resendCaptchaKey.value = res.data.key
+      resendCaptchaAnswer.value = ''
+    }
+  } catch (e) { }
+}
+
+const handleResend = async () => {
+  if (!resendCaptchaAnswer.value) {
+    toast.add({ severity: 'warn', summary: '请输入验证码结果' })
+    return
+  }
+  resending.value = true
+  try {
+    const res = await userAPI.resendVerificationEmail({
+      username: verifyForm.value.username,
+      captchaAnswer: resendCaptchaAnswer.value,
+      captchaKey: resendCaptchaKey.value
+    })
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '已发送', detail: '新的验证码已发送至您的邮箱' })
+      showResendCaptcha.value = false
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '发送失败', detail: error.message })
+    getResendCaptcha()
+  } finally {
+    resending.value = false
+  }
 }
 
 // 忘记密码处理 - 发送验证码

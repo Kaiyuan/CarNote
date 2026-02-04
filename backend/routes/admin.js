@@ -13,7 +13,7 @@ router.use(authenticateUser, isAdmin);
  */
 router.get('/users', asyncHandler(async (req, res) => {
     const users = await query(`
-        SELECT u.id, u.username, u.email, u.nickname, u.role, u.is_disabled, u.failed_login_attempts, u.created_at,
+        SELECT u.id, u.username, u.email, u.nickname, u.role, u.is_disabled, u.is_verified, u.failed_login_attempts, u.created_at,
                m.tier as vip_tier, m.expiry_date as vip_expiry
         FROM users u
         LEFT JOIN memberships m ON u.id = m.user_id

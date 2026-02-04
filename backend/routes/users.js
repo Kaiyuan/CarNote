@@ -144,6 +144,46 @@ router.post('/verify-email', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * 重新发送验证邮件 (带 Captcha)
+ * POST /api/users/verify-email/resend
+ */
+router.post('/verify-email/resend', asyncHandler(async (req, res) => {
+    const { username, captchaAnswer, captchaKey } = req.body;
+    if (!username) return res.status(400).json({ success: false, message: '用户名不能为空' });
+
+    // 验证 Captcha
+    if (!captchaAnswer || !captchaKey) {
+        return res.status(400).json({ success: false, message: '请先完成人机验证' });
+    }
+    const expectedKey = crypto.createHmac('sha256', CAPTCHA_SECRET)
+        .update(captchaAnswer.toString())
+        .digest('hex');
+    if (expectedKey !== captchaKey) {
+        return res.status(400).json({ success: false, message: '人机验证码错误' });
+    }
+
+    const { isSmtpConfigured, sendMail } = require('../utils/mailer');
+    const smtpReady = await isSmtpConfigured();
+    if (!smtpReady) {
+        return res.status(400).json({ success: false, message: '系统未配置邮件服务，请联系管理员' });
+    }
+
+    const user = await get('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) return res.status(404).json({ success: false, message: '用户不存在' });
+    if (user.is_verified) return res.status(400).json({ success: false, message: '账户已通过验证' });
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    await query('UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE id = ?',
+        [code, expires, user.id]);
+
+    await sendMail(user.email, '邮箱验证码', `您的验证码是: ${code}，有效期 24 小时。`);
+
+    res.json({ success: true, message: '验证邮件已重新发送' });
+}));
+
+/**
  * 用户登录 (简化版本)
  * POST /api/users/login
  */
@@ -229,9 +269,10 @@ router.post('/login', asyncHandler(async (req, res) => {
 }));
 
 /**
- * 获取找回密码的验证码 (Captcha)
+ * 获取通用的算术验证码 (Captcha)
+ * GET /api/users/captcha
  */
-router.get('/forgot-password/captcha', (req, res) => {
+router.get('/captcha', (req, res) => {
     const num1 = Math.floor(Math.random() * 10) + 1;
     const num2 = Math.floor(Math.random() * 10) + 1;
     const operators = ['+', '-'];
@@ -242,25 +283,45 @@ router.get('/forgot-password/captcha', (req, res) => {
         question = `${num1} + ${num2} = ?`;
         answer = num1 + num2;
     } else {
-        // 确保结果为正数
         const a = Math.max(num1, num2);
         const b = Math.min(num1, num2);
         question = `${a} - ${b} = ?`;
         answer = a - b;
     }
 
-    // 生成签名 Key: hash(answer + secret)
     const key = crypto.createHmac('sha256', CAPTCHA_SECRET)
         .update(answer.toString())
         .digest('hex');
 
-    res.json({
-        success: true,
-        data: {
-            question,
-            key
-        }
-    });
+    res.json({ success: true, data: { question, key } });
+});
+
+/**
+ * 获取找回密码的验证码 (Captcha) - 兼容旧路由
+ */
+router.get('/forgot-password/captcha', (req, res) => {
+    // 转发到通用接口
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    const operators = ['+', '-'];
+    const operator = operators[Math.floor(Math.random() * operators.length)];
+
+    let question, answer;
+    if (operator === '+') {
+        question = `${num1} + ${num2} = ?`;
+        answer = num1 + num2;
+    } else {
+        const a = Math.max(num1, num2);
+        const b = Math.min(num1, num2);
+        question = `${a} - ${b} = ?`;
+        answer = a - b;
+    }
+
+    const key = crypto.createHmac('sha256', CAPTCHA_SECRET)
+        .update(answer.toString())
+        .digest('hex');
+
+    res.json({ success: true, data: { question, key } });
 });
 
 /**

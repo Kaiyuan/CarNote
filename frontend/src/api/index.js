@@ -54,6 +54,10 @@ export const userAPI = {
     login: (data) => api.post('/users/login', data),
     // 验证邮箱
     verifyEmail: (data) => api.post('/users/verify-email', data),
+    // 重新发送验证邮件
+    resendVerificationEmail: (data) => api.post('/users/verify-email/resend', data),
+    // 获取通用验证码
+    getCaptcha: () => api.get('/users/captcha'),
     // 获取用户信息
     getProfile: () => api.get('/users/profile'),
     // 获取用户设置
