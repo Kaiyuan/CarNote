@@ -102,6 +102,10 @@
             </div>
           </div>
 
+          <div v-if="siteStore.state.emailVerificationEnabled" class="p-2 surface-100 border-round mb-3">
+            <p class="text-xs text-600 m-0">注意：为确保收到验证码，请将 <b>{{ siteStore.state.smtpFrom }}</b> 添加到邮箱白名单。</p>
+          </div>
+
           <Button label="注册" icon="pi pi-user-plus" class="w-full mt-3" @click="handleRegister" :loading="loading" />
 
           <div class="text-center mt-3">
@@ -125,13 +129,18 @@
 
           <div class="field">
             <label>验证码</label>
-            <InputText v-model="verifyForm.code" placeholder="请输入6位验证码" class="w-full text-center font-bold text-xl" maxlength="6" />
+            <InputText v-model="verifyForm.code" placeholder="请输入6位验证码" class="w-full text-center font-bold text-xl"
+              maxlength="6" />
+          </div>
+
+          <div class="p-2 surface-100 border-round mb-3">
+            <p class="text-xs text-600 m-0">注意：验证码由 <b>{{ siteStore.state.smtpFrom }}</b> 发送，请检查垃圾箱或将其设为白名单。</p>
           </div>
 
           <Button label="提交验证" icon="pi pi-check" class="w-full mt-2" @click="handleVerify" :loading="loading" />
-          
+
           <div class="text-center mt-3">
-             <Button label="返回登录" link @click="cancelVerify" class="p-0" />
+            <Button label="返回登录" link @click="cancelVerify" class="p-0" />
           </div>
         </div>
 
@@ -141,31 +150,55 @@
     <!-- 忘记密码对话框 -->
     <Dialog :visible="showForgotDialog" @update:visible="showForgotDialog = $event" header="重置密码" :modal="true"
       style="width: 400px">
-      
+
       <div v-if="forgotStep === 1">
-        <p class="text-600 mb-4">请输入您的注册邮箱，我们将向您发送重置验证码。</p>
-        <div class="field">
-          <label for="forgot-email">注册邮箱</label>
-          <InputText id="forgot-email" v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
+        <div v-if="!siteStore.state.smtpReady" class="p-4 text-center">
+          <i class="pi pi-exclamation-triangle text-4xl text-warning mb-3"></i>
+          <p class="text-xl font-bold mb-2">系统未配置邮件服务</p>
+          <p class="text-600">目前无法通过邮件找回密码，请联系管理员手动重置。</p>
         </div>
+        <template v-else>
+          <div class="field">
+            <label for="forgot-email">注册邮箱</label>
+            <InputText id="forgot-email" v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
+          </div>
+
+          <!-- Forgot Password Captcha -->
+          <div class="field mt-3">
+            <label>人机验证 *</label>
+            <div class="flex gap-2 align-items-center">
+              <div
+                class="p-2 surface-200 border-round font-bold text-lg text-700 flex align-items-center justify-content-center"
+                style="min-width: 100px; height: 42px; cursor: pointer;" @click="getForgotCaptcha" title="点击刷新">
+                {{ forgotCaptchaQuestion || '加载中...' }}
+              </div>
+              <InputText v-model="forgotCaptchaAnswer" placeholder="结果" class="flex-1" />
+            </div>
+          </div>
+
+          <div class="p-2 surface-100 border-round mt-3">
+            <p class="text-xs text-600 m-0">注意：请将 <b>{{ siteStore.state.smtpFrom }}</b> 添加到邮箱白名单，以免重置邮件进入垃圾箱。</p>
+          </div>
+        </template>
       </div>
 
       <div v-else>
-         <p class="text-600 mb-4">验证码已发送至 {{ forgotEmail }}</p>
-         <div class="field">
-            <label>验证码</label>
-            <InputText v-model="resetForm.code" placeholder="6位验证码" class="w-full" />
-         </div>
-         <div class="field">
-            <label>新密码</label>
-            <InputText v-model="resetForm.newPassword" type="password" placeholder="请输入新密码" class="w-full" />
-         </div>
+        <p class="text-600 mb-4">验证码已发送至 {{ forgotEmail }}</p>
+        <div class="field">
+          <label>验证码</label>
+          <InputText v-model="resetForm.code" placeholder="6位验证码" class="w-full" />
+        </div>
+        <div class="field">
+          <label>新密码</label>
+          <InputText v-model="resetForm.newPassword" type="password" placeholder="请输入新密码" class="w-full" />
+        </div>
       </div>
 
       <template #footer>
         <Button label="取消" text @click="showForgotDialog = false" />
-        <Button v-if="forgotStep === 1" label="获取验证码" @click="handleForgotPassword" :loading="loading" />
-        <Button v-else label="重置密码" @click="handleResetPassword" :loading="loading" />
+        <Button v-if="forgotStep === 1 && siteStore.state.smtpReady" label="获取验证码" @click="handleForgotPassword"
+          :loading="loading" />
+        <Button v-else-if="forgotStep === 2" label="重置密码" @click="handleResetPassword" :loading="loading" />
       </template>
     </Dialog>
   </div>
@@ -195,6 +228,9 @@ const loading = ref(false)
 const allowRegistration = ref(true) // Default true until checked
 const isFirstUser = ref(false)
 const excessiveFailures = ref(false)
+const forgotCaptchaQuestion = ref('')
+const forgotCaptchaAnswer = ref('')
+const forgotCaptchaKey = ref('')
 
 // CAPTCHA 相关
 const failedAttempts = ref(0)
@@ -296,10 +332,10 @@ const handleLogin = async () => {
     }
 
     if (error.needVerify) {
-        toast.add({ severity: 'warn', summary: '验证提醒', detail: error.message, life: 3000 })
-        verifyForm.value.username = error.username || loginForm.value.username
-        showVerification.value = true
-        return
+      toast.add({ severity: 'warn', summary: '验证提醒', detail: error.message, life: 3000 })
+      verifyForm.value.username = error.username || loginForm.value.username
+      showVerification.value = true
+      return
     }
 
     if (failedAttempts.value >= 2) {
@@ -320,36 +356,50 @@ const handleLogin = async () => {
 }
 
 const openForgotDialog = () => {
-    showForgotDialog.value = true
-    forgotStep.value = 1
-    forgotEmail.value = ''
-    resetForm.value = { code: '', newPassword: '' }
+  showForgotDialog.value = true
+  forgotStep.value = 1
+  forgotEmail.value = ''
+  resetForm.value = { code: '', newPassword: '' }
+  getForgotCaptcha()
+}
+
+const getForgotCaptcha = async () => {
+  try {
+    const res = await userAPI.getForgotPasswordCaptcha()
+    if (res.success) {
+      forgotCaptchaQuestion.value = res.data.question
+      forgotCaptchaKey.value = res.data.key
+      forgotCaptchaAnswer.value = ''
+    }
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '获取验证码失败' })
+  }
 }
 
 // 验证邮件
 const handleVerify = async () => {
-    if (!verifyForm.value.code) {
-        toast.add({ severity: 'warn', summary: '请输入验证码' })
-        return
+  if (!verifyForm.value.code) {
+    toast.add({ severity: 'warn', summary: '请输入验证码' })
+    return
+  }
+  loading.value = true
+  try {
+    const res = await userAPI.verifyEmail(verifyForm.value)
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '验证成功', detail: '请使用账号密码登录', life: 3000 })
+      showVerification.value = false
+      showRegister.value = false
     }
-    loading.value = true
-    try {
-        const res = await userAPI.verifyEmail(verifyForm.value)
-        if (res.success) {
-            toast.add({ severity: 'success', summary: '验证成功', detail: '请使用账号密码登录', life: 3000 })
-            showVerification.value = false
-            showRegister.value = false
-        }
-    } catch (error) {
-        toast.add({ severity: 'error', summary: '验证失败', detail: error.message })
-    } finally {
-        loading.value = false
-    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '验证失败', detail: error.message })
+  } finally {
+    loading.value = false
+  }
 }
 
 const cancelVerify = () => {
-    showVerification.value = false
-    showRegister.value = false
+  showVerification.value = false
+  showRegister.value = false
 }
 
 // 忘记密码处理 - 发送验证码
@@ -361,13 +411,18 @@ const handleForgotPassword = async () => {
 
   loading.value = true
   try {
-    const res = await userAPI.forgotPassword({ email: forgotEmail.value })
+    const res = await userAPI.forgotPassword({
+      email: forgotEmail.value,
+      captchaAnswer: forgotCaptchaAnswer.value,
+      captchaKey: forgotCaptchaKey.value
+    })
     if (res.success) {
       toast.add({ severity: 'success', summary: '已发送', detail: res.message, life: 3000 })
       forgotStep.value = 2
     }
   } catch (error) {
     toast.add({ severity: 'error', summary: '错误', detail: error.message || '发送失败', life: 3000 })
+    getForgotCaptcha() // 刷新验证码
   } finally {
     loading.value = false
   }
@@ -375,26 +430,26 @@ const handleForgotPassword = async () => {
 
 // 重置密码 - 提交
 const handleResetPassword = async () => {
-    if (!resetForm.value.code || !resetForm.value.newPassword) {
-        toast.add({ severity: 'warn', summary: '请填写所有字段' })
-        return
+  if (!resetForm.value.code || !resetForm.value.newPassword) {
+    toast.add({ severity: 'warn', summary: '请填写所有字段' })
+    return
+  }
+  loading.value = true
+  try {
+    const res = await userAPI.resetPassword({
+      email: forgotEmail.value,
+      code: resetForm.value.code,
+      password: resetForm.value.newPassword
+    })
+    if (res.success) {
+      toast.add({ severity: 'success', summary: '重置成功', detail: '请使用新密码登录', life: 3000 })
+      showForgotDialog.value = false
     }
-    loading.value = true
-    try {
-        const res = await userAPI.resetPassword({ 
-            email: forgotEmail.value, 
-            code: resetForm.value.code, 
-            password: resetForm.value.newPassword 
-        })
-        if (res.success) {
-            toast.add({ severity: 'success', summary: '重置成功', detail: '请使用新密码登录', life: 3000 })
-            showForgotDialog.value = false
-        }
-    } catch (error) {
-        toast.add({ severity: 'error', summary: '重置失败', detail: error.message })
-    } finally {
-        loading.value = false
-    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: '重置失败', detail: error.message })
+  } finally {
+    loading.value = false
+  }
 }
 
 // 注册处理
@@ -426,12 +481,12 @@ const handleRegister = async () => {
         toast.add({ severity: 'success', summary: '成功', detail: res.message || '注册成功，请登录', life: 3000 })
         showRegister.value = false
         loginForm.value.username = registerForm.value.username
-        
+
         // Refresh config to update isFirstUser status
         const conf = await systemAPI.getConfig()
         if (conf.success) {
-            isFirstUser.value = conf.data.isFirstUser
-            allowRegistration.value = conf.data.allowRegistration
+          isFirstUser.value = conf.data.isFirstUser
+          allowRegistration.value = conf.data.allowRegistration
         }
       } else {
         toast.add({ severity: 'info', summary: '需验证邮箱', detail: res.message, life: 5000 })

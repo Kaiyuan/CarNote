@@ -15,6 +15,8 @@ const state = reactive({
     afdianPremiumUrl: '',
     debugMode: false,
     emailVerificationEnabled: false,
+    smtpReady: false,
+    smtpFrom: 'noreply@carnote.com',
     loading: false
 })
 
@@ -36,10 +38,10 @@ export const useSiteStore = () => {
                 state.afdianWebhookToken = res.data.afdianWebhookToken || ''
                 state.afdianWebhookKey = res.data.afdianWebhookKey || ''
                 state.debugMode = res.data.debugMode || false
-                state.afdianHomeUrl = res.data.afdianHomeUrl || ''
-                state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
                 state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
                 state.emailVerificationEnabled = res.data.emailVerificationEnabled || false
+                state.smtpReady = res.data.smtpReady || false
+                state.smtpFrom = res.data.smtpFrom || 'noreply@carnote.com'
 
                 // Update document title and meta
                 document.title = state.siteName

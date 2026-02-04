@@ -9,6 +9,10 @@ const bcrypt = require('bcryptjs');
 const { query, get } = require('../config/database');
 const { authenticateUser, generateApiKey } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const crypto = require('crypto');
+
+// 用于 Captcha 签名的密钥
+const CAPTCHA_SECRET = process.env.JWT_SECRET || 'carnote-captcha-secret';
 
 /**
  * 用户注册
@@ -227,11 +231,60 @@ router.post('/login', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * 获取找回密码的验证码 (Captcha)
+ */
+router.get('/forgot-password/captcha', (req, res) => {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    const operators = ['+', '-'];
+    const operator = operators[Math.floor(Math.random() * operators.length)];
+
+    let question, answer;
+    if (operator === '+') {
+        question = `${num1} + ${num2} = ?`;
+        answer = num1 + num2;
+    } else {
+        // 确保结果为正数
+        const a = Math.max(num1, num2);
+        const b = Math.min(num1, num2);
+        question = `${a} - ${b} = ?`;
+        answer = a - b;
+    }
+
+    // 生成签名 Key: hash(answer + secret)
+    const key = crypto.createHmac('sha256', CAPTCHA_SECRET)
+        .update(answer.toString())
+        .digest('hex');
+
+    res.json({
+        success: true,
+        data: {
+            question,
+            key
+        }
+    });
+});
+
+/**
  * 忘记密码 - 发送重置邮件
  */
 router.post('/forgot-password', asyncHandler(async (req, res) => {
-    const { email } = req.body;
+    const { email, captchaAnswer, captchaKey } = req.body;
+
     if (!email) return res.status(400).json({ success: false, message: '邮箱不能为空' });
+
+    // 验证 Captcha
+    if (!captchaAnswer || !captchaKey) {
+        return res.status(400).json({ success: false, message: '请先完成人机验证' });
+    }
+
+    const expectedKey = crypto.createHmac('sha256', CAPTCHA_SECRET)
+        .update(captchaAnswer.toString())
+        .digest('hex');
+
+    if (expectedKey !== captchaKey) {
+        return res.status(400).json({ success: false, message: '验证码错误，请重试' });
+    }
 
     const user = await get('SELECT * FROM users WHERE email = ?', [email]);
     if (!user) {

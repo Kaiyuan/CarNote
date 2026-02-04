@@ -66,6 +66,8 @@ export const userAPI = {
     createApiKey: (data) => api.post('/users/api-keys', data),
     // 忘记密码
     forgotPassword: (data) => api.post('/users/forgot-password', data),
+    // 获取忘记密码验证码
+    getForgotPasswordCaptcha: () => api.get('/users/forgot-password/captcha'),
     // 重置密码
     resetPassword: (data) => api.post('/users/reset-password', data),
     // 删除 API Key
