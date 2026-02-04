@@ -35,11 +35,16 @@ api.interceptors.response.use(
     error => {
         logger.error(`API Error [${error.config?.method?.toUpperCase()}] ${error.config?.url}:`, error.response?.data || error.message);
 
-        // 401 未授权，跳转到登录页
+        // 401 未授权，跳转到登录页 (排除本身在登录页或需要验证的情况)
         if (error.response?.status === 401) {
-            localStorage.removeItem('userId')
-            localStorage.removeItem('currentUser')
-            window.location.href = '/login'
+            const isLoginPage = window.location.pathname === '/login';
+            const needVerify = error.response?.data?.needVerify;
+
+            if (!isLoginPage && !needVerify) {
+                localStorage.removeItem('userId')
+                localStorage.removeItem('currentUser')
+                window.location.href = '/login'
+            }
         }
 
         return Promise.reject(error.response?.data || error.message)
