@@ -20,50 +20,54 @@
       </template>
 
       <template #content>
-        <!-- 登录表单 -->
-        <div v-if="!showRegister">
-          <div class="field">
-            <label for="username">用户名</label>
-            <InputText id="username" v-model="loginForm.username" placeholder="请输入用户名" class="w-full" />
+        <!-- 验证码输入（注册后或登录未验证时） -->
+        <div v-if="showVerification">
+          <div class="text-center mb-4">
+            <i class="pi pi-envelope text-4xl text-primary"></i>
+            <h3>验证您的邮箱</h3>
+            <p class="text-600">验证码已发送至您的邮箱，请输入以完成验证</p>
           </div>
 
           <div class="field">
-            <label for="password">密码</label>
-            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full"
-              @keyup.enter="handleLogin" />
+            <label>用户名</label>
+            <InputText v-model="verifyForm.username" disabled class="w-full" />
           </div>
 
-          <!-- CAPTCHA (显示在2次失败后) -->
-          <div v-if="showCaptcha" class="field">
-            <label for="captcha">验证码 *</label>
-            <div class="flex gap-2 align-items-center">
-              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary"
-                style="min-width: 120px; text-align: center;">
-                {{ captchaQuestion }}
+          <div class="field">
+            <label>验证码</label>
+            <InputText v-model="verifyForm.code" placeholder="请输入6位验证码" class="w-full text-center font-bold text-xl"
+              maxlength="6" />
+          </div>
+
+          <div class="p-2 surface-100 border-round mb-3">
+            <p class="text-xs text-600 m-0">注意：验证码由 <b>{{ siteStore.state.smtpFrom }}</b> 发送，请检查垃圾箱或将其设为白名单。</p>
+          </div>
+
+          <Button label="提交验证" icon="pi pi-check" class="w-full mt-2" @click="handleVerify" :loading="loading" />
+
+          <div class="mt-4 pt-3 border-top-1 border-100">
+            <template v-if="!showResendCaptcha">
+              <p class="text-sm text-600 text-center mb-2">没收到验证邮件？</p>
+              <Button label="重新发送" icon="pi pi-send" text class="w-full p-button-sm" @click="prepareResend" />
+            </template>
+            <div v-else class="surface-100 p-3 border-round">
+              <p class="text-xs font-bold mb-2">人机验证后重发</p>
+              <div class="flex gap-2 align-items-center mb-2">
+                <div class="p-2 surface-200 border-round font-bold flex align-items-center justify-content-center"
+                  style="min-width: 80px; height: 38px; cursor: pointer;" @click="getResendCaptcha" title="点击刷新">
+                  {{ resendCaptchaQuestion || '...' }}
+                </div>
+                <InputText v-model="resendCaptchaAnswer" placeholder="答案" class="flex-1 p-inputtext-sm" />
               </div>
-              <InputText id="captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1"
-                @keyup.enter="handleLogin" />
+              <div class="flex gap-2">
+                <Button label="取消" text size="small" @click="showResendCaptcha = false" />
+                <Button label="确认重发" size="small" class="flex-1" @click="handleResend" :loading="resending" />
+              </div>
             </div>
-            <small class="text-500">为了安全，请完成验证</small>
           </div>
 
-          <div class="text-right mt-1">
-            <Button label="忘记密码？" link @click="openForgotDialog" class="p-0 text-sm" />
-          </div>
-
-          <Button label="登录" icon="pi pi-sign-in" class="w-full mt-3" @click="handleLogin" :loading="loading" />
-
-          <div class="text-center mt-3" v-if="allowRegistration || isFirstUser">
-            <span class="text-600">还没有账号？</span>
-            <Button label="注册" link @click="showRegister = true" class="p-0 ml-1" />
-          </div>
-
-          <div v-if="excessiveFailures" class="mt-3">
-            <Button label="无法登录？重置密码" icon="pi pi-question-circle" severity="secondary" class="w-full p-button-sm"
-              @click="openForgotDialog" />
-          </div>
-          <div v-if="isFirstUser" class="text-center mt-2">
-            <Tag severity="info" value="首次运行：请注册管理员账号" />
+          <div class="text-center mt-3">
+            <Button label="返回" link @click="cancelVerify" class="p-0" />
           </div>
         </div>
 
@@ -114,57 +118,81 @@
           </div>
         </div>
 
-        <!-- 验证码输入（注册后或登录未验证时） -->
-        <div v-else-if="showVerification">
-          <div class="text-center mb-4">
-            <i class="pi pi-envelope text-4xl text-primary"></i>
-            <h3>验证您的邮箱</h3>
-            <p class="text-600">验证码已发送至您的邮箱，请输入以完成验证</p>
+        <!-- 登录表单 -->
+        <div v-else>
+          <div class="field">
+            <label for="username">用户名</label>
+            <InputText id="username" v-model="loginForm.username" placeholder="请输入用户名" class="w-full" />
           </div>
 
           <div class="field">
-            <label>用户名</label>
-            <InputText v-model="verifyForm.username" disabled class="w-full" />
+            <label for="password">密码</label>
+            <InputText id="password" v-model="loginForm.password" type="password" placeholder="请输入密码" class="w-full"
+              @keyup.enter="handleLogin" />
           </div>
 
-          <div class="field">
-            <label>验证码</label>
-            <InputText v-model="verifyForm.code" placeholder="请输入6位验证码" class="w-full text-center font-bold text-xl"
-              maxlength="6" />
+          <!-- CAPTCHA (显示在2次失败后) -->
+          <div v-if="showCaptcha" class="field">
+            <label for="captcha">验证码 *</label>
+            <div class="flex gap-2 align-items-center">
+              <div class="p-3 bg-blue-50 border-round font-bold text-xl text-primary"
+                style="min-width: 120px; text-align: center;">
+                {{ captchaQuestion }}
+              </div>
+              <InputText id="captcha" v-model="captchaAnswer" placeholder="请输入答案" class="flex-1"
+                @keyup.enter="handleLogin" />
+            </div>
+            <small class="text-500">为了安全，请完成验证</small>
           </div>
 
-          <div class="p-2 surface-100 border-round mb-3">
-            <p class="text-xs text-600 m-0">注意：验证码由 <b>{{ siteStore.state.smtpFrom }}</b> 发送，请检查垃圾箱或将其设为白名单。</p>
+          <div class="text-right mt-1">
+            <Button label="忘记密码？" link @click="openForgotDialog" class="p-0 text-sm" />
           </div>
 
-          <Button label="提交验证" icon="pi pi-check" class="w-full mt-2" @click="handleVerify" :loading="loading" />
+          <Button label="登录" icon="pi pi-sign-in" class="w-full mt-3" @click="handleLogin" :loading="loading" />
 
-          <div class="mt-4 pt-3 border-top-1 border-100">
-            <template v-if="!showResendCaptcha">
-              <p class="text-sm text-600 text-center mb-2">没收到验证邮件？</p>
-              <Button label="重新发送记录" icon="pi pi-send" text class="w-full p-button-sm" @click="prepareResend" />
-            </template>
-            <div v-else class="surface-100 p-3 border-round">
-              <p class="text-xs font-bold mb-2">人机验证后重发</p>
+          <div class="text-center mt-3" v-if="allowRegistration || isFirstUser">
+            <span class="text-600">还没有账号？</span>
+            <Button label="注册" link @click="showRegister = true" class="p-0 ml-1" />
+          </div>
+
+          <div v-if="excessiveFailures" class="mt-3">
+            <Button label="无法登录？重置密码" icon="pi pi-question-circle" severity="secondary" class="w-full p-button-sm"
+              @click="openForgotDialog" />
+          </div>
+          <div v-if="isFirstUser" class="text-center mt-2">
+            <Tag severity="info" value="首次运行：请注册管理员账号" />
+          </div>
+
+          <!-- Unverified User Warning Section -->
+          <div v-if="showUnverifiedWarning" class="surface-100 p-3 border-round mt-4 border-left-3 border-warning">
+            <div class="flex align-items-center mb-2">
+              <i class="pi pi-info-circle text-warning mr-2"></i>
+              <span class="font-bold">您的邮箱尚未验证</span>
+            </div>
+            <p class="text-sm text-600 mb-3">您的账号需要完成验证后才能登录。请检查注册邮箱或点击下方按钮重新获取验证码。</p>
+
+            <div class="surface-0 p-3 border-round border-1 border-200">
+              <p class="text-xs font-bold mb-2">人机验证并重新发送邮件</p>
               <div class="flex gap-2 align-items-center mb-2">
-                <div class="p-2 surface-200 border-round font-bold flex align-items-center justify-content-center"
-                  style="min-width: 80px; height: 38px; cursor: pointer;" @click="getResendCaptcha" title="点击刷新">
+                <div
+                  class="p-2 surface-200 border-round font-bold flex align-items-center justify-content-center text-sm"
+                  style="min-width: 80px; height: 34px; cursor: pointer;" @click="getResendCaptcha" title="点击刷新">
                   {{ resendCaptchaQuestion || '...' }}
                 </div>
                 <InputText v-model="resendCaptchaAnswer" placeholder="答案" class="flex-1 p-inputtext-sm" />
               </div>
-              <div class="flex gap-2">
-                <Button label="取消" text size="small" @click="showResendCaptcha = false" />
-                <Button label="确认重发" size="small" class="flex-1" @click="handleResend" :loading="resending" />
-              </div>
+              <Button label="重新发送验证邮件" icon="pi pi-send" severity="warning" size="small" class="w-full"
+                @click="handleResend" :loading="resending" />
+            </div>
+
+            <div class="mt-3 flex gap-2">
+              <Button label="我已有验证码" text size="small" icon="pi pi-key" class="flex-1"
+                @click="showVerification = true; showUnverifiedWarning = false" />
+              <Button label="关闭提示" text size="small" severity="secondary" @click="showUnverifiedWarning = false" />
             </div>
           </div>
-
-          <div class="text-center mt-3">
-            <Button label="返回登录" link @click="cancelVerify" class="p-0" />
-          </div>
         </div>
-
       </template>
     </Card>
 
@@ -249,6 +277,7 @@ const loading = ref(false)
 const allowRegistration = ref(true) // Default true until checked
 const isFirstUser = ref(false)
 const excessiveFailures = ref(false)
+const showUnverifiedWarning = ref(false)
 const forgotCaptchaQuestion = ref('')
 const forgotCaptchaAnswer = ref('')
 const forgotCaptchaKey = ref('')
@@ -361,7 +390,8 @@ const handleLogin = async () => {
     if (error.needVerify) {
       toast.add({ severity: 'warn', summary: '验证提醒', detail: error.message, life: 3000 })
       verifyForm.value.username = error.username || loginForm.value.username
-      showVerification.value = true
+      showUnverifiedWarning.value = true
+      getResendCaptcha()
       return
     }
 

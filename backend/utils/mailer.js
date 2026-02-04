@@ -79,6 +79,9 @@ async function createTransporter() {
  * 发送邮件
  */
 async function sendMail({ to, subject, html }) {
+    if (!to) {
+        throw new Error('未定义收件人 (No recipients defined)');
+    }
     try {
         const fromEnv = process.env.SMTP_FROM;
         const fromDb = await get("SELECT value FROM system_settings WHERE key = 'smtp_from'");

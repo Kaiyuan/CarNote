@@ -170,6 +170,7 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
 
     const user = await get('SELECT * FROM users WHERE username = ?', [username]);
     if (!user) return res.status(404).json({ success: false, message: '用户不存在' });
+    if (!user.email) return res.status(400).json({ success: false, message: '该账户未绑定邮箱，请联系管理员手动验证' });
     if (user.is_verified) return res.status(400).json({ success: false, message: '账户已通过验证' });
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -178,7 +179,11 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
     await query('UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE id = ?',
         [code, expires, user.id]);
 
-    await sendMail(user.email, '邮箱验证码', `您的验证码是: ${code}，有效期 24 小时。`);
+    await sendMail({
+        to: user.email,
+        subject: '邮箱验证码',
+        html: `您的验证码是: <b>${code}</b>，有效期 24 小时。`
+    });
 
     res.json({ success: true, message: '验证邮件已重新发送' });
 }));
