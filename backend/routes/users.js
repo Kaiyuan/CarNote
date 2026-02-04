@@ -64,7 +64,12 @@ router.post('/register', asyncHandler(async (req, res) => {
     const { isSmtpConfigured } = require('../utils/mailer');
     const smtpReady = await isSmtpConfigured();
 
-    const isVerified = (isFirstUser || !smtpReady) ? 1 : 0;
+    // 获取后台设置：是否强制开启邮箱验证 (默认不开启)
+    const verificationSetting = await get("SELECT value FROM system_settings WHERE key = 'email_verification_enabled'");
+    const isVerificationRequired = verificationSetting?.value === 'true';
+
+    // 只有在满足三个条件时才进行验证：1. 不是第一个用户 2. SMTP 已配置 3. 后台开启了验证
+    const isVerified = (isFirstUser || !smtpReady || !isVerificationRequired) ? 1 : 0;
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 

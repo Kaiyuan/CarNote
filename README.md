@@ -111,6 +111,8 @@
 | `SMTP_SECURE` | 是否启用安全连接 (`true` / `false`) | `true` |
 | `SMTP_FROM` | 邮件发送者名称 | `CarNote <noreply@carnote.com>` |
 
+> **提示**：如果使用端口 `465`，通常需要设置 `SMTP_SECURE=true`；如果使用 `587` 或 `25`，通常应设置 `SMTP_SECURE=false` (STARTTLS)。如果连接出现 `wrong version number` 错误，请尝试切换此设置。
+
 ## 本地开发
 
 ### 方式一：一键启动 (Linux/WSL)

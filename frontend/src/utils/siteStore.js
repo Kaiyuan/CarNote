@@ -14,6 +14,7 @@ const state = reactive({
     afdianAdvancedUrl: '',
     afdianPremiumUrl: '',
     debugMode: false,
+    emailVerificationEnabled: false,
     loading: false
 })
 
@@ -38,6 +39,7 @@ export const useSiteStore = () => {
                 state.afdianHomeUrl = res.data.afdianHomeUrl || ''
                 state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
                 state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
+                state.emailVerificationEnabled = res.data.emailVerificationEnabled || false
 
                 // Update document title and meta
                 document.title = state.siteName
@@ -92,6 +94,9 @@ export const useSiteStore = () => {
                 }
                 if (updates.afdian_premium_url !== undefined) {
                     state.afdianPremiumUrl = updates.afdian_premium_url
+                }
+                if (updates.email_verification_enabled !== undefined) {
+                    state.emailVerificationEnabled = updates.email_verification_enabled === 'true' || updates.email_verification_enabled === true
                 }
                 return true
             }

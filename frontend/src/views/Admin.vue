@@ -48,6 +48,10 @@
                                     <Checkbox v-model="siteBranding.debug_mode" :binary="true" />
                                     <label class="ml-2">调试模式 (控制台输出)</label>
                                 </div>
+                                <div class="field-checkbox mb-4">
+                                    <Checkbox v-model="siteBranding.email_verification_enabled" :binary="true" />
+                                    <label class="ml-2">强制开启注册邮箱验证</label>
+                                </div>
                                 <Button label="保存站点设置" icon="pi pi-save" @click="saveBranding" class="w-full"
                                     :loading="savingBranding" />
                             </template>
@@ -521,7 +525,8 @@ const siteBranding = ref({
     site_name: '',
     site_description: '',
     allow_registration: true,
-    debug_mode: false
+    debug_mode: false,
+    email_verification_enabled: false
 })
 const uploadingIcon = ref(false)
 const savingBranding = ref(false)
@@ -533,7 +538,8 @@ const loadBranding = async () => {
         site_name: siteStore.state.siteName,
         site_description: siteStore.state.siteDescription,
         allow_registration: siteStore.state.allowRegistration,
-        debug_mode: siteStore.state.debugMode
+        debug_mode: siteStore.state.debugMode,
+        email_verification_enabled: siteStore.state.emailVerificationEnabled
     }
 }
 

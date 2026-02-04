@@ -26,15 +26,25 @@ async function isSmtpConfigured() {
  */
 async function createTransporter() {
     // 优先使用环境变量
+    const envPort = parseInt(process.env.SMTP_PORT);
     const config = {
         host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT),
+        port: envPort,
         secure: process.env.SMTP_SECURE === 'true',
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
+        },
+        tls: {
+            // 默认允许自签名证书，提高兼容性
+            rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED === 'true'
         }
     };
+
+    // 智能处理 secure 标志：如果用户指定了端口但没没指定 secure，则根据端口判断
+    if (!isNaN(envPort) && process.env.SMTP_SECURE === undefined) {
+        config.secure = envPort === 465;
+    }
 
     // 如果环境变量缺失，则从数据库获取
     if (!config.host || !config.auth.user || !config.auth.pass) {
@@ -49,8 +59,10 @@ async function createTransporter() {
         }
 
         config.host = host.value;
-        config.port = parseInt(port.value) || 465;
-        config.secure = secure.value === 'true';
+        const dbPort = parseInt(port?.value);
+        config.port = dbPort || 465;
+        // 如果数据库里没有显式设置 secure，则根据端口判断
+        config.secure = secure?.value === 'true' || (secure?.value === undefined && config.port === 465);
         config.auth.user = user.value;
         config.auth.pass = pass.value;
     }

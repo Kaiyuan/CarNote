@@ -120,7 +120,8 @@ router.get('/config', asyncHandler(async (req, res) => {
     const settingsKeys = [
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
-        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url'
+        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
+        'email_verification_enabled'
     ];
     // 使用 map 构造参数化查询的字符串
     const placeholders = settingsKeys.map(() => '?').join(',');
@@ -139,6 +140,7 @@ router.get('/config', asyncHandler(async (req, res) => {
     const siteIcon = config['site_icon'] || null;
     const siteDescription = config['site_description'] || '';
     const afdianWebhookToken = config['afdian_webhook_token'] || '';
+    const emailVerificationEnabled = config['email_verification_enabled'] === 'true'; // 默认 false (undefined 为 false)
 
     // 检查是否已初始化（是否有用户）
     const userCount = await get("SELECT COUNT(*) as count FROM users");
@@ -157,7 +159,8 @@ router.get('/config', asyncHandler(async (req, res) => {
             debugMode: config['debug_mode'] === 'true',
             afdianHomeUrl: config['afdian_home_url'] || 'https://afdian.com/a/kaiyuan',
             afdianAdvancedUrl: config['afdian_advanced_url'] || 'https://afdian.com/a/kaiyuan',
-            afdianPremiumUrl: config['afdian_premium_url'] || 'https://afdian.com/a/kaiyuan'
+            afdianPremiumUrl: config['afdian_premium_url'] || 'https://afdian.com/a/kaiyuan',
+            emailVerificationEnabled
         }
     });
 }));
@@ -177,7 +180,8 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
     const allowedKeys = [
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
-        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url'
+        'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
+        'email_verification_enabled'
     ];
 
     for (const key of allowedKeys) {
