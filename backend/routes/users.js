@@ -77,10 +77,11 @@ router.post('/register', asyncHandler(async (req, res) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 
+    const now = new Date().toISOString();
     // 创建用户
     const result = await query(
-        'INSERT INTO users (username, password_hash, email, nickname, role, is_verified, verification_code, verification_code_expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [username, passwordHash, email, nickname || username, role, isVerified, verificationCode, verificationExpires]
+        'INSERT INTO users (username, password_hash, email, nickname, role, is_verified, verification_code, verification_code_expires, email_last_sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [username, passwordHash, email, nickname || username, role, isVerified, verificationCode, verificationExpires, isVerified ? null : now]
     );
 
     // 创建默认设置
@@ -173,11 +174,20 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
     if (!user.email) return res.status(400).json({ success: false, message: '该账户未绑定邮箱，请联系管理员手动验证' });
     if (user.is_verified) return res.status(400).json({ success: false, message: '账户已通过验证' });
 
+    // 频率限制
+    if (user.email_last_sent_at) {
+        const lastSent = new Date(user.email_last_sent_at);
+        const diff = (Date.now() - lastSent.getTime()) / 1000;
+        if (diff < 60) {
+            return res.status(429).json({ success: false, message: `发送太频繁，请在 ${Math.ceil(60 - diff)} 秒后重试` });
+        }
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    await query('UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE id = ?',
-        [code, expires, user.id]);
+    await query('UPDATE users SET verification_code = ?, verification_code_expires = ?, email_last_sent_at = ? WHERE id = ?',
+        [code, expires, new Date().toISOString(), user.id]);
 
     await sendMail({
         to: user.email,
@@ -356,12 +366,21 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
         return res.json({ success: true, message: '如果邮箱存在，重置链接已发送' });
     }
 
+    // 频率限制
+    if (user.email_last_sent_at) {
+        const lastSent = new Date(user.email_last_sent_at);
+        const diff = (Date.now() - lastSent.getTime()) / 1000;
+        if (diff < 60) {
+            return res.status(429).json({ success: false, message: `发送太频繁，请在 ${Math.ceil(60 - diff)} 秒后重试` });
+        }
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
 
     // 使用 reset_password_token 存储 6位数字验证码
-    await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
-        [code, expires, user.id]);
+    await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ?, email_last_sent_at = ? WHERE id = ?',
+        [code, expires, new Date().toISOString(), user.id]);
 
     const { sendMail } = require('../utils/mailer');
 

@@ -48,7 +48,8 @@
           <div class="mt-4 pt-3 border-top-1 border-100">
             <template v-if="!showResendCaptcha">
               <p class="text-sm text-600 text-center mb-2">没收到验证邮件？</p>
-              <Button label="重新发送" icon="pi pi-send" text class="w-full p-button-sm" @click="prepareResend" />
+              <Button :label="resendCooldown > 0 ? `重新发送 (${resendCooldown}s)` : '重新发送'" icon="pi pi-send" text
+                class="w-full p-button-sm" @click="prepareResend" :disabled="resendCooldown > 0" />
             </template>
             <div v-else class="surface-100 p-3 border-round">
               <p class="text-xs font-bold mb-2">人机验证后重发</p>
@@ -61,7 +62,8 @@
               </div>
               <div class="flex gap-2">
                 <Button label="取消" text size="small" @click="showResendCaptcha = false" />
-                <Button label="确认重发" size="small" class="flex-1" @click="handleResend" :loading="resending" />
+                <Button :label="resendCooldown > 0 ? `${resendCooldown}s` : '确认重发'" size="small" class="flex-1"
+                  @click="handleResend" :loading="resending" :disabled="resendCooldown > 0" />
               </div>
             </div>
           </div>
@@ -182,8 +184,9 @@
                 </div>
                 <InputText v-model="resendCaptchaAnswer" placeholder="答案" class="flex-1 p-inputtext-sm" />
               </div>
-              <Button label="重新发送验证邮件" icon="pi pi-send" severity="warning" size="small" class="w-full"
-                @click="handleResend" :loading="resending" />
+              <Button :label="resendCooldown > 0 ? `请稍候 (${resendCooldown}s)` : '重新发送验证邮件'" icon="pi pi-send"
+                severity="warning" size="small" class="w-full" @click="handleResend" :loading="resending"
+                :disabled="resendCooldown > 0" />
             </div>
 
             <div class="mt-3 flex gap-2">
@@ -228,6 +231,10 @@
           <div class="p-2 surface-100 border-round mt-3">
             <p class="text-xs text-600 m-0">注意：请将 <b>{{ siteStore.state.smtpFrom }}</b> 添加到邮箱白名单，以免重置邮件进入垃圾箱。</p>
           </div>
+
+          <div class="text-center mt-3">
+            <Button label="我已有重置验证码" link class="p-0 text-sm" @click="forgotStep = 2" />
+          </div>
         </template>
       </div>
 
@@ -245,9 +252,13 @@
 
       <template #footer>
         <Button label="取消" text @click="showForgotDialog = false" />
-        <Button v-if="forgotStep === 1 && siteStore.state.smtpReady" label="获取验证码" @click="handleForgotPassword"
-          :loading="loading" />
-        <Button v-else-if="forgotStep === 2" label="重置密码" @click="handleResetPassword" :loading="loading" />
+        <Button v-if="forgotStep === 1 && siteStore.state.smtpReady"
+          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '获取验证码'" @click="handleForgotPassword"
+          :loading="loading" :disabled="forgotCooldown > 0" />
+        <template v-else-if="forgotStep === 2">
+          <Button label="上一步" text @click="forgotStep = 1" />
+          <Button label="重置密码" @click="handleResetPassword" :loading="loading" />
+        </template>
       </template>
     </Dialog>
   </div>
@@ -282,11 +293,40 @@ const forgotCaptchaQuestion = ref('')
 const forgotCaptchaAnswer = ref('')
 const forgotCaptchaKey = ref('')
 
+const resendCaptchaKey = ref('')
 const showResendCaptcha = ref(false)
 const resending = ref(false)
 const resendCaptchaQuestion = ref('')
 const resendCaptchaAnswer = ref('')
-const resendCaptchaKey = ref('')
+
+const resendCooldown = ref(0)
+const forgotCooldown = ref(0)
+let resendTimer = null
+let forgotTimer = null
+
+const startResendCooldown = (seconds) => {
+  resendCooldown.value = seconds
+  if (resendTimer) clearInterval(resendTimer)
+  resendTimer = setInterval(() => {
+    resendCooldown.value--
+    if (resendCooldown.value <= 0) {
+      clearInterval(resendTimer)
+      localStorage.removeItem('resend_next_time')
+    }
+  }, 1000)
+}
+
+const startForgotCooldown = (seconds) => {
+  forgotCooldown.value = seconds
+  if (forgotTimer) clearInterval(forgotTimer)
+  forgotTimer = setInterval(() => {
+    forgotCooldown.value--
+    if (forgotCooldown.value <= 0) {
+      clearInterval(forgotTimer)
+      localStorage.removeItem('forgot_next_time')
+    }
+  }, 1000)
+}
 
 // CAPTCHA 相关
 const failedAttempts = ref(0)
@@ -318,6 +358,18 @@ onMounted(async () => {
     if (isFirstUser.value) {
       showRegister.value = true
       toast.add({ severity: 'info', summary: '欢迎', detail: '系统初次运行，请注册管理员账号', life: 5000 })
+    }
+
+    // Cooldown restoration
+    const resendNext = localStorage.getItem('resend_next_time')
+    if (resendNext) {
+      const remaining = Math.ceil((parseInt(resendNext) - Date.now()) / 1000)
+      if (remaining > 0) startResendCooldown(remaining)
+    }
+    const forgotNext = localStorage.getItem('forgot_next_time')
+    if (forgotNext) {
+      const remaining = Math.ceil((parseInt(forgotNext) - Date.now()) / 1000)
+      if (remaining > 0) startForgotCooldown(remaining)
     }
   } catch (e) {
     logger.error('Failed to fetch system config', e)
@@ -491,6 +543,9 @@ const handleResend = async () => {
     if (res.success) {
       toast.add({ severity: 'success', summary: '已发送', detail: '新的验证码已发送至您的邮箱' })
       showResendCaptcha.value = false
+      const nextTime = Date.now() + 60000
+      localStorage.setItem('resend_next_time', nextTime.toString())
+      startResendCooldown(60)
     }
   } catch (error) {
     toast.add({ severity: 'error', summary: '发送失败', detail: error.message })
@@ -517,6 +572,9 @@ const handleForgotPassword = async () => {
     if (res.success) {
       toast.add({ severity: 'success', summary: '已发送', detail: res.message, life: 3000 })
       forgotStep.value = 2
+      const nextTime = Date.now() + 60000
+      localStorage.setItem('forgot_next_time', nextTime.toString())
+      startForgotCooldown(60)
     }
   } catch (error) {
     toast.add({ severity: 'error', summary: '错误', detail: error.message || '发送失败', life: 3000 })

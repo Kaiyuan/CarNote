@@ -93,6 +93,7 @@ async function migrateSQLite() {
                 verification_code VARCHAR(20),
                 verification_code_expires TIMESTAMP,
                 is_verified BOOLEAN DEFAULT 0,
+                email_last_sent_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`},
@@ -340,6 +341,11 @@ async function migratePostgreSQL() {
     const failedAttemptsExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'failed_login_attempts'");
     if (failedAttemptsExists.length === 0) {
         await query("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0");
+    }
+
+    const emailSentExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'email_last_sent_at'");
+    if (emailSentExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN email_last_sent_at TIMESTAMP");
     }
 
     const disabledExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_disabled'");
