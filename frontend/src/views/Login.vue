@@ -68,8 +68,9 @@
             </div>
           </div>
 
-          <div class="text-center mt-3">
-            <Button label="返回" link @click="cancelVerify" class="p-0" />
+          <div class="text-center mt-3 flex flex-column gap-2">
+            <Button label="我已有重置验证码" link @click="openForgotDialog(2)" class="p-0 text-xs" />
+            <Button label="返回登录" link @click="cancelVerify" class="p-0" />
           </div>
         </div>
 
@@ -464,12 +465,14 @@ const handleLogin = async () => {
   }
 }
 
-const openForgotDialog = () => {
+const openForgotDialog = (step = 1) => {
   showForgotDialog.value = true
-  forgotStep.value = 1
-  forgotEmail.value = ''
+  forgotStep.value = step
   resetForm.value = { code: '', newPassword: '' }
-  getForgotCaptcha()
+  if (step === 1) {
+    forgotEmail.value = ''
+    getForgotCaptcha()
+  }
 }
 
 const getForgotCaptcha = async () => {
