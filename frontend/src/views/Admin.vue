@@ -142,6 +142,12 @@
                             <span v-else class="text-500 text-sm">普通用户</span>
                         </template>
                     </Column>
+                    <Column field="is_verified" header="邮箱验证" sortable>
+                        <template #body="slotProps">
+                            <Tag :value="slotProps.data.is_verified ? '已验证' : '待验证'"
+                                :severity="slotProps.data.is_verified ? 'success' : 'warning'" />
+                        </template>
+                    </Column>
                     <Column field="is_disabled" header="状态" sortable>
                         <template #body="slotProps">
                             <Tag :value="slotProps.data.is_disabled ? '禁用' : '正常'"
@@ -324,6 +330,10 @@
             <div class="field mb-3">
                 <label>角色</label>
                 <Dropdown v-model="userForm.role" :options="['admin', 'user']" class="w-full" />
+            </div>
+            <div class="field-checkbox mb-3">
+                <Checkbox v-model="userForm.is_verified" :binary="true" />
+                <label class="ml-2">标记为已验证邮箱</label>
             </div>
 
             <component :is="'VipUserEditorExtra'" v-if="siteStore.state.hasVip" :tier="userForm.vip_tier"
@@ -756,6 +766,8 @@ const generateWebhookKey = () => {
 
 const editUser = (user) => {
     userForm.value = { ...user }
+    userForm.value.is_verified = !!userForm.value.is_verified
+    userForm.value.is_disabled = !!userForm.value.is_disabled
     if (userForm.value.vip_expiry) {
         userForm.value.vip_expiry = new Date(userForm.value.vip_expiry);
     }
@@ -763,7 +775,7 @@ const editUser = (user) => {
 }
 
 const newUser = () => {
-    userForm.value = { role: 'user' }
+    userForm.value = { role: 'user', is_verified: true, is_disabled: false }
     userDialog.value = true
 }
 

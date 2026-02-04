@@ -69,7 +69,7 @@ router.post('/users', asyncHandler(async (req, res) => {
  * 更新用户状态/权限
  */
 router.put('/users/:id', asyncHandler(async (req, res) => {
-    const { role, is_disabled, nickname, email, vip_tier, vip_expiry } = req.body;
+    const { role, is_disabled, is_verified, nickname, email, vip_tier, vip_expiry } = req.body;
     const targetId = req.params.id;
 
     if (targetId == req.userId && is_disabled) {
@@ -80,11 +80,12 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
         `UPDATE users 
          SET role = COALESCE(?, role), 
              is_disabled = COALESCE(?, is_disabled),
+             is_verified = COALESCE(?, is_verified),
              nickname = COALESCE(?, nickname),
              email = COALESCE(?, email),
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-        [role, is_disabled, nickname, email, targetId]
+        [role, is_disabled, is_verified, nickname, email, targetId]
     );
 
     // 会员权限更新 (如果传入)

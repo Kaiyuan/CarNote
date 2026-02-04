@@ -271,6 +271,8 @@ async function migrateSQLite() {
                 await query("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)");
                 await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
             });
+            // 确保旧账户都标记为已验证
+            await query("UPDATE users SET is_verified = 1 WHERE is_verified IS NULL OR is_verified = 0");
             console.log('数据库结构修复完成，数据完整性已验证');
         }
 

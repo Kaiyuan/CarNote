@@ -177,10 +177,8 @@ router.post('/login', asyncHandler(async (req, res) => {
         return res.status(403).json({ success: false, message: '您的账号已被禁用，请联系管理员' });
     }
 
-    // 检查是否验证
-    // 为了兼容旧帐号 (is_verified 可能是 NULL)，将 NULL 视为已验证 (或者在迁移时更新为 1)
-    // 根据 schema 迁移逻辑，旧用户会被更新为 1。这里做严格检查。
-    if (user.is_verified === 0) {
+    // 检查是否验证 (管理员免验证)
+    if (user.is_verified === 0 && user.role !== 'admin') {
         return res.status(401).json({
             success: false,
             message: '账号未验证，请完成邮箱验证',
