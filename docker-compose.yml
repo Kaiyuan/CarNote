@@ -26,6 +26,13 @@ services:
       - UPLOAD_PATH=/app/uploads
       - JWT_SECRET=${JWT_SECRET:-carnote-production-secret-change-this}
       - CORS_ORIGIN=http://localhost
+      # SMTP 配置 (可选)
+      # - SMTP_HOST=smtp.example.com
+      # - SMTP_PORT=465
+      # - SMTP_USER=user@example.com
+      # - SMTP_PASS=password
+      # - SMTP_SECURE=true
+      # - SMTP_FROM=CarNote <noreply@example.com>
     volumes:
       - ${carnote_data}:/app/data
       - ${carnote_uploads}:/app/uploads

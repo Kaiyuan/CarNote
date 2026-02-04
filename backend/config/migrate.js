@@ -280,8 +280,37 @@ async function migrateSQLite() {
             await query("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('allow_registration', 'true')");
         }
 
+        // 5. 将 SMTP 环境变量同步回数据库 (确保 UI 显示一致)
+        await syncSmtpEnvToDb();
+
     } finally {
         await query("PRAGMA foreign_keys = ON");
+    }
+}
+
+/**
+ * 将 SMTP 环境变量同步至数据库
+ */
+async function syncSmtpEnvToDb() {
+    const smtpMap = {
+        'SMTP_HOST': 'smtp_host',
+        'SMTP_PORT': 'smtp_port',
+        'SMTP_USER': 'smtp_user',
+        'SMTP_PASS': 'smtp_pass',
+        'SMTP_SECURE': 'smtp_secure',
+        'SMTP_FROM': 'smtp_from'
+    };
+
+    for (const [env, key] of Object.entries(smtpMap)) {
+        if (process.env[env]) {
+            await query(
+                "INSERT INTO system_settings (key, value) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value",
+                [key, process.env[env]]
+            ).catch(async () => {
+                // SQLite 兼容性处理 (如果 ON CONFLICT 不支持)
+                await query("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", [key, process.env[env]]);
+            });
+        }
     }
 }
 
@@ -349,6 +378,9 @@ async function migratePostgreSQL() {
     if (allowReg.length === 0) {
         await query("INSERT INTO system_settings (key, value) VALUES ('allow_registration', 'true')");
     }
+
+    // 将 SMTP 环境变量同步回数据库
+    await syncSmtpEnvToDb();
 }
 
 module.exports = { autoMigrate };

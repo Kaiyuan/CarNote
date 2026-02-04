@@ -59,7 +59,12 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     // 分配角色
     const role = isFirstUser ? 'admin' : 'user';
-    const isVerified = isFirstUser ? 1 : 0; // 首个用户自动验证，其他需要验证
+
+    // 检查是否需要验证：首个用户或未配置 SMTP 时自动验证
+    const { isSmtpConfigured } = require('../utils/mailer');
+    const smtpReady = await isSmtpConfigured();
+
+    const isVerified = (isFirstUser || !smtpReady) ? 1 : 0;
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 
