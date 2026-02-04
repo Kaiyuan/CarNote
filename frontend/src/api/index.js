@@ -52,6 +52,8 @@ export const userAPI = {
     register: (data) => api.post('/users/register', data),
     // 登录
     login: (data) => api.post('/users/login', data),
+    // 验证邮箱
+    verifyEmail: (data) => api.post('/users/verify-email', data),
     // 获取用户信息
     getProfile: () => api.get('/users/profile'),
     // 获取用户设置

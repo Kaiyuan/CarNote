@@ -18,10 +18,10 @@ router.post('/register', asyncHandler(async (req, res) => {
     const { username, password, email, nickname } = req.body;
 
     // 验证必填字段
-    if (!username || !password) {
+    if (!username || !password || !email) {
         return res.status(400).json({
             success: false,
-            message: '用户名和密码不能为空'
+            message: '用户名、密码和邮箱不能为空'
         });
     }
 
@@ -41,16 +41,16 @@ router.post('/register', asyncHandler(async (req, res) => {
         }
     }
 
-    // 检查用户名是否已存在
+    // 检查用户名或邮箱是否已存在
     const existingUser = await get(
-        'SELECT id FROM users WHERE username = ?',
-        [username]
+        'SELECT id FROM users WHERE username = ? OR email = ?',
+        [username, email]
     );
 
     if (existingUser) {
         return res.status(400).json({
             success: false,
-            message: '用户名已存在'
+            message: '用户名或邮箱已存在'
         });
     }
 
@@ -59,11 +59,14 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     // 分配角色
     const role = isFirstUser ? 'admin' : 'user';
+    const isVerified = isFirstUser ? 1 : 0; // 首个用户自动验证，其他需要验证
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 
     // 创建用户
     const result = await query(
-        'INSERT INTO users (username, password_hash, email, nickname, role) VALUES (?, ?, ?, ?, ?)',
-        [username, passwordHash, email, nickname || username, role]
+        'INSERT INTO users (username, password_hash, email, nickname, role, is_verified, verification_code, verification_code_expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [username, passwordHash, email, nickname || username, role, isVerified, verificationCode, verificationExpires]
     );
 
     // 创建默认设置
@@ -72,15 +75,58 @@ router.post('/register', asyncHandler(async (req, res) => {
         [result.lastID]
     );
 
+    // 发送验证邮件
+    if (!isVerified) {
+        const { sendMail } = require('../utils/mailer');
+        try {
+            await sendMail({
+                to: email,
+                subject: 'CarNote 账号验证',
+                html: `<p>感谢注册 CarNote！您的验证码是：</p>
+                       <h2>${verificationCode}</h2>
+                       <p>该验证码24小时内有效。</p>`
+            });
+        } catch (e) {
+            console.error('发送验证邮件失败:', e);
+            // 不中断流程，返回成功但提示
+        }
+    }
+
     res.status(201).json({
         success: true,
-        message: isFirstUser ? '注册成功，您是首位用户，已自动设为管理员' : '注册成功',
+        message: isVerified ? '注册成功' : '注册成功，请查收邮件并验证您的邮箱',
         data: {
             userId: result.lastID,
             username,
-            role
+            role,
+            isVerified: !!isVerified
         }
     });
+}));
+
+/**
+ * 验证邮箱
+ * POST /api/users/verify-email
+ */
+router.post('/verify-email', asyncHandler(async (req, res) => {
+    const { username, code } = req.body;
+    if (!username || !code) return res.status(400).json({ success: false, message: '参数缺失' });
+
+    const user = await get('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) return res.status(404).json({ success: false, message: '用户不存在' });
+
+    if (user.is_verified) return res.json({ success: true, message: '已验证' });
+
+    if (user.verification_code !== code) {
+        return res.status(400).json({ success: false, message: '验证码错误' });
+    }
+
+    if (new Date(user.verification_code_expires) < new Date()) {
+        return res.status(400).json({ success: false, message: '验证码已过期，请重新注册或联系管理员' });
+    }
+
+    await query('UPDATE users SET is_verified = 1, verification_code = NULL, verification_code_expires = NULL WHERE id = ?', [user.id]);
+    res.json({ success: true, message: '验证成功，请登录' });
 }));
 
 /**
@@ -115,6 +161,18 @@ router.post('/login', asyncHandler(async (req, res) => {
 
     if (user.is_disabled) {
         return res.status(403).json({ success: false, message: '您的账号已被禁用，请联系管理员' });
+    }
+
+    // 检查是否验证
+    // 为了兼容旧帐号 (is_verified 可能是 NULL)，将 NULL 视为已验证 (或者在迁移时更新为 1)
+    // 根据 schema 迁移逻辑，旧用户会被更新为 1。这里做严格检查。
+    if (user.is_verified === 0) {
+        return res.status(401).json({
+            success: false,
+            message: '账号未验证，请完成邮箱验证',
+            needVerify: true,
+            username: user.username
+        });
     }
 
     // 验证密码
@@ -171,25 +229,25 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
         return res.json({ success: true, message: '如果邮箱存在，重置链接已发送' });
     }
 
-    const token = require('crypto').randomBytes(20).toString('hex');
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
 
+    // 使用 reset_password_token 存储 6位数字验证码
     await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
-        [token, expires, user.id]);
+        [code, expires, user.id]);
 
     const { sendMail } = require('../utils/mailer');
-    const resetUrl = `${req.get('origin')}/reset-password?token=${token}`;
 
     try {
         await sendMail({
             to: user.email,
-            subject: 'CarNote 密码重置请求',
+            subject: 'CarNote 密码重置验证码',
             html: `<p>您收到此邮件是因为您（或他人）请求重置密码。</p>
-                   <p>请点击以下链接完成重置（有效期1小时）：</p>
-                   <a href="${resetUrl}">${resetUrl}</a>
-                   <p>如果您没有请求重置，请忽略此邮件。</p>`
+                   <p>您的验证码是：</p>
+                   <h2>${code}</h2>
+                   <p>有效期1小时。如果您没有请求重置，请忽略此邮件。</p>`
         });
-        res.json({ success: true, message: '重置链接已发送至您的邮箱' });
+        res.json({ success: true, message: '验证码已发送至您的邮箱' });
     } catch (e) {
         console.error('Mail failed:', e);
         res.status(500).json({ success: false, message: '邮件发送失败，请联系管理员或稍后再试' });
@@ -200,11 +258,11 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
  * 重置密码 - 执行修改
  */
 router.post('/reset-password', asyncHandler(async (req, res) => {
-    const { token, password } = req.body;
-    if (!token || !password) return res.status(400).json({ success: false, message: '参数不全' });
+    const { email, code, password } = req.body;
+    if (!email || !code || !password) return res.status(400).json({ success: false, message: '参数不全' });
 
-    const user = await get('SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > ?',
-        [token, new Date().toISOString()]);
+    const user = await get('SELECT * FROM users WHERE email = ? AND reset_password_token = ? AND reset_password_expires > ?',
+        [email, code, new Date().toISOString()]);
 
     if (!user) {
         return res.status(400).json({ success: false, message: '令牌无效或已过期' });

@@ -78,6 +78,25 @@ async function migrateSQLite() {
         // 1. 定义期望的架构模板
         const tablesTemplates = [
             {
+                name: 'users', template: `CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(100),
+                nickname VARCHAR(50),
+                avatar_url VARCHAR(255),
+                role VARCHAR(20) DEFAULT 'user',
+                is_disabled BOOLEAN DEFAULT 0,
+                failed_login_attempts INTEGER DEFAULT 0,
+                reset_password_token VARCHAR(100),
+                reset_password_expires TIMESTAMP,
+                verification_code VARCHAR(20),
+                verification_code_expires TIMESTAMP,
+                is_verified BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`},
+            {
                 name: 'vehicles', template: `CREATE TABLE vehicles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -240,13 +259,15 @@ async function migrateSQLite() {
                         if (newCountRes.cnt < counts[table.name]) {
                             throw new Error(`数据迁移校验失败: 表 ${table.name} 行数减少 (${counts[table.name]} -> ${newCountRes.cnt})。修复已回滚。`);
                         }
-
-                        // 迁移成功，安全删除旧表
-                        await query(`DROP TABLE ${table.name}_old`);
                     }
                 }
 
-                // e. 重建索引
+                // e. 安全删除旧表 (统一在所有数据迁移完成后删除，防止外键引用错误)
+                for (const table of tablesTemplates) {
+                    await query(`DROP TABLE IF EXISTS ${table.name}_old`);
+                }
+
+                // f. 重建索引
                 await query("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)");
                 await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
             });
@@ -274,6 +295,54 @@ async function migratePostgreSQL() {
     const dateExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'vehicles' AND column_name = 'purchase_date'");
     if (dateExists.length === 0) {
         await query("ALTER TABLE vehicles ADD COLUMN purchase_date DATE");
+    }
+
+    const verifyExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_verified'");
+    if (verifyExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN verification_code VARCHAR(20)");
+        await query("ALTER TABLE users ADD COLUMN verification_code_expires TIMESTAMP");
+        await query("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE");
+        // Update existing users to verified
+        await query("UPDATE users SET is_verified = TRUE");
+    }
+
+    const failedAttemptsExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'failed_login_attempts'");
+    if (failedAttemptsExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0");
+    }
+
+    const disabledExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_disabled'");
+    if (disabledExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN is_disabled BOOLEAN DEFAULT FALSE");
+    }
+
+    // maintenance_records location and next maintenance columns
+    const maintenanceLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'maintenance_records' AND column_name = 'location_name'");
+    if (maintenanceLocExists.length === 0) {
+        await query("ALTER TABLE maintenance_records ADD COLUMN location_name VARCHAR(255)");
+        await query("ALTER TABLE maintenance_records ADD COLUMN location_lat DECIMAL(10, 7)");
+        await query("ALTER TABLE maintenance_records ADD COLUMN location_lng DECIMAL(10, 7)");
+    }
+
+    const maintenanceNextExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'maintenance_records' AND column_name = 'next_maintenance_mileage'");
+    if (maintenanceNextExists.length === 0) {
+        await query("ALTER TABLE maintenance_records ADD COLUMN next_maintenance_mileage INTEGER");
+        await query("ALTER TABLE maintenance_records ADD COLUMN next_maintenance_date DATE");
+        await query("ALTER TABLE maintenance_records ADD COLUMN status VARCHAR(20) DEFAULT 'completed'");
+    }
+
+    // energy_logs location columns
+    const energyLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'energy_logs' AND column_name = 'location_name'");
+    if (energyLocExists.length === 0) {
+        await query("ALTER TABLE energy_logs ADD COLUMN location_name VARCHAR(255)");
+        await query("ALTER TABLE energy_logs ADD COLUMN location_lat DECIMAL(10, 7)");
+        await query("ALTER TABLE energy_logs ADD COLUMN location_lng DECIMAL(10, 7)");
+    }
+
+    // api_keys vehicle_id column
+    const apiKeyVehicleExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'api_keys' AND column_name = 'vehicle_id'");
+    if (apiKeyVehicleExists.length === 0) {
+        await query("ALTER TABLE api_keys ADD COLUMN vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL");
     }
 
     const allowReg = await query("SELECT value FROM system_settings WHERE key = 'allow_registration'");

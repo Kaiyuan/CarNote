@@ -12,8 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(20) DEFAULT 'user', -- 'admin' or 'user'
     is_disabled BOOLEAN DEFAULT 0, -- 是否禁用
     failed_login_attempts INTEGER DEFAULT 0, -- 登录失败次数
-    reset_password_token VARCHAR(100), -- 重置密码令牌
+    reset_password_token VARCHAR(100), -- 重置密码令牌 (保留用于兼容)
     reset_password_expires TIMESTAMP, -- 令牌过期时间
+    verification_code VARCHAR(20), -- 验证码
+    verification_code_expires TIMESTAMP, -- 验证码过期时间
+    is_verified BOOLEAN DEFAULT 0, -- 是否已验证邮箱
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
