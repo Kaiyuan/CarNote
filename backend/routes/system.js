@@ -158,9 +158,9 @@ router.get('/config', asyncHandler(async (req, res) => {
             afdianWebhookToken,
             afdianWebhookKey: config['afdian_webhook_key'] || '',
             debugMode: config['debug_mode'] === 'true',
-            afdianHomeUrl: config['afdian_home_url'] || 'https://afdian.com/a/kaiyuan',
-            afdianAdvancedUrl: config['afdian_advanced_url'] || 'https://afdian.com/a/kaiyuan',
-            afdianPremiumUrl: config['afdian_premium_url'] || 'https://afdian.com/a/kaiyuan',
+            afdianHomeUrl: config['afdian_home_url'] || '',
+            afdianAdvancedUrl: config['afdian_advanced_url'] || '',
+            afdianPremiumUrl: config['afdian_premium_url'] || '',
             emailVerificationEnabled,
             smtpFrom: config['smtp_from'] || 'noreply@carnote.com',
             smtpReady: await isSmtpConfigured()
@@ -184,7 +184,7 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
         'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
-        'email_verification_enabled'
+        'email_verification_enabled', 'smtp_from'
     ];
 
     for (const key of allowedKeys) {

@@ -210,7 +210,7 @@ async function startServer() {
         app.use(errorHandler);
 
         // 启动服务器
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log(`\n========================================`);
             console.log(`  CarNote API 服务已启动`);
             console.log(`  端口: ${PORT}`);

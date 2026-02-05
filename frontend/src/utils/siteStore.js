@@ -37,8 +37,10 @@ export const useSiteStore = () => {
                 state.isFirstUser = res.data.isFirstUser
                 state.afdianWebhookToken = res.data.afdianWebhookToken || ''
                 state.afdianWebhookKey = res.data.afdianWebhookKey || ''
-                state.debugMode = res.data.debugMode || false
+                state.afdianHomeUrl = res.data.afdianHomeUrl || ''
+                state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
                 state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
+                state.debugMode = res.data.debugMode || false
                 state.emailVerificationEnabled = res.data.emailVerificationEnabled || false
                 state.smtpReady = res.data.smtpReady || false
                 state.smtpFrom = res.data.smtpFrom || 'noreply@carnote.com'
