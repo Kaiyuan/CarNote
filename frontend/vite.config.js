@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import fs from 'fs'
+import pkg from './package.json'
 
 const vipFrontendPath = path.resolve(__dirname, '../vip/frontend');
 const hasVip = fs.existsSync(path.join(vipFrontendPath, 'index.js'));
@@ -22,17 +23,18 @@ export default defineConfig({
         }
     },
     define: {
-        __HAS_VIP__: hasVip
+        __HAS_VIP__: hasVip,
+        __APP_VERSION__: JSON.stringify(pkg.version)
     },
     plugins: [
         vue(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
             manifest: {
                 name: 'CarNote 车记录',
                 short_name: 'CarNote',
-                description: '您的车辆全能管家',
+                description: `您的车辆全能管家 v${pkg.version}`,
                 theme_color: '#3B82F6',
                 icons: [
                     {
@@ -46,6 +48,11 @@ export default defineConfig({
                         type: 'image/png'
                     }
                 ]
+            },
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
+                cleanupOutdatedCaches: true,
+                cacheId: `carnote-v${pkg.version}`
             }
         })
     ],

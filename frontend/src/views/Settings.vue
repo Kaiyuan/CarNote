@@ -130,6 +130,14 @@
                             </div>
                         </div>
 
+                        <Divider />
+
+                        <div class="text-center py-2">
+                            <p class="text-xs text-400 m-0">
+                                CarNote v{{ appVersion }}
+                            </p>
+                        </div>
+
                     </div>
                 </template>
 
@@ -221,6 +229,8 @@ import { validateBackupFormat } from '../utils/dataImport'
 
 const router = useRouter()
 const toast = useToast()
+
+const appVersion = ref(__APP_VERSION__ || '1.0.0')
 
 const loading = ref(false)
 const saving = ref(false)
