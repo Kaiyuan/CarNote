@@ -93,6 +93,28 @@
                             </template>
                         </Card>
                     </div>
+
+                    <div class="col-12 md:col-6 lg:col-4">
+                        <Card class="shadow-2">
+                            <template #title>附加/高级设置</template>
+                            <template #content>
+                                <div class="field mb-3">
+                                    <label>网站统计代码 (Scripts)</label>
+                                    <Textarea v-model="siteBranding.website_analytics" rows="5" class="w-full font-mono text-sm"
+                                        placeholder="在此粘贴 Cloudflare Web Analytics 或 Google Analytics 的代码段" />
+                                    <small class="text-500">此代码将插入到页面中，用于数据分析。支持 HTML/JS 段落。</small>
+                                </div>
+                                <div class="field mb-3">
+                                    <label>底部版权说明</label>
+                                    <InputText v-model="siteBranding.footer_copyright" placeholder="© 2026 CarNote. All rights reserved."
+                                        class="w-full" />
+                                    <small class="text-500">显示在页面最底部的自定义文案。</small>
+                                </div>
+                                <Button label="保存高级设置" icon="pi pi-save" @click="saveBranding" class="w-full"
+                                    :loading="savingBranding" />
+                            </template>
+                        </Card>
+                    </div>
                 </div>
             </TabPanel>
 
@@ -536,7 +558,9 @@ const siteBranding = ref({
     site_description: '',
     allow_registration: true,
     debug_mode: false,
-    email_verification_enabled: false
+    email_verification_enabled: false,
+    website_analytics: '',
+    footer_copyright: ''
 })
 const uploadingIcon = ref(false)
 const savingBranding = ref(false)
@@ -549,7 +573,9 @@ const loadBranding = async () => {
         site_description: siteStore.state.siteDescription,
         allow_registration: siteStore.state.allowRegistration,
         debug_mode: siteStore.state.debugMode,
-        email_verification_enabled: siteStore.state.emailVerificationEnabled
+        email_verification_enabled: siteStore.state.emailVerificationEnabled,
+        website_analytics: siteStore.state.websiteAnalytics,
+        footer_copyright: siteStore.state.footerCopyright
     }
 }
 

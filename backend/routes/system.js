@@ -122,7 +122,7 @@ router.get('/config', asyncHandler(async (req, res) => {
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
         'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
-        'email_verification_enabled', 'smtp_from'
+        'email_verification_enabled', 'smtp_from', 'website_analytics', 'footer_copyright'
     ];
     // 使用 map 构造参数化查询的字符串
     const placeholders = settingsKeys.map(() => '?').join(',');
@@ -163,6 +163,8 @@ router.get('/config', asyncHandler(async (req, res) => {
             afdianPremiumUrl: config['afdian_premium_url'] || '',
             emailVerificationEnabled,
             smtpFrom: config['smtp_from'] || 'noreply@carnote.com',
+            websiteAnalytics: config['website_analytics'] || '',
+            footerCopyright: config['footer_copyright'] || '',
             smtpReady: await isSmtpConfigured()
         }
     });
@@ -184,7 +186,7 @@ router.put('/config', authenticateUser, asyncHandler(async (req, res) => {
         'allow_registration', 'site_name', 'site_icon', 'site_description',
         'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
         'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
-        'email_verification_enabled', 'smtp_from'
+        'email_verification_enabled', 'smtp_from', 'website_analytics', 'footer_copyright'
     ];
 
     for (const key of allowedKeys) {

@@ -17,6 +17,8 @@ const state = reactive({
     emailVerificationEnabled: false,
     smtpReady: false,
     smtpFrom: 'noreply@carnote.com',
+    websiteAnalytics: '',
+    footerCopyright: '',
     loading: false
 })
 
@@ -44,6 +46,8 @@ export const useSiteStore = () => {
                 state.emailVerificationEnabled = res.data.emailVerificationEnabled || false
                 state.smtpReady = res.data.smtpReady || false
                 state.smtpFrom = res.data.smtpFrom || 'noreply@carnote.com'
+                state.websiteAnalytics = res.data.websiteAnalytics || ''
+                state.footerCopyright = res.data.footerCopyright || ''
 
                 // Update document title and meta
                 document.title = state.siteName
@@ -101,6 +105,12 @@ export const useSiteStore = () => {
                 }
                 if (updates.email_verification_enabled !== undefined) {
                     state.emailVerificationEnabled = updates.email_verification_enabled === 'true' || updates.email_verification_enabled === true
+                }
+                if (updates.website_analytics !== undefined) {
+                    state.websiteAnalytics = updates.website_analytics
+                }
+                if (updates.footer_copyright !== undefined) {
+                    state.footerCopyright = updates.footer_copyright
                 }
                 return true
             }
