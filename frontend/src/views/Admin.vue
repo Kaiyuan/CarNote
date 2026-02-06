@@ -100,15 +100,16 @@
                             <template #content>
                                 <div class="field mb-3">
                                     <label>网站统计代码 (Scripts)</label>
-                                    <Textarea v-model="siteBranding.website_analytics" rows="5" class="w-full font-mono text-sm"
+                                    <Textarea v-model="siteBranding.website_analytics" rows="5"
+                                        class="w-full font-mono text-sm"
                                         placeholder="在此粘贴 Cloudflare Web Analytics 或 Google Analytics 的代码段" />
                                     <small class="text-500">此代码将插入到页面中，用于数据分析。支持 HTML/JS 段落。</small>
                                 </div>
                                 <div class="field mb-3">
-                                    <label>底部版权说明</label>
-                                    <InputText v-model="siteBranding.footer_copyright" placeholder="© 2026 CarNote. All rights reserved."
-                                        class="w-full" />
-                                    <small class="text-500">显示在页面最底部的自定义文案。</small>
+                                    <label>底部版权说明 (HTML)</label>
+                                    <Textarea v-model="siteBranding.footer_copyright" rows="2"
+                                        class="w-full font-mono text-sm" placeholder="例如: &copy; 2026 CarNote." />
+                                    <small class="text-500">显示在页面最底部的自定义文案，支持 HTML。</small>
                                 </div>
                                 <Button label="保存高级设置" icon="pi pi-save" @click="saveBranding" class="w-full"
                                     :loading="savingBranding" />

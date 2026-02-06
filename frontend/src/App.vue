@@ -59,9 +59,7 @@
 
       <!-- App Footer -->
       <footer class="mt-auto py-4 px-3 text-center border-top-1 border-200 text-500 text-sm">
-        <div v-if="siteStore.state.footerCopyright">
-          {{ siteStore.state.footerCopyright }}
-        </div>
+        <div v-if="siteStore.state.footerCopyright" v-html="siteStore.state.footerCopyright"></div>
         <div v-else>
           &copy; {{ new Date().getFullYear() }} {{ siteStore.state.siteName }}. All rights reserved.
         </div>
@@ -149,24 +147,24 @@ const navigateFromMobile = (path) => {
 // Watch for analytics code changes and inject scripts manually since v-html doesn't execute them
 watch(() => siteStore.state.websiteAnalytics, (newVal) => {
   if (!newVal) return
-  
+
   // Create a temporary div to parse the HTML string
   const div = document.createElement('div')
   div.innerHTML = newVal
-  
+
   // Extract and execute all scripts
   const scripts = div.querySelectorAll('script')
   scripts.forEach(oldScript => {
     const newScript = document.createElement('script')
-    
+
     // Copy all attributes
     Array.from(oldScript.attributes).forEach(attr => {
       newScript.setAttribute(attr.name, attr.value)
     })
-    
+
     // Copy inline content
     newScript.textContent = oldScript.textContent
-    
+
     document.head.appendChild(newScript)
     // Optional: remove old script to avoid duplicates if this runs multiple times
     // (Though normally siteAnalytics only loads once per session)
