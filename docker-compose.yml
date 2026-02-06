@@ -24,7 +24,7 @@ services:
       # - PG_USER=carnote
       # - PG_PASSWORD=postgresqlPassword
       - UPLOAD_PATH=/app/uploads
-      - JWT_SECRET=${JWT_SECRET:-carnote-production-secret-change-this}
+      - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=http://localhost
       # SMTP 配置 (可选)
       # - SMTP_HOST=smtp.example.com

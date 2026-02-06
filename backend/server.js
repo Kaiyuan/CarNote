@@ -198,10 +198,14 @@ async function startServer() {
                 if (typeof vipModule.init === 'function') {
                     // 传入 express 实例，解决模块找不到 express 的问题
                     await vipModule.init(app, express);
+                    app.set('hasVip', true);
                 }
             } catch (err) {
+                app.set('hasVip', false);
                 console.error('[VIP] 加载 VIP 模块失败:', err);
             }
+        } else {
+            app.set('hasVip', false);
         }
         // ----------------------------------------------
 

@@ -165,6 +165,7 @@ router.get('/config', asyncHandler(async (req, res) => {
             smtpFrom: config['smtp_from'] || 'noreply@carnote.com',
             websiteAnalytics: config['website_analytics'] || '',
             footerCopyright: config['footer_copyright'] || '',
+            hasVip: req.app.get('hasVip') || false,
             smtpReady: await isSmtpConfigured()
         }
     });

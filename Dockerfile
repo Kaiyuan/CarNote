@@ -6,8 +6,9 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app
 # 复制所有 package.json
 COPY frontend/package*.json ./frontend/
-# 复制 VIP 模块（包含可能的 package.json 或资源）
-COPY vip/ ./vip/
+# 复制 VIP 模块（可选，使用通配符避免缺失时报错）
+COPY README.md vip* ./vip/
+RUN rm ./vip/README.md
 
 WORKDIR /app/frontend
 RUN npm ci
@@ -30,8 +31,9 @@ RUN npm ci --only=production
 # 复制后端代码
 COPY backend/ .
 
-# 复制 VIP 模块代码
-COPY vip/ /app/vip/
+# 复制 VIP 模块代码（可选）
+COPY README.md vip* /app/vip/
+RUN rm /app/vip/README.md
 
 # 复制前端构建产物
 WORKDIR /app

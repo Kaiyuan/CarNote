@@ -48,6 +48,7 @@ export const useSiteStore = () => {
                 state.smtpFrom = res.data.smtpFrom || 'noreply@carnote.com'
                 state.websiteAnalytics = res.data.websiteAnalytics || ''
                 state.footerCopyright = res.data.footerCopyright || ''
+                state.hasVip = res.data.hasVip || false
 
                 // Update document title and meta
                 document.title = state.siteName
