@@ -9,7 +9,20 @@ const { execSync } = require('child_process');
 async function createBackup() {
     const DB_TYPE = process.env.DB_TYPE || 'sqlite';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupDir = path.resolve(process.cwd(), './data/backups');
+
+    // 默认备份目录
+    let backupDir;
+
+    if (process.env.BACKUP_PATH) {
+        backupDir = path.resolve(process.cwd(), process.env.BACKUP_PATH);
+    } else if (DB_TYPE === 'sqlite') {
+        // 如果是 SQLite 且未指定备份路径，则使用数据库文件所在目录
+        const dbPath = process.env.SQLITE_PATH || './data/carnote.db';
+        backupDir = path.dirname(path.resolve(process.cwd(), dbPath));
+    } else {
+        // 默认 fallback
+        backupDir = path.resolve(process.cwd(), './data/backups');
+    }
 
     try {
         if (!fs.existsSync(backupDir)) {
