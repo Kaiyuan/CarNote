@@ -580,6 +580,21 @@ const loadBranding = async () => {
     }
 }
 
+// 监听 siteStore 的加载状态，确保在数据加载后更新表单
+watch(() => siteStore.state.loading, (isLoading) => {
+    if (!isLoading && activeTab.value === 0) {
+        siteBranding.value = {
+            site_name: siteStore.state.siteName,
+            site_description: siteStore.state.siteDescription,
+            allow_registration: siteStore.state.allowRegistration,
+            debug_mode: siteStore.state.debugMode,
+            email_verification_enabled: siteStore.state.emailVerificationEnabled,
+            website_analytics: siteStore.state.websiteAnalytics,
+            footer_copyright: siteStore.state.footerCopyright
+        }
+    }
+})
+
 const onIconFileSelect = async (event) => {
     const file = event.target.files[0]
     if (!file) return
