@@ -150,7 +150,7 @@
             </Card>
 
             <!-- API Key 显示对话框 -->
-            <Dialog v-model:visible="showKeyDialog" header="新的 API Key" :modal="true" :closable="false"
+            <Dialog :visible="showKeyDialog" @update:visible="showKeyDialog = $event" header="新的 API Key" :modal="true" :closable="false"
                 :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
                 <div class="field">
                     <label>密钥名称</label>
@@ -181,7 +181,7 @@
             </Dialog>
 
             <!-- 导入预览对话框 -->
-            <Dialog v-model:visible="showImportDialog" header="导入详情确认" :modal="true"
+            <Dialog :visible="showImportDialog" @update:visible="showImportDialog = $event" header="导入详情确认" :modal="true"
                 :breakpoints="{ '960px': '85vw', '640px': '95vw' }" :style="{ width: '500px' }">
                 <div v-if="importSummary" class="p-fluid">
                     <p class="mb-3">解析到以下数据记录，确定要执行导入吗？</p>
@@ -320,12 +320,22 @@ const loadData = async () => {
 // 保存设置
 const saveSettings = async () => {
     saving.value = true
-    try {
-        // 更新个人信息
-        // 目前 userAPI 没有单独更新 profile 的接口，假设 updateSettings 可以处理或者需要扩展后端
-        // 这里主要更新 preferences
+    const email = settingsForm.value.profile.email
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(email)) {
+            toast.add({ severity: 'warn', summary: '提示', detail: '邮箱格式不正确', life: 3000 })
+            saving.value = false
+            return
+        }
+    }
 
-        const promises = [userAPI.updateSettings(settingsForm.value.preferences)]
+    try {
+        // 更新个人信息和偏好设置
+        const promises = [
+            userAPI.updateProfile(settingsForm.value.profile),
+            userAPI.updateSettings(settingsForm.value.preferences)
+        ]
 
         if (isAdmin.value) {
             promises.push(systemAPI.updateConfig({
@@ -338,9 +348,10 @@ const saveSettings = async () => {
 
         if (allSuccess) {
             toast.add({ severity: 'success', summary: '成功', detail: '设置已保存', life: 3000 })
-            // 更新本地存储的用户信息（如果昵称变了）
+            // 更新本地存储的用户信息
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
             currentUser.nickname = settingsForm.value.profile.nickname
+            currentUser.email = settingsForm.value.profile.email
             localStorage.setItem('currentUser', JSON.stringify(currentUser))
         }
     } catch (error) {

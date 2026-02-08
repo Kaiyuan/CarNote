@@ -824,6 +824,14 @@ const newUser = () => {
 const saveUser = async () => {
     saving.value = true
     try {
+        if (userForm.value.email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(userForm.value.email)) {
+                toast.add({ severity: 'warn', summary: '提示', detail: '邮箱格式不正确' })
+                saving.value = false
+                return
+            }
+        }
         let res
         if (userForm.value.id) {
             res = await adminAPI.updateUser(userForm.value.id, userForm.value)

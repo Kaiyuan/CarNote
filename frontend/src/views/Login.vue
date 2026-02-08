@@ -565,6 +565,12 @@ const handleForgotPassword = async () => {
     return
   }
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(forgotEmail.value)) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '邮箱格式不正确', life: 3000 })
+    return
+  }
+
   loading.value = true
   try {
     const res = await userAPI.forgotPassword({
@@ -618,8 +624,9 @@ const handleRegister = async () => {
     return
   }
 
-  // 简单邮箱验证
-  if (!registerForm.value.email.includes('@')) {
+  // 邮箱格式验证
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(registerForm.value.email)) {
     toast.add({ severity: 'warn', summary: '提示', detail: '邮箱格式不正确', life: 3000 })
     return
   }

@@ -65,6 +65,8 @@ export const userAPI = {
     getCaptcha: () => api.get('/users/captcha'),
     // 获取用户信息
     getProfile: () => api.get('/users/profile'),
+    // 更新用户信息
+    updateProfile: (data) => api.put('/users/profile', data),
     // 获取用户设置
     getSettings: () => api.get('/users/settings'),
     // 更新用户设置
