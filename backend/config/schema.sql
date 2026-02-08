@@ -181,8 +181,10 @@ CREATE TABLE IF NOT EXISTS shared_locations (
     longitude DECIMAL(10, 7),
     type VARCHAR(20),
     usage_count INTEGER DEFAULT 0,
+    created_by INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- 公告表

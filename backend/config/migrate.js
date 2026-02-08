@@ -188,6 +188,20 @@ async function migrateSQLite() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+            )`},
+            {
+                name: 'shared_locations', template: `CREATE TABLE shared_locations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(100),
+                address VARCHAR(255),
+                latitude DECIMAL(10, 7),
+                longitude DECIMAL(10, 7),
+                type VARCHAR(20),
+                usage_count INTEGER DEFAULT 0,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
             )`}
             // 更多表可以继续在这里添加
         ];
@@ -286,7 +300,7 @@ async function migrateSQLite() {
                 await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
             });
             // 确保旧账户都标记为已验证
-            await query("UPDATE users SET is_verified = 1 WHERE is_verified IS NULL OR is_verified = 0");
+            await query("UPDATE users SET is_verified = TRUE WHERE is_verified IS NULL OR is_verified = FALSE");
             console.log('数据库结构修复完成，数据完整性已验证');
         }
 
@@ -393,6 +407,12 @@ async function migratePostgreSQL() {
     const apiKeyVehicleExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'api_keys' AND column_name = 'vehicle_id'");
     if (apiKeyVehicleExists.length === 0) {
         await query("ALTER TABLE api_keys ADD COLUMN vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL");
+    }
+
+    // shared_locations created_by column
+    const sharedLocCreatedByExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'shared_locations' AND column_name = 'created_by'");
+    if (sharedLocCreatedByExists.length === 0) {
+        await query("ALTER TABLE shared_locations ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL");
     }
 
     const allowReg = await query("SELECT value FROM system_settings WHERE key = 'allow_registration'");

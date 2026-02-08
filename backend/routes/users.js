@@ -140,7 +140,7 @@ router.post('/verify-email', asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: '验证码已过期，请重新注册或联系管理员' });
     }
 
-    await query('UPDATE users SET is_verified = 1, verification_code = NULL, verification_code_expires = NULL WHERE id = ?', [user.id]);
+    await query('UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL WHERE id = ?', [user.id]);
     res.json({ success: true, message: '验证成功，请登录' });
 }));
 
