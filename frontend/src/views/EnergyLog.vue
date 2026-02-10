@@ -25,9 +25,9 @@
       </div>
     </div>
 
-    <!-- 记录列表 -->
+    <!-- 桌面端列表 -->
     <DataTable :value="logs" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
-      responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+      responsiveLayout="scroll" class="hidden md:block">
       <Column field="log_date" header="日期" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.log_date) }}
@@ -71,6 +71,49 @@
         </template>
       </Column>
     </DataTable>
+
+    <!-- 移动端列表 (卡片视图) -->
+    <DataView :value="logs" :paginator="true" :rows="10" class="block md:hidden">
+      <template #list="slotProps">
+        <div class="grid grid-nogutter">
+          <div v-for="(item, index) in slotProps.items" :key="index" class="col-12">
+            <div class="flex flex-column p-3 gap-2 border-bottom-1 surface-border">
+              <!-- 第一行: 车牌 + 能耗 -->
+              <div class="flex justify-content-between align-items-start">
+                <span class="text-2xl font-bold">{{ item.vehicle_plate }}</span>
+                <div v-if="item.consumption_per_100km" class="text-2xl font-bold text-green-500">
+                  {{ Number(item.consumption_per_100km).toFixed(2) }}
+                </div>
+              </div>
+
+              <!-- 第二行: 日期 + 里程 -->
+              <div class="flex justify-content-between align-items-center -mt-2">
+                <span class="text-500 text-sm">{{ formatDate(item.log_date) }}</span>
+                <span class="text-lg font-bold text-500">{{ formatNumber(item.mileage) }}km</span>
+              </div>
+
+              <!-- 第三行: 类型数量 + 费用 -->
+              <div class="flex justify-content-between align-items-center mt-2">
+                <div class="flex align-items-center gap-2">
+                  <Tag :value="getTypeLabel(item.energy_type)" :severity="getTypeSeverity(item.energy_type)"
+                    class="text-base px-2" />
+                  <span class="text-3xl font-bold">{{ item.amount }}{{ getUnit(item.energy_type) }}</span>
+                </div>
+                <div class="text-3xl font-bold">
+                  {{ formatCurrency(item.cost) }}
+                </div>
+              </div>
+
+              <!-- 第四行: 操作按钮 -->
+              <div class="flex justify-content-center gap-5 mt-2">
+                <Button icon="pi pi-pencil" text rounded size="small" @click="editLog(item)" />
+                <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="deleteLog(item.id)" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </DataView>
 
     <!-- 添加/编辑对话框 -->
     <Dialog :visible="showDialog" @update:visible="showDialog = $event" :header="editingLog ? '编辑记录' : '添加能耗记录'"
@@ -156,6 +199,7 @@
 import { ref, onMounted, computed, defineAsyncComponent, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter, useRoute } from 'vue-router'
+import DataView from 'primevue/dataview'
 import { energyAPI, vehicleAPI, locationsAPI } from '../api'
 import logger from '../utils/logger'
 
