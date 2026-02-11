@@ -46,6 +46,75 @@
 
 适合大多数个人用户，无需配置数据库，开箱即用。
 
+``` yaml
+# CarNote Docker Compose 配置
+# 包含后端 API 服务和可选的 PostgreSQL 数据库
+
+version: '3.8'
+
+services:
+  # 主应用服务 (包含前后端)
+  app:
+    image: kaiyuan/carnote:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carnote
+    ports:
+      - "53300:53300"
+    environment:
+      - NODE_ENV=production
+      - PORT=53300
+      - DB_TYPE=sqlite
+      - SQLITE_PATH=/app/data/carnote.db
+      # - DB_TYPE=postgresql
+      # - PG_HOST=172.20.0.1
+      # - PG_PORT=5432
+      # - PG_DATABASE=carnote
+      # - PG_USER=carnote
+      # - PG_PASSWORD=postgresqlPassword
+      - UPLOAD_PATH=/app/uploads
+      # JWT 密钥
+      - JWT_SECRET=${JWT_SECRET}
+      # 跨域资源共享
+      - CORS_ORIGIN=http://localhost
+      # SMTP 配置 (可选)
+      # - SMTP_HOST=smtp.example.com
+      # - SMTP_PORT=465
+      # - SMTP_USER=user@example.com
+      # - SMTP_PASS=password
+      # - SMTP_SECURE=true
+      # - SMTP_FROM=CarNote <noreply@example.com>
+    volumes:
+      # SQList 数据库目录及数据库备份目录
+      - ${carnote_data}:/app/data
+      # 上传文件目录
+      - ${carnote_uploads}:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:53300/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - carnote-network
+  # 数据卷
+volumes:
+  carnote_data:
+    driver: local
+  carnote_uploads:
+    driver: local
+  # postgres_data:
+  #   driver: local
+
+  # 网络
+networks:
+  carnote-network:
+    driver: bridge
+
+```
+
 1. **获取 docker-compose.yml**
    将项目根目录下的 `docker-compose.yml` 保存到本地。
    新建 `.env` 文件并填写相应的目录
@@ -189,3 +258,7 @@ curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&
 ## 许可证
 
 MIT License
+
+## 赞助
+
+![WeiChat](https://kaiyuan.github.io/sponsor-page/simple/images/WeChanSQ.png) ![AliPay](https://kaiyuan.github.io/sponsor-page/simple/images/AliPayQR.png)
