@@ -1,6 +1,6 @@
 {
     "name": "carnote-frontend",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "CarNote 车记录前端应用",
     "type": "module",
     "scripts": {

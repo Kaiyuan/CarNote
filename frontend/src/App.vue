@@ -184,7 +184,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--surface-ground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Barlow Condensed", "Sarasa Term SC", "Helvetica Neue", Ubuntu, Helvetica, "Source Han Serif", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "WenQuanYi Zen Hei", "Apple LiGothic Medium", "ST Heiti", "WenQuanYi Zen Hei Sharp", Inter, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
 }
 
 /* Layout Container Fluidity */
