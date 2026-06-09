@@ -400,7 +400,10 @@ const openReplaceDialog = (part) => {
     cost: null,
     service_provider: '',
     notes: '',
-    reset_install: true
+    reset_install: true,
+    location_name: '',
+    location_lat: null,
+    location_lng: null
   }
   nearbyLocations.value = []
   showReplaceDialog.value = true

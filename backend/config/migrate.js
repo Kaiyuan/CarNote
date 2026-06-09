@@ -202,8 +202,28 @@ async function migrateSQLite() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-            )`}
-            // 更多表可以继续在这里添加
+            )`},
+            {
+                name: 'part_replacements', template: `CREATE TABLE part_replacements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vehicle_id INTEGER NOT NULL,
+                part_id INTEGER,
+                replacement_date DATE NOT NULL,
+                mileage INTEGER NOT NULL,
+                old_part_name VARCHAR(100),
+                new_part_name VARCHAR(100),
+                part_number VARCHAR(50),
+                cost DECIMAL(10, 2),
+                service_provider VARCHAR(100),
+                location_name VARCHAR(255),
+                location_lat DECIMAL(10, 7),
+                location_lng DECIMAL(10, 7),
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+                FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE SET NULL
+            )`},
+// 更多表可以继续在这里添加
         ];
 
         let needsRepair = false;
@@ -413,6 +433,14 @@ async function migratePostgreSQL() {
     const sharedLocCreatedByExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'shared_locations' AND column_name = 'created_by'");
     if (sharedLocCreatedByExists.length === 0) {
         await query("ALTER TABLE shared_locations ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL");
+    }
+
+    // part_replacements location columns
+    const partReplacementsLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'part_replacements' AND column_name = 'location_name'");
+    if (partReplacementsLocExists.length === 0) {
+        await query("ALTER TABLE part_replacements ADD COLUMN location_name VARCHAR(255)");
+        await query("ALTER TABLE part_replacements ADD COLUMN location_lat DECIMAL(10, 7)");
+        await query("ALTER TABLE part_replacements ADD COLUMN location_lng DECIMAL(10, 7)");
     }
 
     const allowReg = await query("SELECT value FROM system_settings WHERE key = 'allow_registration'");
