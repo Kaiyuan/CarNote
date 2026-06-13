@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     verification_code VARCHAR(20), -- 验证码
     verification_code_expires TIMESTAMP, -- 验证码过期时间
     is_verified BOOLEAN DEFAULT 0, -- 是否已验证邮箱
+    email_last_sent_at TIMESTAMP, -- 最后一次发送邮件时间
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

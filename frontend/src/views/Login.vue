@@ -205,57 +205,62 @@
       style="width: 400px">
 
       <div v-if="forgotStep === 1">
-        <div v-if="!siteStore.state.smtpReady" class="p-4 text-center">
-          <i class="pi pi-exclamation-triangle text-4xl text-warning mb-3"></i>
-          <p class="text-xl font-bold mb-2">系统未配置邮件服务</p>
-          <p class="text-600">目前无法通过邮件找回密码，请联系管理员手动重置。</p>
+        <div v-if="!siteStore.state.smtpReady" class="p-2 mb-3 bg-orange-50 text-orange-600 border-round flex align-items-center gap-2 text-xs">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>系统未检测到可用邮件配置，发送邮件可能会失败。</span>
         </div>
-        <template v-else>
-          <div class="field">
-            <label for="forgot-email">注册邮箱</label>
-            <InputText id="forgot-email" v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
-          </div>
 
-          <!-- Forgot Password Captcha -->
-          <div class="field mt-3">
-            <label>人机验证 *</label>
-            <div class="flex gap-2 align-items-center">
-              <div
-                class="p-2 surface-200 border-round font-bold text-lg text-700 flex align-items-center justify-content-center"
-                style="min-width: 100px; height: 42px; cursor: pointer;" @click="getForgotCaptcha" title="点击刷新">
-                {{ forgotCaptchaQuestion || '加载中...' }}
-              </div>
-              <InputText v-model="forgotCaptchaAnswer" placeholder="结果" class="flex-1" />
+        <div class="field">
+          <label for="forgot-email">注册邮箱</label>
+          <InputText id="forgot-email" v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
+        </div>
+
+        <!-- Forgot Password Captcha -->
+        <div class="field mt-3">
+          <label>人机验证 *</label>
+          <div class="flex gap-2 align-items-center">
+            <div
+              class="p-2 surface-200 border-round font-bold text-lg text-700 flex align-items-center justify-content-center"
+              style="min-width: 100px; height: 42px; cursor: pointer;" @click="getForgotCaptcha" title="点击刷新">
+              {{ forgotCaptchaQuestion || '加载中...' }}
             </div>
+            <InputText v-model="forgotCaptchaAnswer" placeholder="结果" class="flex-1" />
           </div>
+        </div>
 
-          <div class="p-2 surface-100 border-round mt-3">
-            <p class="text-xs text-600 m-0">注意：请将 <b>{{ siteStore.state.smtpFrom }}</b> 添加到邮箱白名单，以免重置邮件进入垃圾箱。</p>
-          </div>
+        <div class="p-2 surface-100 border-round mt-3">
+          <p class="text-xs text-600 m-0">注意：请将 <b>{{ siteStore.state.smtpFrom }}</b> 添加到邮箱白名单，以免重置邮件进入垃圾箱。</p>
+        </div>
 
-          <div class="text-center mt-3">
-            <Button label="我已有重置验证码" link class="p-0 text-sm" @click="forgotStep = 2" />
-          </div>
-        </template>
+        <div class="text-center mt-3">
+          <Button label="我已有重置验证码" link class="p-0 text-sm" @click="forgotStep = 2" />
+        </div>
       </div>
 
       <div v-else>
-        <p class="text-600 mb-4">验证码已发送至 {{ forgotEmail }}</p>
+        <div class="field">
+          <label>电子邮箱</label>
+          <InputText v-model="forgotEmail" placeholder="example@domain.com" class="w-full" />
+        </div>
         <div class="field">
           <label>验证码</label>
-          <InputText v-model="resetForm.code" placeholder="6位验证码" class="w-full" />
+          <InputText v-model="resetForm.code" placeholder="6位验证码" class="w-full text-center font-bold text-xl" maxlength="6" />
         </div>
         <div class="field">
           <label>新密码</label>
           <InputText v-model="resetForm.newPassword" type="password" placeholder="请输入新密码" class="w-full" />
         </div>
+        <div class="field">
+          <label>确认新密码</label>
+          <InputText v-model="resetForm.confirmPassword" type="password" placeholder="请再次输入新密码" class="w-full" />
+        </div>
       </div>
 
       <template #footer>
         <Button label="取消" text @click="showForgotDialog = false" />
-        <Button v-if="forgotStep === 1 && siteStore.state.smtpReady"
-          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '获取验证码'" @click="handleForgotPassword"
-          :loading="loading" :disabled="forgotCooldown > 0" />
+        <Button v-if="forgotStep === 1"
+          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '发送邮件'" @click="handleForgotPassword"
+          :loading="loading" :disabled="forgotCooldown > 0 || !forgotEmail || !forgotCaptchaAnswer" />
         <template v-else-if="forgotStep === 2">
           <Button label="上一步" text @click="forgotStep = 1" />
           <Button label="重置密码" @click="handleResetPassword" :loading="loading" />
@@ -283,7 +288,7 @@ const showVerification = ref(false)
 const showForgotDialog = ref(false)
 const forgotStep = ref(1)
 const forgotEmail = ref('')
-const resetForm = ref({ code: '', newPassword: '' })
+const resetForm = ref({ code: '', newPassword: '', confirmPassword: '' })
 const verifyForm = ref({ username: '', code: '' })
 const loading = ref(false)
 const allowRegistration = ref(true) // Default true until checked
@@ -468,7 +473,7 @@ const handleLogin = async () => {
 const openForgotDialog = (step = 1) => {
   showForgotDialog.value = true
   forgotStep.value = step
-  resetForm.value = { code: '', newPassword: '' }
+  resetForm.value = { code: '', newPassword: '', confirmPassword: '' }
   if (step === 1) {
     forgotEmail.value = ''
     getForgotCaptcha()
@@ -595,8 +600,16 @@ const handleForgotPassword = async () => {
 
 // 重置密码 - 提交
 const handleResetPassword = async () => {
-  if (!resetForm.value.code || !resetForm.value.newPassword) {
+  if (!forgotEmail.value || !resetForm.value.code || !resetForm.value.newPassword || !resetForm.value.confirmPassword) {
     toast.add({ severity: 'warn', summary: '请填写所有字段' })
+    return
+  }
+  if (resetForm.value.newPassword !== resetForm.value.confirmPassword) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '两次输入的密码不一致', life: 3000 })
+    return
+  }
+  if (resetForm.value.newPassword.length < 6) {
+    toast.add({ severity: 'warn', summary: '提示', detail: '密码长度至少6位', life: 3000 })
     return
   }
   loading.value = true

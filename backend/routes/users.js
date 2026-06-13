@@ -407,11 +407,16 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
     const { email, code, password } = req.body;
     if (!email || !code || !password) return res.status(400).json({ success: false, message: '参数不全' });
 
-    const user = await get('SELECT * FROM users WHERE email = ? AND reset_password_token = ? AND reset_password_expires > ?',
-        [email, code, new Date().toISOString()]);
+    const user = await get('SELECT * FROM users WHERE email = ? AND reset_password_token = ?',
+        [email, code]);
 
     if (!user) {
-        return res.status(400).json({ success: false, message: '令牌无效或已过期' });
+        return res.status(400).json({ success: false, message: '验证码无效' });
+    }
+
+    const expiresTime = new Date(user.reset_password_expires).getTime();
+    if (isNaN(expiresTime) || expiresTime < Date.now()) {
+        return res.status(400).json({ success: false, message: '验证码已过期' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
