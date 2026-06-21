@@ -71,6 +71,8 @@ export const userAPI = {
     getSettings: () => api.get('/users/settings'),
     // 更新用户设置
     updateSettings: (data) => api.put('/users/settings', data),
+    // 修改密码
+    changePassword: (data) => api.put('/users/password', data),
     // 获取 API Keys
     getApiKeys: () => api.get('/users/api-keys'),
     // 创建 API Key
