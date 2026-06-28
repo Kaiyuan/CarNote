@@ -181,11 +181,6 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 
     next_maintenance_date DATE, -- 下次保养日期
     status VARCHAR(20) DEFAULT 'completed', -- 状态: pending(待完成), completed(已完成)
-    location_name VARCHAR(255), -- 维修/保养位置
-
-    location_lat DECIMAL(10, 7), -- 纬度
-
-    location_lng DECIMAL(10, 7), -- 经度
 
     notes TEXT,
 

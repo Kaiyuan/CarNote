@@ -11,8 +11,10 @@ COPY README.md vip* ./vip/
 RUN rm ./vip/README.md
 
 WORKDIR /app/frontend
-RUN npm ci
+RUN npm ci --unsafe-perm && chmod -R 755 node_modules/.bin && npm install -g vite --unsafe-perm && chmod +x node_modules/.bin/vite && chmod +x /usr/local/bin/vite
 COPY frontend/ .
+RUN echo "Listing node_modules/.bin" && ls -l node_modules/.bin && ./node_modules/.bin/vite --version || true
+RUN vite --version
 RUN npm run build
 
 # 2. 后端运行阶段
