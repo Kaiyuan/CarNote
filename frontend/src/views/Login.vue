@@ -259,13 +259,12 @@
       <template #footer>
         <Button label="取消" text @click="showForgotDialog = false" />
         <Button v-if="forgotStep === 1"
-          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '发送邮件'" @click="handleForgotPassword"
+          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '发送验证码'" @click="handleForgotPassword"
           :loading="loading" :disabled="forgotCooldown > 0 || !forgotEmail || !forgotCaptchaAnswer" />
-        <template v-else-if="forgotStep === 2">
-          <Button label="上一步" text @click="forgotStep = 1" />
-          <Button label="重置密码" @click="handleResetPassword" :loading="loading" />
-        </template>
+        <Button v-if="forgotStep === 2" label="上一步" text @click="forgotStep = 1" />
+        <Button v-if="forgotStep === 2" label="重置密码" @click="handleResetPassword" :loading="loading" />
       </template>
+
     </Dialog>
   </div>
 </template>
