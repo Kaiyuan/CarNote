@@ -149,7 +149,7 @@
           </div>
 
           <div class="text-right mt-1">
-            <Button label="忘记密码？" link @click="openForgotDialog" class="p-0 text-sm" />
+            <Button label="忘记密码？" link @click="openForgotDialog(1)" class="p-0 text-sm" />
           </div>
 
           <Button label="登录" icon="pi pi-sign-in" class="w-full mt-3" @click="handleLogin" :loading="loading" />
@@ -161,7 +161,7 @@
 
           <div v-if="excessiveFailures" class="mt-3">
             <Button label="无法登录？重置密码" icon="pi pi-question-circle" severity="secondary" class="w-full p-button-sm"
-              @click="openForgotDialog" />
+              @click="openForgotDialog(1)" />
           </div>
           <div v-if="isFirstUser" class="text-center mt-2">
             <Tag severity="info" value="首次运行：请注册管理员账号" />
@@ -257,12 +257,14 @@
       </div>
 
       <template #footer>
-        <Button label="取消" text @click="showForgotDialog = false" />
-        <Button v-if="forgotStep === 1"
-          :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '发送验证码'" @click="handleForgotPassword"
-          :loading="loading" :disabled="forgotCooldown > 0 || !forgotEmail || !forgotCaptchaAnswer" />
-        <Button v-if="forgotStep === 2" label="上一步" text @click="forgotStep = 1" />
-        <Button v-if="forgotStep === 2" label="重置密码" @click="handleResetPassword" :loading="loading" />
+        <div :key="forgotStep" class="flex gap-2 justify-content-end">
+          <Button label="取消" text @click="showForgotDialog = false" />
+          <Button v-if="forgotStep === 1"
+            :label="forgotCooldown > 0 ? `限制中 (${forgotCooldown}s)` : '发送验证码'" @click="handleForgotPassword"
+            :loading="loading" :disabled="forgotCooldown > 0 || !forgotEmail || !forgotCaptchaAnswer" />
+          <Button v-if="forgotStep !== 1" label="上一步" text @click="forgotStep = 1" />
+          <Button v-if="forgotStep !== 1" label="重置密码" @click="handleResetPassword" :loading="loading" />
+        </div>
       </template>
 
     </Dialog>
@@ -470,10 +472,11 @@ const handleLogin = async () => {
 }
 
 const openForgotDialog = (step = 1) => {
+  const actualStep = typeof step === 'number' ? step : 1
   showForgotDialog.value = true
-  forgotStep.value = step
+  forgotStep.value = actualStep
   resetForm.value = { code: '', newPassword: '', confirmPassword: '' }
-  if (step === 1) {
+  if (actualStep === 1) {
     forgotEmail.value = ''
     getForgotCaptcha()
   }
