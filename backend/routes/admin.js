@@ -88,7 +88,6 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
         [role, is_disabled, is_verified, nickname, email, targetId]
     );
 
-    // 会员权限更新 (如果传入)
     if (vip_tier) {
         await query(`
             INSERT INTO memberships (user_id, tier, expiry_date, updated_at)
@@ -164,7 +163,6 @@ router.get('/logs/login', asyncHandler(async (req, res) => {
 
 /**
  * 全局数据管理 - 车辆
- * 支持筛选: user_id
  */
 router.get('/vehicles', asyncHandler(async (req, res) => {
     const { user_id } = req.query;
@@ -196,7 +194,6 @@ router.delete('/vehicles/:id', asyncHandler(async (req, res) => {
 
 /**
  * 全局数据管理 - 能耗记录
- * 支持筛选: user_id, vehicle_id
  */
 router.get('/energy', asyncHandler(async (req, res) => {
     const { user_id, vehicle_id } = req.query;
@@ -221,11 +218,30 @@ router.get('/energy', asyncHandler(async (req, res) => {
 }));
 
 router.put('/energy/:id', asyncHandler(async (req, res) => {
-    const { log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes } = req.body;
+    const {
+        log_date, mileage, amount, cost, energy_type,
+        location_name, unit_price, is_full, record_control, notes
+    } = req.body;
+
+    const old = await get('SELECT vehicle_id FROM energy_logs WHERE id = ?', [req.params.id]);
+
     await query(
-        `UPDATE energy_logs SET log_date=?, mileage=?, amount=?, cost=?, energy_type=?, location_name=?, unit_price=?, is_full=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes, req.params.id]
+        `UPDATE energy_logs SET
+            log_date=?, mileage=?, amount=?, cost=?, energy_type=?,
+            location_name=?, unit_price=?, is_full=?, record_control=?, notes=?,
+            updated_at=CURRENT_TIMESTAMP
+         WHERE id=?`,
+        [
+            log_date, mileage, amount, cost, energy_type,
+            location_name, unit_price, is_full,
+            record_control != null ? Number(record_control) : 0,
+            notes, req.params.id
+        ]
     );
+
+    const { recalculateVehicleLogs } = require('./energy');
+    if (old) await recalculateVehicleLogs(old.vehicle_id);
+
     res.json({ success: true, message: '能耗记录已更新' });
 }));
 
@@ -236,7 +252,6 @@ router.delete('/energy/:id', asyncHandler(async (req, res) => {
 
 /**
  * 全局数据管理 - 保养记录
- * 支持筛选: user_id, vehicle_id
  */
 router.get('/maintenance', asyncHandler(async (req, res) => {
     const { user_id, vehicle_id } = req.query;
@@ -345,7 +360,6 @@ router.delete('/locations/:id', asyncHandler(async (req, res) => {
 
 /**
  * 附件管理 - 列表
- * 显示上传用户 / 使用状态 / 关联项目，未使用的文件会被标注
  */
 router.get('/attachments', asyncHandler(async (req, res) => {
     const { listAttachments } = require('../services/attachmentService');
@@ -355,7 +369,6 @@ router.get('/attachments', asyncHandler(async (req, res) => {
 
 /**
  * 附件管理 - 删除
- * 被业务记录引用的文件不允许删除 (返回 409)
  */
 router.post('/attachments/delete', asyncHandler(async (req, res) => {
     const { id, url } = req.body || {};

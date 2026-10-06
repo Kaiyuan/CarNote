@@ -27,7 +27,7 @@ router.post('/validate', authenticateUser, asyncHandler(async (req, res) => {
         success: true,
         data: {
             summary,
-            isValid: summary.vehicles > 0 || summary.energyLogs > 0 // 至少需要车辆或记录
+            isValid: summary.vehicles > 0 || summary.energyLogs > 0
         }
     });
 }));
@@ -51,7 +51,6 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
 
             // 1. 导入车辆
             for (const vehicle of data.vehicles) {
-                // 检查是否已存在同车牌车辆
                 let targetId;
                 const existing = await query('SELECT id FROM vehicles WHERE plate_number = ? AND user_id = ?', [vehicle.plate_number, userId]);
 
@@ -74,8 +73,29 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     if (!newVehicleId) continue;
 
                     await query(
-                        'INSERT INTO energy_logs (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, mileage_diff, consumption_per_100km, fuel_gauge_reading, is_full, location_name, location_lat, location_lng, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [newVehicleId, log.log_date, log.mileage, log.energy_type, log.amount, log.cost, log.unit_price, log.mileage_diff, log.consumption_per_100km, log.fuel_gauge_reading, log.is_full, log.location_name, log.location_lat, log.location_lng, log.notes]
+                        `INSERT INTO energy_logs (
+                            vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price,
+                            mileage_diff, consumption_per_100km, fuel_gauge_reading, is_full, record_control,
+                            location_name, location_lat, location_lng, notes
+                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            newVehicleId,
+                            log.log_date,
+                            log.mileage,
+                            log.energy_type,
+                            log.amount,
+                            log.cost,
+                            log.unit_price,
+                            log.mileage_diff,
+                            log.consumption_per_100km,
+                            log.fuel_gauge_reading,
+                            log.is_full,
+                            log.record_control != null ? Number(log.record_control) : 0,
+                            log.location_name,
+                            log.location_lat,
+                            log.location_lng,
+                            log.notes
+                        ]
                     );
                 }
             }

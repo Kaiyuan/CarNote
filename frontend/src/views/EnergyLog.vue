@@ -64,6 +64,13 @@
           <span v-else>--</span>
         </template>
       </Column>
+      <Column header="记录状态">
+        <template #body="slotProps">
+          <Tag v-if="Number(slotProps.data.record_control) === 1" value="已暂停" severity="warning" />
+          <Tag v-else-if="Number(slotProps.data.record_control) === 2" value="已恢复" severity="success" />
+          <span v-else class="text-500">—</span>
+        </template>
+      </Column>
       <Column header="操作">
         <template #body="slotProps">
           <Button icon="pi pi-pencil" text rounded @click="editLog(slotProps.data)" />
@@ -154,9 +161,19 @@
         </div>
       </div>
 
-      <div class="field-checkbox">
-        <Checkbox v-model="logForm.is_full" :binary="true" inputId="is_full" />
-        <label for="is_full" class="ml-2">加满/充满</label>
+      <div class="flex align-items-center mb-3" style="gap: 0.5rem;">
+        <div class="field-checkbox m-0 flex align-items-center">
+          <Checkbox v-model="logForm.is_full" :binary="true" inputId="is_full"
+            :disabled="logForm.controlChecked" />
+          <label for="is_full" class="ml-2 mb-0">加满/充满</label>
+        </div>
+        <div class="field-checkbox m-0 flex align-items-center">
+          <Checkbox v-model="logForm.controlChecked" :binary="true" inputId="record_control"
+            :disabled="pendingResume" @change="onControlCheck" />
+          <label for="record_control" class="ml-2 mb-0">
+            {{ pendingResume ? '开始记录' : '暂停记录' }}
+          </label>
+        </div>
       </div>
 
       <div class="field">
@@ -211,16 +228,15 @@ const router = useRouter()
 const route = useRoute()
 
 // 状态
-
-// 状态
 const logs = ref([])
 const vehicles = ref([])
 const loading = ref(false)
 const showDialog = ref(false)
-const showMapDialog = ref(false) // 地图对话框
+const showMapDialog = ref(false)
 const saving = ref(false)
 const editingLog = ref(null)
 const nearbyLocations = ref([])
+const pendingResume = ref(false)
 
 // 过滤器
 const filters = ref({
@@ -232,10 +248,12 @@ const defaultForm = {
   vehicle_id: null,
   log_date: new Date(),
   mileage: null,
-  energy_type: 'fuel', // 默认燃油
+  energy_type: 'fuel',
   amount: null,
   cost: null,
   is_full: true,
+  controlChecked: false,
+  record_control: 0,
   location_name: '',
   location_lat: null,
   location_lng: null,
@@ -248,6 +266,38 @@ const energyTypes = [
   { label: '汽油', value: 'fuel' },
   { label: '电能', value: 'electric' }
 ]
+
+const checkPendingResume = async (vehicleId) => {
+  pendingResume.value = false
+  if (!vehicleId) return
+  try {
+    const res = await energyAPI.getList({
+      vehicle_id: vehicleId,
+      limit: 1,
+      offset: 0
+    })
+    let list = []
+    if (res.success && res.data) {
+      list = Array.isArray(res.data) ? res.data : (res.data.logs || [])
+    }
+    if (list.length > 0 && Number(list[0].record_control) === 1) {
+      pendingResume.value = true
+      // 上一条是暂停：新建记录强制勾选「开始记录」，且不可取消
+      if (!editingLog.value) {
+        logForm.value.controlChecked = true
+        logForm.value.is_full = true
+      }
+    }
+  } catch (e) {
+    logger.error('checkPendingResume failed', e)
+  }
+}
+
+const onControlCheck = () => {
+  if (logForm.value.controlChecked) {
+    logForm.value.is_full = true
+  }
+}
 
 // 获取车辆列表
 const loadVehicles = async () => {
@@ -275,35 +325,23 @@ const loadLogs = async () => {
     logger.debug('API 响应:', res)
 
     if (res.success) {
-      // 处理多种可能的响应格式
       let logsData = []
 
       if (res.data) {
         if (Array.isArray(res.data)) {
-          // 格式1: { success: true, data: [...] }
           logsData = res.data
-          logger.debug('使用格式1: data 是数组')
         } else if (res.data.logs && Array.isArray(res.data.logs)) {
-          // 格式2: { success: true, data: { logs: [...], pagination: {...} } }
           logsData = res.data.logs
-          logger.debug('使用格式2: data.logs 是数组')
         } else if (typeof res.data === 'object') {
-          // 格式3: data 是对象但不是数组，尝试转换
           logger.warn('未知的 data 格式:', res.data)
           logsData = []
         }
       }
 
-      logger.debug('解析后的日志数据:', logsData)
-
-      // Backend already returns plate_number in the data, just use it directly
       logs.value = logsData.map(log => ({
         ...log,
-        // Use plate_number from backend, fallback to mapping if not present
         vehicle_plate: log.plate_number || vehicles.value.find(v => v.id === log.vehicle_id)?.plate_number || '未知车辆'
       }))
-
-      logger.debug('最终日志列表:', logs.value)
 
       if (logs.value.length === 0) {
         toast.add({ severity: 'info', summary: '提示', detail: '暂无能耗记录', life: 3000 })
@@ -314,7 +352,6 @@ const loadLogs = async () => {
     }
   } catch (error) {
     logger.error('加载能耗记录失败:', error)
-    logger.debug('错误详情:', error.response || error.message)
     const errorMsg = error.response?.data?.message || error.message || '加载记录失败'
     toast.add({ severity: 'error', summary: '错误', detail: errorMsg, life: 3000 })
   } finally {
@@ -322,11 +359,9 @@ const loadLogs = async () => {
   }
 }
 
-// 当选择车辆时，自动设置默认能源类型
-const onVehicleSelect = () => {
+const onVehicleSelect = async () => {
   const vehicle = vehicles.value.find(v => v.id === logForm.value.vehicle_id)
   if (vehicle) {
-    // 保存用户的车辆选择偏好
     localStorage.setItem('last_selected_vehicle_id', vehicle.id)
 
     if (vehicle.power_type === 'electric') {
@@ -334,43 +369,47 @@ const onVehicleSelect = () => {
     } else {
       logForm.value.energy_type = 'fuel'
     }
-    // 可以预填该车上次里程（如果后端支持查询）
+  }
+  if (!editingLog.value && logForm.value.vehicle_id) {
+    await checkPendingResume(logForm.value.vehicle_id)
   }
 }
 
 // 打开添加对话框
-const openAddDialog = () => {
+const openAddDialog = async () => {
   editingLog.value = null
   logForm.value = { ...defaultForm, log_date: new Date() }
+  pendingResume.value = false
 
-  // 尝试从本地存储获取上次选择的车辆
   const lastVehicleId = localStorage.getItem('last_selected_vehicle_id')
 
   if (lastVehicleId && vehicles.value.some(v => v.id == lastVehicleId)) {
     logForm.value.vehicle_id = Number(lastVehicleId)
-    onVehicleSelect()
+    await onVehicleSelect()
   } else if (vehicles.value.length === 1) {
-    // 如果只有一个车辆，默认选中
     logForm.value.vehicle_id = vehicles.value[0].id
-    onVehicleSelect()
+    await onVehicleSelect()
   } else if (filters.value.vehicle_id) {
     logForm.value.vehicle_id = filters.value.vehicle_id
-    onVehicleSelect()
+    await onVehicleSelect()
   }
 
   nearbyLocations.value = []
   showDialog.value = true
 }
 
-
 // 编辑记录
 const editLog = (log) => {
   editingLog.value = log
+  const rc = Number(log.record_control) || 0
   logForm.value = {
     ...log,
     log_date: parseDate(log.log_date),
-    is_full: log.is_full === 1 || log.is_full === true
+    is_full: log.is_full === 1 || log.is_full === true,
+    controlChecked: rc === 1 || rc === 2,
+    record_control: rc
   }
+  pendingResume.value = (rc === 2)
   showDialog.value = true
 }
 
@@ -383,11 +422,24 @@ const saveLog = async () => {
 
   saving.value = true
   try {
+    // 上一条是暂停时，新建记录强制 record_control = 2（开始记录）
+    let rc
+    if (!editingLog.value && pendingResume.value) {
+      rc = 2
+      logForm.value.controlChecked = true
+    } else {
+      rc = logForm.value.controlChecked
+        ? (pendingResume.value ? 2 : 1)
+        : 0
+    }
+
     const data = {
       ...logForm.value,
       log_date: toUtcIsoString(logForm.value.log_date),
-      is_full: logForm.value.is_full ? 1 : 0
+      is_full: logForm.value.is_full ? 1 : 0,
+      record_control: rc
     }
+    delete data.controlChecked
 
     let res
     if (editingLog.value) {
@@ -410,17 +462,12 @@ const saveLog = async () => {
 
 // 删除记录
 const deleteLog = async (id) => {
-  console.log('删除记录被调用, ID:', id)
-
   if (!window.confirm('确定要删除这条记录吗？')) {
-    logger.debug('用户取消删除')
     return
   }
 
-  logger.debug('开始删除记录...')
   try {
     const res = await energyAPI.delete(id)
-    logger.debug('删除 API 响应:', res)
 
     if (res.success) {
       toast.add({ severity: 'success', summary: '成功', detail: '删除成功', life: 3000 })
@@ -479,9 +526,7 @@ const onLocationSelected = (loc) => {
   searchNearby(loc.lat, loc.lng)
 }
 
-// 日期选择后自动关闭（Calendar组件会自动处理）
 const onDateSelect = () => {
-  // PrimeVue Calendar会自动关闭，无需额外处理
 }
 
 // 导出数据为CSV
@@ -597,7 +642,6 @@ const importData = async (event) => {
   reader.readAsText(file, 'UTF-8')
 }
 
-// 格式化工具函数 - 使用统一的时区工具
 const formatDate = formatDateTime
 
 const formatNumber = (num) => num ? Number(num).toLocaleString() : 0
@@ -607,16 +651,13 @@ const getTypeLabel = (type) => type === 'electric' ? '充电' : '加油'
 const getTypeSeverity = (type) => type === 'electric' ? 'success' : 'warning'
 const getUnit = (type) => type === 'electric' ? 'kWh' : 'L'
 
-
 onMounted(async () => {
   await loadVehicles()
   loadLogs()
 
-  // Check for quick add action
   const { action } = route.query
   if (action === 'add') {
     openAddDialog()
-    // Optional: Clean up query param
     router.replace({ query: null })
   }
 })

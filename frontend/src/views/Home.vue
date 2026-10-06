@@ -398,7 +398,7 @@ const fetchRecentActivities = async (vehicleId) => {
         activities.push({
           type: 'maintenance',
           date: rec.maintenance_date || rec.date,
-          description: `${rec.type} - ${rec.description || '无描述'}`,
+          description: rec.description || '无描述',
           cost: rec.cost,
           timestamp: new Date(rec.maintenance_date || rec.date).getTime()
         })

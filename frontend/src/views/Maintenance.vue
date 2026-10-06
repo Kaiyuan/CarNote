@@ -200,7 +200,7 @@ const filters = ref({
 const serviceTypes = [
   { label: '保养', value: 'maintenance' },
   { label: '维修', value: 'repair' },
-  { label: '改装/升级', value: 'upgrade' },
+  { label: '更新', value: 'upgrade' },
   { label: '其他', value: 'other' }
 ]
 
@@ -383,7 +383,7 @@ const formatNumber = (num) => num ? num.toLocaleString() : 0
 const formatCurrency = (val) => val ? '¥' + val.toFixed(2) : '¥0.00'
 
 const getTypeLabel = (type) => {
-  const map = { 'maintenance': '保养', 'repair': '维修', 'upgrade': '改装', 'other': '其他' }
+  const map = { 'maintenance': '保养', 'repair': '维修', 'upgrade': '更新', 'other': '其他' }
   return map[type] || type
 }
 

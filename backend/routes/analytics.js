@@ -29,13 +29,11 @@ function resolveRange(range) {
 /**
  * 获取能耗趋势数据
  * GET /api/analytics/consumption/:vehicleId
- * 查询参数: period (day/month/year), start_date, end_date
  */
 router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
     const { period = 'month', start_date, end_date } = req.query;
 
-    // 验证车辆所有权
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
         [vehicleId, req.userId]
@@ -48,13 +46,11 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
         });
     }
 
-    // 根据时间粒度构建查询
     const isPostgres = process.env.DB_TYPE === 'postgresql';
     let periodSql;
     let groupBy;
 
     if (isPostgres) {
-        // PostgreSQL 格式
         const pgFormats = {
             'day': 'YYYY-MM-DD',
             'month': 'YYYY-MM',
@@ -64,7 +60,6 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
         periodSql = `TO_CHAR(log_date, '${fmt}')`;
         groupBy = periodSql;
     } else {
-        // SQLite 格式
         const sqliteFormats = {
             'day': '%Y-%m-%d',
             'month': '%Y-%m',
@@ -111,13 +106,11 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
 /**
  * 获取费用统计
  * GET /api/analytics/expenses/:vehicleId
- * 查询参数: start_date, end_date
  */
 router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
     const { start_date: query_start, end_date, range } = req.query;
 
-    // 如果提供了 range，优先使用 range
     const start_date = query_start || resolveRange(range);
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
@@ -131,7 +124,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
         });
     }
 
-    // 能耗费用
     let energySql = `
         SELECT SUM(cost) as total_cost, energy_type
         FROM energy_logs
@@ -152,7 +144,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
 
     const energyCosts = await query(energySql, energyParams);
 
-    // 保养费用
     let maintenanceSql = `
         SELECT SUM(cost) as total_cost, type
         FROM maintenance_records
@@ -173,7 +164,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
 
     const maintenanceCosts = await query(maintenanceSql, maintenanceParams);
 
-    // 配件更换费用
     let partsSql = `
         SELECT SUM(cost) as total_cost
         FROM part_replacements
@@ -192,7 +182,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
 
     const partsCostResult = await get(partsSql, partsParams);
 
-    // 保险费用
     let insuranceSql = `SELECT COALESCE(SUM(premium), 0) as total_cost FROM insurances WHERE vehicle_id = ?`;
     const insuranceParams = [vehicleId];
     if (start_date) {
@@ -205,7 +194,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
     }
     const insuranceCostResult = await get(insuranceSql, insuranceParams);
 
-    // 汇总
     const totalEnergyCost = energyCosts.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
     const totalMaintenanceCost = maintenanceCosts.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
     const totalPartsCost = parseFloat(partsCostResult?.total_cost) || 0;
@@ -238,7 +226,6 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
 router.get('/locations/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
 
-    // 验证车辆所有权
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
         [vehicleId, req.userId]
@@ -251,7 +238,6 @@ router.get('/locations/:vehicleId', authenticateUser, asyncHandler(async (req, r
         });
     }
 
-    // 获取所有有位置信息的记录
     const locations = await query(
         `SELECT 
             location_name,
@@ -282,7 +268,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
     const { range } = req.query;
     const start_date = resolveRange(range);
 
-    // 验证车辆所有权
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
         [vehicleId, req.userId]
@@ -295,7 +280,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         });
     }
 
-    // 构建时间过滤子句
     const dateFilter = start_date ? ` AND log_date >= '${start_date}'` : '';
     const maintDateFilter = start_date ? ` AND maintenance_date >= '${start_date}'` : '';
     const partDateFilter = start_date ? ` AND replacement_date >= '${start_date}'` : '';
@@ -310,16 +294,14 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             SUM(cost) as total_cost,
             MIN(log_date) as first_record_date,
             MAX(log_date) as last_record_date,
-            (MAX(mileage) - MIN(mileage)) as period_mileage
+            SUM(COALESCE(mileage_diff, 0)) as period_mileage
          FROM energy_logs
          WHERE vehicle_id = ?${dateFilter}`,
         [vehicleId]
     );
 
-    // 如果是 filtered 模式，total_mileage 应该是期间里程
     const displayMileage = start_date ? (energyStats?.period_mileage || 0) : vehicle.current_mileage;
 
-    // 保养统计
     const maintenanceStats = await get(
         `SELECT 
             COUNT(*) as total_records,
@@ -330,7 +312,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         [vehicleId]
     );
 
-    // 计算距离上次保养天数
     let lastMaintDays = null;
     if (maintenanceStats?.last_maintenance_date) {
         const lastDate = new Date(maintenanceStats.last_maintenance_date);
@@ -338,7 +319,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         lastMaintDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
     }
 
-    // 配件统计
     const partsStats = await get(
         `SELECT 
             COUNT(*) as total_parts,
@@ -350,7 +330,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         [vehicleId]
     );
 
-    // 配件更换费用
     const partReplacementStats = await get(
         `SELECT 
             COUNT(*) as total_replacements,
@@ -360,7 +339,6 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         [vehicleId]
     );
 
-    // 保险统计
     const insuranceStats = await get(
         `SELECT COUNT(*) as total_records, COALESCE(SUM(premium), 0) as total_cost
          FROM insurances
@@ -397,19 +375,16 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
 /**
  * 获取月度趋势对比
  * GET /api/analytics/monthly-trend/:vehicleId
- * 查询参数: months (默认12个月)
  */
 router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
     const { range, months: queryMonths } = req.query;
 
-    // 如果是 range='all'，设为一个很大的数值
     let months = parseInt(queryMonths) || 12;
     if (range === '6months') months = 6;
     else if (range === 'year') months = 12;
-    else if (range === 'all') months = 120; // 10 years
+    else if (range === 'all') months = 120;
 
-    // 验证车辆所有权
     const vehicle = await get(
         'SELECT * FROM vehicles WHERE id = ? AND user_id = ?',
         [vehicleId, req.userId]
@@ -422,7 +397,6 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
         });
     }
 
-    // 获取最近N个月的数据
     const isPostgres = process.env.DB_TYPE === 'postgresql';
 
     let sql;

@@ -142,6 +142,7 @@ async function migrateSQLite() {
                 consumption_per_100km DECIMAL(10, 2),
                 fuel_gauge_reading DECIMAL(5, 2),
                 is_full BOOLEAN DEFAULT 0,
+                record_control INTEGER DEFAULT 0,
                 location_name VARCHAR(255),
                 location_lat DECIMAL(10, 7),
                 location_lng DECIMAL(10, 7),
@@ -270,7 +271,6 @@ async function migrateSQLite() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
             )`}
-// 更多表可以继续在这里添加
         ];
 
         let needsRepair = false;
@@ -285,7 +285,7 @@ async function migrateSQLite() {
                 break;
             }
 
-            // 检查外键是否断链（SQLite 特性：重命名 parent 表时，child 表会自动修改 FK 指向，这在迁移中是致命的）
+            // 检查外键是否断链
             const fkList = await query(`PRAGMA foreign_key_list(${table.name})`);
             if (fkList.some(fk => fk.table.toLowerCase().endsWith('_old'))) {
                 console.log(`[健康检查] 表 ${table.name} 存在断裂的外键引用`);
@@ -293,7 +293,7 @@ async function migrateSQLite() {
                 break;
             }
 
-            // 检查列是否对齐（检测是否需要添加新字段）
+            // 检查列是否对齐
             const dbCols = await query(`PRAGMA table_info(${table.name})`);
             const expectedColsMatch = table.template.match(/(\w+)\s+(INTEGER|VARCHAR|TIMESTAMP|DATE|DECIMAL|TEXT|BOOLEAN)/gi);
             if (expectedColsMatch) {
@@ -323,7 +323,6 @@ async function migrateSQLite() {
                 for (const table of tablesTemplates) {
                     const exists = await get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${table.name}'`);
                     if (exists) {
-                        // 如果 _old 已存在，先删除它（这通常是之前失败修复留下的残余）
                         await query(`DROP TABLE IF EXISTS ${table.name}_old`);
                         await query(`ALTER TABLE ${table.name} RENAME TO ${table.name}_old`);
                     }
@@ -357,7 +356,7 @@ async function migrateSQLite() {
                     }
                 }
 
-                // e. 安全删除旧表 (统一在所有数据迁移完成后删除，防止外键引用错误)
+                // e. 安全删除旧表
                 for (const table of tablesTemplates) {
                     await query(`DROP TABLE IF EXISTS ${table.name}_old`);
                 }
@@ -366,9 +365,18 @@ async function migrateSQLite() {
                 await query("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)");
                 await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
             });
+
             // 确保旧账户都标记为已验证
             await query("UPDATE users SET is_verified = TRUE WHERE is_verified IS NULL OR is_verified = FALSE");
             console.log('数据库结构修复完成，数据完整性已验证');
+        }
+
+        // energy_logs.record_control 补列检查
+        const energyCols = await query(`PRAGMA table_info(energy_logs)`);
+        const hasRecordControl = energyCols.some(c => c.name === 'record_control');
+        if (!hasRecordControl) {
+            await query(`ALTER TABLE energy_logs ADD COLUMN record_control INTEGER DEFAULT 0`);
+            console.log('[迁移] energy_logs 已添加 record_control 列');
         }
 
         // 4. 初始化默认配置
@@ -377,7 +385,7 @@ async function migrateSQLite() {
             await query("INSERT OR IGNORE INTO system_settings (key, value) VALUES ('allow_registration', 'true')");
         }
 
-        // 5. 将 SMTP 环境变量同步回数据库 (确保 UI 显示一致)
+        // 5. 将 SMTP 环境变量同步回数据库
         await syncSmtpEnvToDb();
 
     } finally {
@@ -404,7 +412,6 @@ async function syncSmtpEnvToDb() {
                 "INSERT INTO system_settings (key, value) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value",
                 [key, process.env[env]]
             ).catch(async () => {
-                // SQLite 兼容性处理 (如果 ON CONFLICT 不支持)
                 await query("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", [key, process.env[env]]);
             });
         }
@@ -412,7 +419,6 @@ async function syncSmtpEnvToDb() {
 }
 
 async function migratePostgreSQL() {
-    // PostgreSQL 维持原有的基础迁移逻辑 (PG 架构变更建议配合 Flyway/Liquibase, 此处仅做基础补偿)
     const roleExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'role'");
     if (roleExists.length === 0) {
         await query("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'");
@@ -428,7 +434,6 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE users ADD COLUMN verification_code VARCHAR(20)");
         await query("ALTER TABLE users ADD COLUMN verification_code_expires TIMESTAMP");
         await query("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE");
-        // Update existing users to verified
         await query("UPDATE users SET is_verified = TRUE");
     }
 
@@ -447,7 +452,6 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE users ADD COLUMN is_disabled BOOLEAN DEFAULT FALSE");
     }
 
-    // maintenance_records location and next maintenance columns
     const maintenanceLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'maintenance_records' AND column_name = 'location_name'");
     if (maintenanceLocExists.length === 0) {
         await query("ALTER TABLE maintenance_records ADD COLUMN location_name VARCHAR(255)");
@@ -462,7 +466,6 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE maintenance_records ADD COLUMN status VARCHAR(20) DEFAULT 'completed'");
     }
 
-    // energy_logs location columns
     const energyLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'energy_logs' AND column_name = 'location_name'");
     if (energyLocExists.length === 0) {
         await query("ALTER TABLE energy_logs ADD COLUMN location_name VARCHAR(255)");
@@ -470,19 +473,25 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE energy_logs ADD COLUMN location_lng DECIMAL(10, 7)");
     }
 
-    // api_keys vehicle_id column
+    const rcExists = await query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'energy_logs' AND column_name = 'record_control'
+    `);
+    if (rcExists.length === 0) {
+        await query(`ALTER TABLE energy_logs ADD COLUMN record_control INTEGER DEFAULT 0`);
+        console.log('[迁移] energy_logs 已添加 record_control 列');
+    }
+
     const apiKeyVehicleExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'api_keys' AND column_name = 'vehicle_id'");
     if (apiKeyVehicleExists.length === 0) {
         await query("ALTER TABLE api_keys ADD COLUMN vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL");
     }
 
-    // shared_locations created_by column
     const sharedLocCreatedByExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'shared_locations' AND column_name = 'created_by'");
     if (sharedLocCreatedByExists.length === 0) {
         await query("ALTER TABLE shared_locations ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL");
     }
 
-    // part_replacements location columns
     const partReplacementsLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'part_replacements' AND column_name = 'location_name'");
     if (partReplacementsLocExists.length === 0) {
         await query("ALTER TABLE part_replacements ADD COLUMN location_name VARCHAR(255)");
@@ -495,7 +504,6 @@ async function migratePostgreSQL() {
         await query("INSERT INTO system_settings (key, value) VALUES ('allow_registration', 'true')");
     }
 
-    // 将 SMTP 环境变量同步回数据库
     await syncSmtpEnvToDb();
 }
 
