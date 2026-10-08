@@ -33,7 +33,7 @@ function resolveRange(range) {
  */
 router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { period = 'month', start_date, end_date } = req.query;
+    const { period = 'month', start_date, end_date, exclude_lent } = req.query;
 
     // 验证车辆所有权
     const vehicle = await get(
@@ -88,6 +88,10 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
     `;
 
     const params = [vehicleId];
+
+    if (exclude_lent === 'true' || exclude_lent === '1') {
+        sql += ' AND (is_lent = 0 OR is_lent IS NULL)';
+    }
 
     if (start_date) {
         sql += ' AND log_date >= ?';
@@ -279,7 +283,7 @@ router.get('/locations/:vehicleId', authenticateUser, asyncHandler(async (req, r
  */
 router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { range } = req.query;
+    const { range, exclude_lent } = req.query;
     const start_date = resolveRange(range);
 
     // 验证车辆所有权
@@ -300,6 +304,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
     const maintDateFilter = start_date ? ` AND maintenance_date >= '${start_date}'` : '';
     const partDateFilter = start_date ? ` AND replacement_date >= '${start_date}'` : '';
     const insuranceDateFilter = start_date ? ` AND start_date >= '${start_date}'` : '';
+    const lentFilter = (exclude_lent === 'true' || exclude_lent === '1') ? ' AND (is_lent = 0 OR is_lent IS NULL)' : '';
 
     // 能耗统计
     const energyStats = await get(
@@ -312,7 +317,18 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             MAX(log_date) as last_record_date,
             (MAX(mileage) - MIN(mileage)) as period_mileage
          FROM energy_logs
-         WHERE vehicle_id = ?${dateFilter}`,
+         WHERE vehicle_id = ?${dateFilter}${lentFilter}`,
+        [vehicleId]
+    );
+
+    // 借出他人统计
+    const lentStats = await get(
+        `SELECT 
+            COUNT(*) as total_records,
+            COALESCE(SUM(amount), 0) as total_amount,
+            COALESCE(SUM(cost), 0) as total_cost
+         FROM energy_logs
+         WHERE vehicle_id = ? AND is_lent = 1${dateFilter}`,
         [vehicleId]
     );
 
@@ -381,6 +397,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             last_maintenance_date: maintenanceStats?.last_maintenance_date || null,
             last_maintenance_days: lastMaintDays,
             energy: energyStats,
+            lent: lentStats,
             maintenance: maintenanceStats,
             parts: {
                 ...partsStats,

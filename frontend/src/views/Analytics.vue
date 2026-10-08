@@ -6,11 +6,15 @@
     <div>
         <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
             <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">数据分析</h1>
-            <div class="flex gap-2 align-items-center w-full md:w-auto">
+            <div class="flex gap-2 align-items-center w-full md:w-auto flex-wrap">
                 <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
                     placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" @change="loadAllData" />
                 <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
                     placeholder="范围" class="flex-auto md:w-10rem min-w-0" @change="loadAllData" />
+                <div class="flex align-items-center px-2 py-1 surface-100 border-round">
+                    <Checkbox v-model="excludeLent" :binary="true" inputId="exclude_lent" @change="loadAllData" />
+                    <label for="exclude_lent" class="ml-2 text-sm text-700 cursor-pointer white-space-nowrap">排除借出记录</label>
+                </div>
             </div>
         </div>
 
@@ -47,6 +51,9 @@
                         <div class="text-2xl font-bold text-900">
                             {{ overview.avg_consumption ? overview.avg_consumption.toFixed(2) : '--' }}
                             <span class="text-base font-normal text-600">{{ unit }}</span>
+                        </div>
+                        <div class="text-xs text-500 mt-1" v-if="overview.lent && overview.lent.total_records > 0">
+                            {{ excludeLent ? '已排除借出记录' : `含借出 ${overview.lent.total_records} 笔 (${formatCurrency(overview.lent.total_cost)})` }}
                         </div>
                     </template>
                 </Card>
@@ -110,6 +117,7 @@ import Chart from 'primevue/chart'
 const vehicles = ref([])
 const selectedVehicleId = ref(null)
 const timeRange = ref('year')
+const excludeLent = ref(false)
 const overview = ref({})
 const consumptionData = ref([])
 const expenseData = ref({})
@@ -143,7 +151,10 @@ const loadAllData = async () => {
     if (!selectedVehicleId.value) return
 
     try {
-        const params = { range: timeRange.value }
+        const params = {
+            range: timeRange.value,
+            exclude_lent: excludeLent.value ? 'true' : undefined
+        }
 
         // 并行请求
         const [overviewRes, consumptionRes, expenseRes, monthlyRes] = await Promise.all([

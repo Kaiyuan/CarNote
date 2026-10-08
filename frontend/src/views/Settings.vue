@@ -455,7 +455,8 @@ const exportEnergy = async () => {
         if (res.success) {
             const columns = {
                 log_date: '日期', plate_number: '车牌', mileage: '里程',
-                energy_type: '类型', amount: '数量', cost: '费用', consumption_per_100km: '百公里能耗'
+                energy_type: '类型', amount: '数量', cost: '费用', consumption_per_100km: '百公里能耗',
+                is_lent: '是否他人借出', lent_to: '借车人/说明', is_reset_step: '重置起点'
             }
             const csv = convertToCSV(res.data, columns)
             downloadFile(csv, `能耗记录_${new Date().toLocaleDateString()}.csv`)

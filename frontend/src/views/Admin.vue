@@ -507,6 +507,24 @@
             <div class="field mb-3"><label>总计 (元)</label>
                 <InputNumber v-model="mgmtForm.cost" class="w-full" :minFractionDigits="2" />
             </div>
+            <div class="field mb-3 flex gap-3 flex-wrap align-items-center">
+                <div class="flex align-items-center">
+                    <Checkbox v-model="mgmtForm.is_full" :binary="true" inputId="admin_is_full" />
+                    <label for="admin_is_full" class="ml-2">加满</label>
+                </div>
+                <div class="flex align-items-center">
+                    <Checkbox v-model="mgmtForm.is_reset_step" :binary="true" inputId="admin_is_reset" />
+                    <label for="admin_is_reset" class="ml-2">重置起点(借出/漏记)</label>
+                </div>
+                <div class="flex align-items-center">
+                    <Checkbox v-model="mgmtForm.is_lent" :binary="true" inputId="admin_is_lent" />
+                    <label for="admin_is_lent" class="ml-2">他人借出</label>
+                </div>
+            </div>
+            <div class="field mb-3" v-if="mgmtForm.is_lent">
+                <label>借车人 / 备注</label>
+                <InputText v-model="mgmtForm.lent_to" class="w-full" placeholder="借出对象" />
+            </div>
             <div class="field mb-3"><label>位置</label>
                 <InputText v-model="mgmtForm.location_name" class="w-full" />
             </div>
@@ -837,6 +855,11 @@ const editMgmtItem = (type, item) => {
     if (mgmtForm.value.log_date) mgmtForm.value.log_date = parseLocalDate(mgmtForm.value.log_date)
     if (mgmtForm.value.maintenance_date) mgmtForm.value.maintenance_date = parseLocalDate(mgmtForm.value.maintenance_date)
     if (mgmtForm.value.buy_date) mgmtForm.value.buy_date = parseLocalDate(mgmtForm.value.buy_date)
+    if (type === 'energy') {
+        mgmtForm.value.is_full = mgmtForm.value.is_full === 1 || mgmtForm.value.is_full === true
+        mgmtForm.value.is_reset_step = mgmtForm.value.is_reset_step === 1 || mgmtForm.value.is_reset_step === true
+        mgmtForm.value.is_lent = mgmtForm.value.is_lent === 1 || mgmtForm.value.is_lent === true
+    }
     mgmtDialogs.value[type] = true
 }
 

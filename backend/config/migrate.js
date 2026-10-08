@@ -142,6 +142,9 @@ async function migrateSQLite() {
                 consumption_per_100km DECIMAL(10, 2),
                 fuel_gauge_reading DECIMAL(5, 2),
                 is_full BOOLEAN DEFAULT 0,
+                is_reset_step BOOLEAN DEFAULT 0,
+                is_lent BOOLEAN DEFAULT 0,
+                lent_to VARCHAR(50),
                 location_name VARCHAR(255),
                 location_lat DECIMAL(10, 7),
                 location_lng DECIMAL(10, 7),
@@ -468,6 +471,14 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE energy_logs ADD COLUMN location_name VARCHAR(255)");
         await query("ALTER TABLE energy_logs ADD COLUMN location_lat DECIMAL(10, 7)");
         await query("ALTER TABLE energy_logs ADD COLUMN location_lng DECIMAL(10, 7)");
+    }
+
+    // energy_logs lent & reset columns
+    const energyLentExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'energy_logs' AND column_name = 'is_reset_step'");
+    if (energyLentExists.length === 0) {
+        await query("ALTER TABLE energy_logs ADD COLUMN is_reset_step BOOLEAN DEFAULT FALSE");
+        await query("ALTER TABLE energy_logs ADD COLUMN is_lent BOOLEAN DEFAULT FALSE");
+        await query("ALTER TABLE energy_logs ADD COLUMN lent_to VARCHAR(50)");
     }
 
     // api_keys vehicle_id column

@@ -46,7 +46,19 @@ async function recalculateVehicleLogs(vehicleId) {
         const type = log.energy_type || 'fuel';
         const tracker = trackers[type] || trackers.fuel;
 
-        if (log.is_full) {
+        if (log.is_reset_step) {
+            // 车辆借出/前次漏记断点：不计算本次百公里能耗，重置累计量
+            if (log.is_full) {
+                // 本次加满，直接作为新一轮计算周期的起点
+                tracker.lastFull = log;
+                tracker.sum = 0;
+            } else {
+                // 未加满，切断之前的连续周期
+                tracker.lastFull = null;
+                tracker.sum = 0;
+            }
+            consumption = null;
+        } else if (log.is_full) {
             // “加满到加满”计算逻辑
             if (tracker.lastFull) {
                 const cycleMileage = log.mileage - tracker.lastFull.mileage;
@@ -96,6 +108,9 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
         unit_price,
         fuel_gauge_reading,
         is_full,
+        is_reset_step,
+        is_lent,
+        lent_to,
         location_name,
         location_lat,
         location_lng,
@@ -135,11 +150,11 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
     const result = await query(
         `INSERT INTO energy_logs 
          (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, 
-          fuel_gauge_reading, is_full,
+          fuel_gauge_reading, is_full, is_reset_step, is_lent, lent_to,
           location_name, location_lat, location_lng, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [vehicle_id, log_date, mileage, energy_type, amount, cost || 0, unit_price || 0,
-            fuel_gauge_reading || 0, is_full ? 1 : 0,
+            fuel_gauge_reading || 0, is_full ? 1 : 0, is_reset_step ? 1 : 0, is_lent ? 1 : 0, lent_to || null,
             location_name, location_lat, location_lng, notes]
     );
 
@@ -245,7 +260,7 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
  * 查询参数: vehicle_id, energy_type, start_date, end_date, limit, offset
  */
 router.get('/', authenticateUser, asyncHandler(async (req, res) => {
-    const { vehicle_id, energy_type, start_date, end_date, limit = 50, offset = 0 } = req.query;
+    const { vehicle_id, energy_type, start_date, end_date, is_lent, limit = 50, offset = 0 } = req.query;
 
     let sql = `SELECT e.*, v.plate_number, v.brand, v.model 
                FROM energy_logs e 
@@ -263,6 +278,12 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
     if (energy_type) {
         sql += ' AND e.energy_type = ?';
         params.push(energy_type);
+    }
+
+    // 借出状态过滤
+    if (is_lent !== undefined && is_lent !== '') {
+        sql += ' AND e.is_lent = ?';
+        params.push(is_lent === 'true' || is_lent === '1' ? 1 : 0);
     }
 
     // 日期范围过滤
@@ -294,6 +315,10 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
     if (energy_type) {
         countSql += ' AND e.energy_type = ?';
         countParams.push(energy_type);
+    }
+    if (is_lent !== undefined && is_lent !== '') {
+        countSql += ' AND e.is_lent = ?';
+        countParams.push(is_lent === 'true' || is_lent === '1' ? 1 : 0);
     }
     if (start_date) {
         countSql += ' AND e.log_date >= ?';
@@ -367,6 +392,9 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         unit_price,
         fuel_gauge_reading,
         is_full,
+        is_reset_step,
+        is_lent,
+        lent_to,
         location_name,
         location_lat,
         location_lng,
@@ -394,11 +422,13 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         `UPDATE energy_logs 
          SET log_date = ?, mileage = ?, energy_type = ?, amount = ?, cost = ?,
              unit_price = ?, fuel_gauge_reading = ?, is_full = ?,
+             is_reset_step = ?, is_lent = ?, lent_to = ?,
              location_name = ?, location_lat = ?, location_lng = ?, notes = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [log_date, mileage, energy_type, amount, cost, unit_price, fuel_gauge_reading,
-            is_full ? 1 : 0, location_name, location_lat, location_lng, notes, req.params.id]
+            is_full ? 1 : 0, is_reset_step ? 1 : 0, is_lent ? 1 : 0, lent_to || null,
+            location_name, location_lat, location_lng, notes, req.params.id]
     );
 
     // 同步到共享位置库
@@ -470,4 +500,5 @@ router.post('/recalculate/:vehicleId', authenticateUser, asyncHandler(async (req
     });
 }));
 
+router.recalculateVehicleLogs = recalculateVehicleLogs;
 module.exports = router;

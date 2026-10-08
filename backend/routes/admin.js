@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { query, get } = require('../config/database');
 const { authenticateUser, isAdmin, createAuditLog } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { recalculateVehicleLogs } = require('./energy');
 
 // All routes here require admin
 router.use(authenticateUser, isAdmin);
@@ -221,16 +222,24 @@ router.get('/energy', asyncHandler(async (req, res) => {
 }));
 
 router.put('/energy/:id', asyncHandler(async (req, res) => {
-    const { log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes } = req.body;
+    const { log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, is_reset_step, is_lent, lent_to, notes } = req.body;
+    const current = await get('SELECT vehicle_id FROM energy_logs WHERE id = ?', [req.params.id]);
     await query(
-        `UPDATE energy_logs SET log_date=?, mileage=?, amount=?, cost=?, energy_type=?, location_name=?, unit_price=?, is_full=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full, notes, req.params.id]
+        `UPDATE energy_logs SET log_date=?, mileage=?, amount=?, cost=?, energy_type=?, location_name=?, unit_price=?, is_full=?, is_reset_step=?, is_lent=?, lent_to=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [log_date, mileage, amount, cost, energy_type, location_name, unit_price, is_full ? 1 : 0, is_reset_step ? 1 : 0, is_lent ? 1 : 0, lent_to || null, notes, req.params.id]
     );
+    if (current?.vehicle_id) {
+        await recalculateVehicleLogs(current.vehicle_id);
+    }
     res.json({ success: true, message: '能耗记录已更新' });
 }));
 
 router.delete('/energy/:id', asyncHandler(async (req, res) => {
+    const current = await get('SELECT vehicle_id FROM energy_logs WHERE id = ?', [req.params.id]);
     await query('DELETE FROM energy_logs WHERE id = ?', [req.params.id]);
+    if (current?.vehicle_id) {
+        await recalculateVehicleLogs(current.vehicle_id);
+    }
     res.json({ success: true, message: '能耗记录已删除' });
 }));
 

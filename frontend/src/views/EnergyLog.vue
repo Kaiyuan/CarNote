@@ -23,6 +23,13 @@
           <label>筛选车辆</label>
         </span>
       </div>
+      <div class="col-12 md:col-4">
+        <span class="p-float-label">
+          <Dropdown v-model="filters.is_lent" :options="lentFilterOptions" optionLabel="label" optionValue="value"
+            showClear @change="loadLogs" placeholder="用车类型" class="w-full" />
+          <label>用车类型</label>
+        </span>
+      </div>
     </div>
 
     <!-- 桌面端列表 -->
@@ -33,7 +40,15 @@
           {{ formatDate(slotProps.data.log_date) }}
         </template>
       </Column>
-      <Column field="vehicle_plate" header="车牌号"></Column>
+      <Column field="vehicle_plate" header="车牌号">
+        <template #body="slotProps">
+          <div class="flex align-items-center gap-1">
+            <span>{{ slotProps.data.vehicle_plate }}</span>
+            <Tag v-if="slotProps.data.is_lent" :value="slotProps.data.lent_to ? '借出: ' + slotProps.data.lent_to : '借出他人'"
+              severity="warning" class="text-xs ml-1" />
+          </div>
+        </template>
+      </Column>
       <Column field="mileage" header="里程 (km)" sortable>
         <template #body="slotProps">
           {{ formatNumber(slotProps.data.mileage) }}
@@ -57,7 +72,9 @@
       </Column>
       <Column field="consumption_per_100km" header="百公里能耗">
         <template #body="slotProps">
-          <span v-if="slotProps.data.consumption_per_100km"
+          <Tag v-if="slotProps.data.is_reset_step" value="重置起点" severity="info" class="text-xs"
+            v-tooltip.top="'曾借出他人或漏记，此记录作为全新测算起点'" />
+          <span v-else-if="slotProps.data.consumption_per_100km"
             :class="{ 'text-green-600 font-bold': Number(slotProps.data.consumption_per_100km) < 8, 'text-orange-500': Number(slotProps.data.consumption_per_100km) > 12 }">
             {{ Number(slotProps.data.consumption_per_100km).toFixed(2) }}
           </span>
@@ -80,8 +97,15 @@
             <div class="flex flex-column p-3 gap-2 border-bottom-1 surface-border">
               <!-- 第一行: 车牌 + 能耗 -->
               <div class="flex justify-content-between align-items-start">
-                <span class="text-2xl font-bold">{{ item.vehicle_plate }}</span>
-                <div v-if="item.consumption_per_100km" class="text-2xl font-bold text-green-500">
+                <div class="flex align-items-center gap-1 flex-wrap">
+                  <span class="text-2xl font-bold">{{ item.vehicle_plate }}</span>
+                  <Tag v-if="item.is_lent" :value="item.lent_to ? '借出: ' + item.lent_to : '借出他人'"
+                    severity="warning" class="text-xs" />
+                </div>
+                <div v-if="item.is_reset_step" class="text-sm font-bold">
+                  <Tag value="重置起点" severity="info" class="text-xs" />
+                </div>
+                <div v-else-if="item.consumption_per_100km" class="text-2xl font-bold text-green-500">
                   {{ Number(item.consumption_per_100km).toFixed(2) }}
                 </div>
               </div>
@@ -154,9 +178,39 @@
         </div>
       </div>
 
-      <div class="field-checkbox">
+      <div class="field-checkbox mb-2">
         <Checkbox v-model="logForm.is_full" :binary="true" inputId="is_full" />
-        <label for="is_full" class="ml-2">加满/充满</label>
+        <label for="is_full" class="ml-2 font-medium">加满 / 充满</label>
+      </div>
+
+      <!-- 借车与特殊场景设置 -->
+      <div class="surface-50 border-1 border-200 border-round p-3 mb-3">
+        <div class="text-sm font-bold text-700 mb-2 flex align-items-center gap-2">
+          <i class="pi pi-shield text-primary"></i>
+          <span>借车与特殊场景设置</span>
+        </div>
+
+        <div class="field-checkbox mb-2">
+          <Checkbox v-model="logForm.is_reset_step" :binary="true" inputId="is_reset_step" />
+          <label for="is_reset_step" class="ml-2 text-sm font-medium cursor-pointer">
+            车辆曾借出他人 / 存在漏记 (重置油耗起点)
+          </label>
+        </div>
+        <div v-if="logForm.is_reset_step" class="text-xs text-600 line-height-3 ml-4 mb-2 bg-yellow-50 text-yellow-900 p-2 border-round border-1 border-yellow-200">
+          💡 <strong>说明：</strong>期间曾借车给他人或漏记加油，导致里程与油量对不上时勾选。本次加油<strong>不计算百公里油耗</strong>；加满后直接作为<strong>新周期的测算起点</strong>，后续加油将完全恢复精准计算。
+        </div>
+
+        <div class="field-checkbox mb-0">
+          <Checkbox v-model="logForm.is_lent" :binary="true" inputId="is_lent" />
+          <label for="is_lent" class="ml-2 text-sm font-medium cursor-pointer">
+            本次为借出用车 (他人驾驶)
+          </label>
+        </div>
+
+        <div v-if="logForm.is_lent" class="mt-2 ml-4">
+          <label class="block text-xs text-600 mb-1">借车人 / 用车说明 (可选)</label>
+          <InputText v-model="logForm.lent_to" class="w-full p-inputtext-sm" placeholder="如：朋友张三、自驾游借出" />
+        </div>
       </div>
 
       <div class="field">
@@ -224,8 +278,15 @@ const nearbyLocations = ref([])
 
 // 过滤器
 const filters = ref({
-  vehicle_id: null
+  vehicle_id: null,
+  is_lent: null
 })
+
+const lentFilterOptions = [
+  { label: '全部记录', value: null },
+  { label: '仅自己驾驶', value: '0' },
+  { label: '仅借出他人', value: '1' }
+]
 
 // 表单数据
 const defaultForm = {
@@ -236,6 +297,9 @@ const defaultForm = {
   amount: null,
   cost: null,
   is_full: true,
+  is_reset_step: false,
+  is_lent: false,
+  lent_to: '',
   location_name: '',
   location_lat: null,
   location_lng: null,
@@ -268,6 +332,9 @@ const loadLogs = async () => {
     const params = {}
     if (filters.value.vehicle_id) {
       params.vehicle_id = filters.value.vehicle_id
+    }
+    if (filters.value.is_lent !== null && filters.value.is_lent !== undefined) {
+      params.is_lent = filters.value.is_lent
     }
 
     logger.debug('正在加载能耗记录，参数:', params)
@@ -369,7 +436,10 @@ const editLog = (log) => {
   logForm.value = {
     ...log,
     log_date: parseDate(log.log_date),
-    is_full: log.is_full === 1 || log.is_full === true
+    is_full: log.is_full === 1 || log.is_full === true,
+    is_reset_step: log.is_reset_step === 1 || log.is_reset_step === true,
+    is_lent: log.is_lent === 1 || log.is_lent === true,
+    lent_to: log.lent_to || ''
   }
   showDialog.value = true
 }
@@ -386,7 +456,10 @@ const saveLog = async () => {
     const data = {
       ...logForm.value,
       log_date: toUtcIsoString(logForm.value.log_date),
-      is_full: logForm.value.is_full ? 1 : 0
+      is_full: logForm.value.is_full ? 1 : 0,
+      is_reset_step: logForm.value.is_reset_step ? 1 : 0,
+      is_lent: logForm.value.is_lent ? 1 : 0,
+      lent_to: logForm.value.lent_to || null
     }
 
     let res

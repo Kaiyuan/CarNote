@@ -137,6 +137,9 @@ CREATE TABLE IF NOT EXISTS energy_logs (
     consumption_per_100km DECIMAL(10, 2), -- 百公里消耗 (自动计算)
     fuel_gauge_reading DECIMAL(5, 2), -- 油表/电表读数 (可选, 0-100)
     is_full BOOLEAN DEFAULT 0, -- 是否加满
+    is_reset_step BOOLEAN DEFAULT 0, -- 借出/漏记断点 (重置计算周期，不计算本次百公里油耗，加满后作为新起点)
+    is_lent BOOLEAN DEFAULT 0, -- 是否为借给他人使用期间产生
+    lent_to VARCHAR(50), -- 借给谁 (姓名或备注)
 
     location_name VARCHAR(255), -- 补能位置名称
 

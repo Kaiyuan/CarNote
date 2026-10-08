@@ -74,8 +74,8 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     if (!newVehicleId) continue;
 
                     await query(
-                        'INSERT INTO energy_logs (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, mileage_diff, consumption_per_100km, fuel_gauge_reading, is_full, location_name, location_lat, location_lng, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [newVehicleId, log.log_date, log.mileage, log.energy_type, log.amount, log.cost, log.unit_price, log.mileage_diff, log.consumption_per_100km, log.fuel_gauge_reading, log.is_full, log.location_name, log.location_lat, log.location_lng, log.notes]
+                        'INSERT INTO energy_logs (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, mileage_diff, consumption_per_100km, fuel_gauge_reading, is_full, is_reset_step, is_lent, lent_to, location_name, location_lat, location_lng, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [newVehicleId, log.log_date, log.mileage, log.energy_type, log.amount, log.cost, log.unit_price, log.mileage_diff, log.consumption_per_100km, log.fuel_gauge_reading, log.is_full ? 1 : 0, log.is_reset_step ? 1 : 0, log.is_lent ? 1 : 0, log.lent_to || null, log.location_name, log.location_lat, log.location_lng, log.notes]
                     );
                 }
             }
