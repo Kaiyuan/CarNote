@@ -383,6 +383,9 @@ async function migrateSQLite() {
         // 5. 将 SMTP 环境变量同步回数据库 (确保 UI 显示一致)
         await syncSmtpEnvToDb();
 
+        // 6. 确保可选模块表存在（VIP 模块等，使用 CREATE TABLE IF NOT EXISTS 安全创建）
+        await ensureOptionalTablesExist();
+
     } finally {
         await query("PRAGMA foreign_keys = ON");
     }
