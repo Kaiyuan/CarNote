@@ -452,4 +452,72 @@ CREATE TABLE IF NOT EXISTS attachments (
 
 CREATE INDEX IF NOT EXISTS idx_attachments_user_id ON attachments(user_id);
 
+-- 会员表 (系统核心扩展表，支持用户管理及会员状态)
+CREATE TABLE IF NOT EXISTS memberships (
+    user_id INTEGER PRIMARY KEY,
+    tier VARCHAR(20) DEFAULT 'ordinary',
+    expiry_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 会员审核订单表
+CREATE TABLE IF NOT EXISTS membership_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    order_id VARCHAR(100) NOT NULL,
+    tier VARCHAR(20) NOT NULL,
+    months INTEGER DEFAULT 12,
+    status VARCHAR(20) DEFAULT 'pending',
+    admin_note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 兑换码表
+CREATE TABLE IF NOT EXISTS redemption_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code VARCHAR(32) UNIQUE NOT NULL,
+    tier VARCHAR(20) NOT NULL,
+    months INTEGER NOT NULL,
+    max_uses INTEGER DEFAULT 1,
+    current_uses INTEGER DEFAULT 0,
+    valid_until TIMESTAMP,
+    notes TEXT,
+    created_by INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- 兑换记录表
+CREATE TABLE IF NOT EXISTS redemption_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (code_id) REFERENCES redemption_codes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(code_id, user_id)
+);
+
+-- 会员变更历史表
+CREATE TABLE IF NOT EXISTS membership_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    action_type VARCHAR(20) NOT NULL,
+    tier VARCHAR(20) NOT NULL,
+    months INTEGER,
+    source_id VARCHAR(100),
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_membership_orders_user_id ON membership_orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_redemption_codes_code ON redemption_codes(code);
+CREATE INDEX IF NOT EXISTS idx_redemption_logs_user_id ON redemption_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_membership_history_user_id ON membership_history(user_id);
+
 

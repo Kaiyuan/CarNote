@@ -77,6 +77,10 @@ async function autoMigrate() {
         } else if (DB_TYPE === 'postgresql') {
             await migratePostgreSQL();
         }
+
+        // 启动时检测所有数据表完整性并自动修复/创建缺失数据表
+        await checkAndEnsureAllTablesExist();
+
         console.log('数据库迁移检测完成');
     } catch (error) {
         console.error('数据库迁移过程中出现错误:', error);
@@ -383,9 +387,6 @@ async function migrateSQLite() {
         // 5. 将 SMTP 环境变量同步回数据库 (确保 UI 显示一致)
         await syncSmtpEnvToDb();
 
-        // 6. 确保可选模块表存在（VIP 模块等，使用 CREATE TABLE IF NOT EXISTS 安全创建）
-        await ensureOptionalTablesExist();
-
     } finally {
         await query("PRAGMA foreign_keys = ON");
     }
@@ -513,4 +514,450 @@ async function migratePostgreSQL() {
     await syncSmtpEnvToDb();
 }
 
-module.exports = { autoMigrate };
+/**
+ * 完整数据表结构定义列表 (共 22 张核心与扩展数据表)
+ */
+const allExpectedTables = [
+    {
+        name: 'users',
+        sql: `CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            email VARCHAR(100),
+            nickname VARCHAR(50),
+            avatar_url VARCHAR(255),
+            role VARCHAR(20) DEFAULT 'user',
+            is_disabled BOOLEAN DEFAULT 0,
+            failed_login_attempts INTEGER DEFAULT 0,
+            reset_password_token VARCHAR(100),
+            reset_password_expires TIMESTAMP,
+            verification_code VARCHAR(20),
+            verification_code_expires TIMESTAMP,
+            is_verified BOOLEAN DEFAULT 0,
+            email_last_sent_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`
+    },
+    {
+        name: 'system_settings',
+        sql: `CREATE TABLE IF NOT EXISTS system_settings (
+            key VARCHAR(50) PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`
+    },
+    {
+        name: 'user_settings',
+        sql: `CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY,
+            settings_json TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'vehicles',
+        sql: `CREATE TABLE IF NOT EXISTS vehicles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            plate_number VARCHAR(20) NOT NULL,
+            brand VARCHAR(50),
+            model VARCHAR(100),
+            year INTEGER,
+            current_mileage INTEGER DEFAULT 0,
+            is_default BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            purchase_date DATE,
+            name VARCHAR(100),
+            vin VARCHAR(50),
+            engine_displacement DECIMAL(4, 2),
+            fuel_type VARCHAR(20) DEFAULT 'gasoline',
+            battery_capacity DECIMAL(6, 2),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'api_keys',
+        sql: `CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            vehicle_id INTEGER,
+            key_name VARCHAR(50) NOT NULL,
+            key_value VARCHAR(64) UNIQUE NOT NULL,
+            permissions TEXT DEFAULT '["energy:write"]',
+            is_active BOOLEAN DEFAULT 1,
+            last_used_at TIMESTAMP,
+            expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'energy_logs',
+        sql: `CREATE TABLE IF NOT EXISTS energy_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_id INTEGER NOT NULL,
+            log_date TIMESTAMP NOT NULL,
+            energy_type VARCHAR(20) NOT NULL,
+            amount DECIMAL(8, 2) NOT NULL,
+            total_price DECIMAL(10, 2) NOT NULL,
+            unit_price DECIMAL(8, 2) NOT NULL,
+            current_mileage INTEGER NOT NULL,
+            driven_distance DECIMAL(8, 2),
+            fuel_consumption DECIMAL(5, 2),
+            is_full BOOLEAN DEFAULT 1,
+            is_reset_step BOOLEAN DEFAULT 0,
+            is_lent BOOLEAN DEFAULT 0,
+            lent_to VARCHAR(50),
+            oil_type VARCHAR(20),
+            notes TEXT,
+            location_name VARCHAR(255),
+            location_lat DECIMAL(10, 7),
+            location_lng DECIMAL(10, 7),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'maintenance_records',
+        sql: `CREATE TABLE IF NOT EXISTS maintenance_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_id INTEGER NOT NULL,
+            maintenance_date TIMESTAMP NOT NULL,
+            current_mileage INTEGER NOT NULL,
+            total_cost DECIMAL(10, 2) NOT NULL,
+            service_provider VARCHAR(100),
+            notes TEXT,
+            location_name VARCHAR(255),
+            location_lat DECIMAL(10, 7),
+            location_lng DECIMAL(10, 7),
+            next_maintenance_mileage INTEGER,
+            next_maintenance_date DATE,
+            status VARCHAR(20) DEFAULT 'completed',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'parts',
+        sql: `CREATE TABLE IF NOT EXISTS parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_id INTEGER NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            category VARCHAR(50),
+            brand VARCHAR(50),
+            model VARCHAR(50),
+            installed_mileage INTEGER,
+            installed_date DATE,
+            lifespan_mileage INTEGER,
+            lifespan_months INTEGER,
+            status VARCHAR(20) DEFAULT 'normal',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'part_replacements',
+        sql: `CREATE TABLE IF NOT EXISTS part_replacements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            part_id INTEGER NOT NULL,
+            maintenance_id INTEGER,
+            replacement_date DATE NOT NULL,
+            mileage INTEGER NOT NULL,
+            cost DECIMAL(10, 2) DEFAULT 0,
+            reason TEXT,
+            notes TEXT,
+            location_name VARCHAR(255),
+            location_lat DECIMAL(10, 7),
+            location_lng DECIMAL(10, 7),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE,
+            FOREIGN KEY (maintenance_id) REFERENCES maintenance_records(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'login_logs',
+        sql: `CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            ip_address VARCHAR(45),
+            user_agent TEXT,
+            status VARCHAR(20) NOT NULL,
+            reason VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'audit_logs',
+        sql: `CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action VARCHAR(50) NOT NULL,
+            ip_address VARCHAR(45),
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'shared_locations',
+        sql: `CREATE TABLE IF NOT EXISTS shared_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(255) NOT NULL,
+            address VARCHAR(255),
+            latitude DECIMAL(10, 7) NOT NULL,
+            longitude DECIMAL(10, 7) NOT NULL,
+            category VARCHAR(50),
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'announcements',
+        sql: `CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title VARCHAR(200) NOT NULL,
+            content TEXT NOT NULL,
+            type VARCHAR(20) DEFAULT 'info',
+            priority VARCHAR(20) DEFAULT 'normal',
+            is_active BOOLEAN DEFAULT 1,
+            start_time TIMESTAMP,
+            end_time TIMESTAMP,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'tickets',
+        sql: `CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title VARCHAR(200) NOT NULL,
+            description TEXT NOT NULL,
+            category VARCHAR(50) DEFAULT 'general',
+            status VARCHAR(20) DEFAULT 'open',
+            priority VARCHAR(20) DEFAULT 'normal',
+            assigned_to INTEGER,
+            reply TEXT,
+            replied_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'insurances',
+        sql: `CREATE TABLE IF NOT EXISTS insurances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            vehicle_id INTEGER,
+            policy_number VARCHAR(100),
+            insurance_company VARCHAR(100),
+            start_date DATE,
+            end_date DATE,
+            premium DECIMAL(10, 2),
+            type VARCHAR(50),
+            policy_image_url VARCHAR(255),
+            ocr_content TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'insurance_claims',
+        sql: `CREATE TABLE IF NOT EXISTS insurance_claims (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            insurance_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            claim_date DATE NOT NULL,
+            description TEXT,
+            claim_amount DECIMAL(10, 2),
+            status VARCHAR(50) DEFAULT 'processing',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (insurance_id) REFERENCES insurances(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'attachments',
+        sql: `CREATE TABLE IF NOT EXISTS attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            original_name VARCHAR(255),
+            stored_name VARCHAR(255),
+            mime_type VARCHAR(100),
+            size INTEGER,
+            url VARCHAR(255),
+            project_type VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )`
+    },
+    {
+        name: 'memberships',
+        sql: `CREATE TABLE IF NOT EXISTS memberships (
+            user_id INTEGER PRIMARY KEY,
+            tier VARCHAR(20) DEFAULT 'ordinary',
+            expiry_date TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'membership_orders',
+        sql: `CREATE TABLE IF NOT EXISTS membership_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            order_id VARCHAR(100) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            months INTEGER DEFAULT 12,
+            status VARCHAR(20) DEFAULT 'pending',
+            admin_note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    },
+    {
+        name: 'redemption_codes',
+        sql: `CREATE TABLE IF NOT EXISTS redemption_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(32) UNIQUE NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            months INTEGER NOT NULL,
+            max_uses INTEGER DEFAULT 1,
+            current_uses INTEGER DEFAULT 0,
+            valid_until TIMESTAMP,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        )`
+    },
+    {
+        name: 'redemption_logs',
+        sql: `CREATE TABLE IF NOT EXISTS redemption_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (code_id) REFERENCES redemption_codes(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(code_id, user_id)
+        )`
+    },
+    {
+        name: 'membership_history',
+        sql: `CREATE TABLE IF NOT EXISTS membership_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            action_type VARCHAR(20) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            months INTEGER,
+            source_id VARCHAR(100),
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+    }
+];
+
+function formatSqlForDb(sql, dbType) {
+    if (dbType === 'postgresql') {
+        return sql
+            .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY')
+            .replace(/BOOLEAN DEFAULT 0/gi, 'BOOLEAN DEFAULT FALSE')
+            .replace(/BOOLEAN DEFAULT 1/gi, 'BOOLEAN DEFAULT TRUE');
+    }
+    return sql;
+}
+
+/**
+ * 启动时检测所有数据表是否完整，缺失时自动补齐创建并详细记录日志
+ */
+async function checkAndEnsureAllTablesExist() {
+    const DB_TYPE = process.env.DB_TYPE || 'sqlite';
+    console.log('[数据表检测] 正在检查数据库表结构完整性...');
+
+    let healthyCount = 0;
+    let createdCount = 0;
+    let failedCount = 0;
+
+    for (const table of allExpectedTables) {
+        try {
+            let exists = false;
+            if (DB_TYPE === 'sqlite') {
+                const res = await get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table.name]);
+                exists = !!res;
+            } else {
+                const res = await query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?", [table.name]);
+                exists = res && res.length > 0;
+            }
+
+            if (exists) {
+                healthyCount++;
+                console.log(`[数据表检测] 数据表 [${table.name}] 状态正常 ✓`);
+            } else {
+                console.warn(`[数据表检测] ⚠️ 检测到缺失数据表: [${table.name}]，正在自动创建...`);
+                const formattedSql = formatSqlForDb(table.sql, DB_TYPE);
+                await query(formattedSql);
+                createdCount++;
+                console.log(`[数据表检测] ✅ 数据表 [${table.name}] 已成功自动创建`);
+            }
+        } catch (err) {
+            failedCount++;
+            console.error(`[数据表检测] ❌ 检查或创建数据表 [${table.name}] 失败:`, err.message);
+        }
+    }
+
+    // 检查并确保必要的索引存在
+    try {
+        const indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_energy_logs_date ON energy_logs(log_date)",
+            "CREATE INDEX IF NOT EXISTS idx_maintenance_vehicle_id ON maintenance_records(vehicle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_parts_vehicle_id ON parts(vehicle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_api_keys_key_value ON api_keys(key_value)",
+            "CREATE INDEX IF NOT EXISTS idx_insurances_user_id ON insurances(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_insurances_vehicle_id ON insurances(vehicle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_insurance_claims_insurance_id ON insurance_claims(insurance_id)",
+            "CREATE INDEX IF NOT EXISTS idx_attachments_user_id ON attachments(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_membership_orders_user_id ON membership_orders(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_redemption_codes_code ON redemption_codes(code)",
+            "CREATE INDEX IF NOT EXISTS idx_redemption_logs_user_id ON redemption_logs(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_membership_history_user_id ON membership_history(user_id)"
+        ];
+        for (const idxSql of indexes) {
+            await query(idxSql).catch(() => {});
+        }
+    } catch (e) {
+        // 忽略索引创建可能产生的非致命提示
+    }
+
+    console.log(`[数据表检测] 数据库表结构完整性检测完毕：共检测 ${allExpectedTables.length} 张表，正常 ${healthyCount} 张，自动补齐创建 ${createdCount} 张${failedCount > 0 ? `，失败 ${failedCount} 张` : ''}。`);
+}
+
+const ensureOptionalTablesExist = checkAndEnsureAllTablesExist;
+
+module.exports = { autoMigrate, checkAndEnsureAllTablesExist, ensureOptionalTablesExist };

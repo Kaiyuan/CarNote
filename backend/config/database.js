@@ -167,8 +167,8 @@ function query(sql, params = []) {
 
         const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
         if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
-            // 排除没有 id 列的表 (memberships 使用 user_id 作为主键)
-            if (!pgSql.includes('system_settings') && !pgSql.includes('memberships')) {
+            // 排除没有 id 列的表 (memberships 与 user_settings 使用 user_id 作为主键，system_settings 使用 key)
+            if (!pgSql.includes('system_settings') && !pgSql.includes('memberships') && !pgSql.includes('user_settings')) {
                 pgSql += ' RETURNING id';
             }
         }
