@@ -260,7 +260,7 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
  * 查询参数: vehicle_id, energy_type, start_date, end_date, limit, offset
  */
 router.get('/', authenticateUser, asyncHandler(async (req, res) => {
-    const { vehicle_id, energy_type, start_date, end_date, is_lent, limit = 50, offset = 0 } = req.query;
+    const { vehicle_id, energy_type, start_date, end_date, is_lent, page, limit, offset } = req.query;
 
     let sql = `SELECT e.*, v.plate_number, v.brand, v.model 
                FROM energy_logs e 
@@ -296,8 +296,16 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
         params.push(end_date);
     }
 
-    sql += ' ORDER BY e.log_date DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    sql += ' ORDER BY e.log_date DESC';
+
+    // 只有在明确传入正整数 limit 时才启用数据库分页截断；未传 limit 时默认展示全部数据
+    const hasLimit = limit !== undefined && limit !== null && limit !== '' && limit !== 'all' && parseInt(limit) > 0;
+    if (hasLimit) {
+        const lim = parseInt(limit);
+        const off = offset !== undefined && offset !== '' ? parseInt(offset) : (page ? (parseInt(page) - 1) * lim : 0);
+        sql += ' LIMIT ? OFFSET ?';
+        params.push(lim, Math.max(0, off));
+    }
 
     const logs = await query(sql, params);
 
@@ -330,15 +338,16 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
     }
 
     const countResult = await get(countSql, countParams);
+    const totalCount = countResult ? countResult.total : logs.length;
 
     res.json({
         success: true,
         data: {
             logs,
             pagination: {
-                total: countResult.total,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
+                total: totalCount,
+                limit: hasLimit ? parseInt(limit) : totalCount,
+                offset: hasLimit ? (offset !== undefined && offset !== '' ? parseInt(offset) : (page ? (parseInt(page) - 1) * parseInt(limit) : 0)) : 0
             }
         }
     });

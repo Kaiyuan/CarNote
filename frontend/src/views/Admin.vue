@@ -233,7 +233,9 @@
                         </DataTable>
                     </TabPanel>
                     <TabPanel header="能耗记录">
-                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10"
+                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50, 100, 200]"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                            currentPageReportTemplate="显示第 {first} 到 {last} 条，共 {totalRecords} 条记录"
                             responsiveLayout="stack" breakpoint="960px" class="responsive-table">
                             <Column field="owner_name" header="用户" sortable></Column>
                             <Column field="plate_number" header="车辆" sortable></Column>

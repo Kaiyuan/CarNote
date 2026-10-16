@@ -33,7 +33,9 @@
     </div>
 
     <!-- 桌面端列表 -->
-    <DataTable :value="logs" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
+    <DataTable :value="logs" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50, 100, 200]"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      currentPageReportTemplate="显示第 {first} 到 {last} 条，共 {totalRecords} 条记录"
       responsiveLayout="scroll" class="hidden md:block">
       <Column field="log_date" header="日期" sortable>
         <template #body="slotProps">
@@ -90,7 +92,10 @@
     </DataTable>
 
     <!-- 移动端列表 (卡片视图) -->
-    <DataView :value="logs" :paginator="true" :rows="10" class="block md:hidden">
+    <DataView :value="logs" :paginator="true" :rows="10" :rowsPerPageOptions="[10, 20, 50, 100]"
+      paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+      currentPageReportTemplate="{first}-{last} / 共{totalRecords}条"
+      class="block md:hidden">
       <template #list="slotProps">
         <div class="grid grid-nogutter">
           <div v-for="(item, index) in slotProps.items" :key="index" class="col-12">

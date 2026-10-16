@@ -216,7 +216,11 @@ router.get('/energy', asyncHandler(async (req, res) => {
         sql += ' AND v.id = ?';
         params.push(vehicle_id);
     }
-    sql += ' ORDER BY e.log_date DESC LIMIT 1000';
+    sql += ' ORDER BY e.log_date DESC';
+    if (req.query.limit && req.query.limit !== 'all' && parseInt(req.query.limit) > 0) {
+        sql += ' LIMIT ? OFFSET ?';
+        params.push(parseInt(req.query.limit), parseInt(req.query.offset || 0));
+    }
     const logs = await query(sql, params);
     res.json({ success: true, data: logs });
 }));
