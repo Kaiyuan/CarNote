@@ -453,7 +453,7 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
             COUNT(*) as record_count
          FROM energy_logs
          WHERE vehicle_id = ? AND log_date >= NOW() - INTERVAL '${months} months'
-         GROUP BY month
+         GROUP BY TO_CHAR(log_date, 'YYYY-MM')
          ORDER BY month ASC`;
     } else {
         sql = `SELECT 

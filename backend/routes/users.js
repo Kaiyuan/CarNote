@@ -73,7 +73,7 @@ router.post('/register', asyncHandler(async (req, res) => {
     const isVerificationRequired = verificationSetting?.value === 'true';
 
     // 只有在满足三个条件时才进行验证：1. 不是第一个用户 2. SMTP 已配置 3. 后台开启了验证
-    const isVerified = (isFirstUser || !smtpReady || !isVerificationRequired) ? 1 : 0;
+    const isVerified = Boolean(isFirstUser || !smtpReady || !isVerificationRequired);
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 
@@ -221,7 +221,7 @@ router.post('/login', asyncHandler(async (req, res) => {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     if (!user) {
-        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 0]);
+        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, false]);
         return res.status(401).json({
             success: false,
             message: '用户名或密码错误'
@@ -233,7 +233,7 @@ router.post('/login', asyncHandler(async (req, res) => {
     }
 
     // 检查是否验证 (管理员免验证)
-    if (user.is_verified === 0 && user.role !== 'admin') {
+    if (!user.is_verified && user.role !== 'admin') {
         return res.status(401).json({
             success: false,
             message: '账号未验证，请完成邮箱验证',
@@ -249,7 +249,7 @@ router.post('/login', asyncHandler(async (req, res) => {
         // 增加失败次数
         const newAttempts = (user.failed_login_attempts || 0) + 1;
         await query('UPDATE users SET failed_login_attempts = ? WHERE id = ?', [newAttempts, user.id]);
-        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 0]);
+        await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, false]);
 
         let message = '用户名或密码错误';
         let showReset = false;
@@ -267,7 +267,7 @@ router.post('/login', asyncHandler(async (req, res) => {
 
     // 登录成功，重置失败计数
     await query('UPDATE users SET failed_login_attempts = 0 WHERE id = ?', [user.id]);
-    await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, 1]);
+    await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, true]);
 
     // 返回用户信息
     res.json({

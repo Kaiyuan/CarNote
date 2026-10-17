@@ -154,7 +154,7 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
           location_name, location_lat, location_lng, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [vehicle_id, log_date, mileage, energy_type, amount, cost || 0, unit_price || 0,
-            fuel_gauge_reading || 0, is_full ? 1 : 0, is_reset_step ? 1 : 0, is_lent ? 1 : 0, lent_to || null,
+            fuel_gauge_reading || 0, Boolean(is_full), Boolean(is_reset_step), Boolean(is_lent), lent_to || null,
             location_name, location_lat, location_lng, notes]
     );
 
@@ -230,7 +230,7 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
          (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, is_full,
           location_name, location_lat, location_lng)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, is_full ? 1 : 0,
+        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, Boolean(is_full),
             location_name, location_lat, location_lng]
     );
 
@@ -436,7 +436,7 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [log_date, mileage, energy_type, amount, cost, unit_price, fuel_gauge_reading,
-            is_full ? 1 : 0, is_reset_step ? 1 : 0, is_lent ? 1 : 0, lent_to || null,
+            Boolean(is_full), Boolean(is_reset_step), Boolean(is_lent), lent_to || null,
             location_name, location_lat, location_lng, notes, req.params.id]
     );
 

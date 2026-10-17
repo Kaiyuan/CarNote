@@ -128,8 +128,12 @@ const { normalizeRowTimestamps } = require('../utils/date');
  * @returns {Promise} 查询结果
  */
 function query(sql, params = []) {
-    // 确保任何传入的 Date 对象均以标准国际时间 (UTC ISO) 传入数据库
-    const processedParams = (params || []).map(p => (p instanceof Date ? p.toISOString() : p));
+    // 确保任何传入的 Date 对象均以标准国际时间 (UTC ISO) 传入数据库，SQLite 将 boolean 映射为 1/0
+    const processedParams = (params || []).map(p => {
+        if (p instanceof Date) return p.toISOString();
+        if (DB_TYPE === 'sqlite' && typeof p === 'boolean') return p ? 1 : 0;
+        return p;
+    });
 
     if (DB_TYPE === 'sqlite') {
         return new Promise((resolve, reject) => {
@@ -166,13 +170,13 @@ function query(sql, params = []) {
         pgSql = pgSql.replace(/\s+LIKE\s+/gi, ' ILIKE ');
 
         // 兼容性修正：PostgreSQL 布尔字段不支持直接与整数 0/1 进行 = 比较 (如 is_lent = 1, is_active = 1 等)
-        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active)\s*=\s*1\b/gi, '$1 = TRUE');
-        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active)\s*=\s*0\b/gi, '$1 = FALSE');
+        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active|is_pinned|success)\s*=\s*1\b/gi, '$1 = TRUE');
+        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active|is_pinned|success)\s*=\s*0\b/gi, '$1 = FALSE');
 
         const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
         if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
-            // 排除没有 id 列的表 (memberships 与 user_settings 使用 user_id 作为主键，system_settings 使用 key)
-            if (!pgSql.includes('system_settings') && !pgSql.includes('memberships') && !pgSql.includes('user_settings')) {
+            // 排除没有 id 列的表 (memberships 使用 user_id 作为主键，system_settings 使用 key 作为主键)
+            if (!pgSql.includes('system_settings') && !pgSql.includes('memberships')) {
                 pgSql += ' RETURNING id';
             }
         }

@@ -60,7 +60,7 @@ router.post('/announcements', authenticateUser, asyncHandler(async (req, res) =>
     const result = await query(
         `INSERT INTO announcements (title, content, type, created_by, is_pinned) 
          VALUES (?, ?, ?, ?, ?)`,
-        [title, content, type || 'info', req.userId, is_pinned ? 1 : 0]
+        [title, content, type || 'info', req.userId, Boolean(is_pinned)]
     );
 
     res.status(201).json({
@@ -86,7 +86,7 @@ router.put('/announcements/:id', authenticateUser, asyncHandler(async (req, res)
         `UPDATE announcements 
          SET title = ?, content = ?, type = ?, is_pinned = ?, updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-        [title, content, type, is_pinned ? 1 : 0, req.params.id]
+        [title, content, type, Boolean(is_pinned), req.params.id]
     );
 
     res.json({ success: true, message: '公告更新成功' });
