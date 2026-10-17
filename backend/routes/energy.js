@@ -282,8 +282,8 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
 
     // 借出状态过滤
     if (is_lent !== undefined && is_lent !== '') {
-        sql += ' AND e.is_lent = ?';
-        params.push(is_lent === 'true' || is_lent === '1' ? 1 : 0);
+        const isLent = is_lent === 'true' || is_lent === '1';
+        sql += isLent ? ' AND e.is_lent = TRUE' : ' AND (e.is_lent = FALSE OR e.is_lent IS NULL)';
     }
 
     // 日期范围过滤
@@ -325,8 +325,8 @@ router.get('/', authenticateUser, asyncHandler(async (req, res) => {
         countParams.push(energy_type);
     }
     if (is_lent !== undefined && is_lent !== '') {
-        countSql += ' AND e.is_lent = ?';
-        countParams.push(is_lent === 'true' || is_lent === '1' ? 1 : 0);
+        const isLent = is_lent === 'true' || is_lent === '1';
+        countSql += isLent ? ' AND e.is_lent = TRUE' : ' AND (e.is_lent = FALSE OR e.is_lent IS NULL)';
     }
     if (start_date) {
         countSql += ' AND e.log_date >= ?';

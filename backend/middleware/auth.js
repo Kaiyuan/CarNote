@@ -23,7 +23,7 @@ async function authenticateApiKey(req, res, next) {
 
         // 查询 API Key
         const keyRecord = await get(
-            'SELECT * FROM api_keys WHERE key_value = ? AND is_active = 1',
+            'SELECT * FROM api_keys WHERE key_value = ? AND is_active = TRUE',
             [apiKey]
         );
 

@@ -165,6 +165,10 @@ function query(sql, params = []) {
         // 兼容性修正：PostgreSQL LIKE 是区分大小写的，这里统一转为 ILIKE 以匹配 SQLite 行为
         pgSql = pgSql.replace(/\s+LIKE\s+/gi, ' ILIKE ');
 
+        // 兼容性修正：PostgreSQL 布尔字段不支持直接与整数 0/1 进行 = 比较 (如 is_lent = 1, is_active = 1 等)
+        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active)\s*=\s*1\b/gi, '$1 = TRUE');
+        pgSql = pgSql.replace(/\b(is_lent|is_reset_step|is_full|is_verified|is_disabled|is_default|is_active)\s*=\s*0\b/gi, '$1 = FALSE');
+
         const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
         if (isInsert && !pgSql.toUpperCase().includes('RETURNING')) {
             // 排除没有 id 列的表 (memberships 与 user_settings 使用 user_id 作为主键，system_settings 使用 key)

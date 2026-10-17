@@ -90,7 +90,7 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
     const params = [vehicleId];
 
     if (exclude_lent === 'true' || exclude_lent === '1') {
-        sql += ' AND (is_lent = 0 OR is_lent IS NULL)';
+        sql += ' AND (is_lent = FALSE OR is_lent IS NULL)';
     }
 
     if (start_date) {
@@ -304,7 +304,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
     const maintDateFilter = start_date ? ` AND maintenance_date >= '${start_date}'` : '';
     const partDateFilter = start_date ? ` AND replacement_date >= '${start_date}'` : '';
     const insuranceDateFilter = start_date ? ` AND start_date >= '${start_date}'` : '';
-    const lentFilter = (exclude_lent === 'true' || exclude_lent === '1') ? ' AND (is_lent = 0 OR is_lent IS NULL)' : '';
+    const lentFilter = (exclude_lent === 'true' || exclude_lent === '1') ? ' AND (is_lent = FALSE OR is_lent IS NULL)' : '';
 
     // 能耗统计
     const energyStats = await get(
@@ -328,7 +328,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             COALESCE(SUM(amount), 0) as total_amount,
             COALESCE(SUM(cost), 0) as total_cost
          FROM energy_logs
-         WHERE vehicle_id = ? AND is_lent = 1${dateFilter}`,
+         WHERE vehicle_id = ? AND is_lent = TRUE${dateFilter}`,
         [vehicleId]
     );
 
