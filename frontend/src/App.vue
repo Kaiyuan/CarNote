@@ -94,7 +94,7 @@ const route = useRoute()
 const currentUser = ref(null)
 const mobileMenuVisible = ref(false)
 const siteStore = useSiteStore()
-const appVersion = ref(__APP_VERSION__ || '1.3.4')
+const appVersion = ref(__APP_VERSION__ || '1.3.5')
 
 const menuItems = computed(() => {
   const items = [
