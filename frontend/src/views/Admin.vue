@@ -134,7 +134,10 @@
                     </div>
                 </div>
                 <DataTable :value="filteredUsers" :loading="loading" stripedRows responsiveLayout="stack"
-                    breakpoint="960px" class="responsive-table">
+                    breakpoint="960px" class="responsive-table"
+                    paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                    currentPageReportTemplate="共 {totalRecords} 位用户，当前第 {first}-{last} 条">
                     <Column field="id" header="ID" sortable style="width: 50px"></Column>
                     <Column field="username" header="用户名" sortable></Column>
                     <Column field="nickname" header="昵称" sortable></Column>
@@ -374,6 +377,47 @@
                 </DataTable>
             </TabPanel>
 
+            <!-- 5. 地点管理 -->
+            <TabPanel header="地点管理">
+                <div class="mb-3 flex justify-content-between align-items-center">
+                    <h2 class="m-0">油站 / 维修点管理</h2>
+                    <div class="flex gap-2">
+                        <Dropdown v-model="locationTypeFilter"
+                            :options="[{label:'全部', value:null},{label:'油站', value:'station'},{label:'维修点', value:'shop'}]"
+                            optionLabel="label" optionValue="value" placeholder="筛选类型" class="w-10rem" />
+                        <Button icon="pi pi-refresh" rounded text @click="loadAdminLocations" />
+                    </div>
+                </div>
+                <DataTable :value="filteredLocations" :loading="loading" stripedRows paginator :rows="20"
+                    :rowsPerPageOptions="[10, 20, 50]"
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                    currentPageReportTemplate="共 {totalRecords} 条，第 {first}-{last} 条"
+                    responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+                    <Column field="id" header="ID" sortable style="width:60px"></Column>
+                    <Column field="name" header="名称" sortable></Column>
+                    <Column field="type" header="类型" sortable>
+                        <template #body="slotProps">
+                            <Tag
+                                :value="slotProps.data.type === 'station' ? '油站' : slotProps.data.type === 'shop' ? '维修点' : slotProps.data.type"
+                                :severity="slotProps.data.type === 'station' ? 'info' : 'warning'" />
+                        </template>
+                    </Column>
+                    <Column field="address" header="地址" sortable></Column>
+                    <Column field="latitude" header="纬度" sortable></Column>
+                    <Column field="longitude" header="经度" sortable></Column>
+                    <Column field="usage_count" header="使用次数" sortable></Column>
+                    <Column header="操作" style="width:100px">
+                        <template #body="slotProps">
+                            <div class="flex gap-2">
+                                <Button icon="pi pi-pencil" rounded text @click="editLocation(slotProps.data)" />
+                                <Button icon="pi pi-trash" rounded text severity="danger"
+                                    @click="deleteLocation(slotProps.data.id)" />
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
+            </TabPanel>
+
             <!-- 6. 会员审核 (VIP ONLY) -->
             <TabPanel header="会员审核" v-if="siteStore.state.hasVip">
                 <component :is="'VipMembershipAudit'" />
@@ -437,6 +481,10 @@
             <div class="field mb-3">
                 <label>类型</label>
                 <Dropdown v-model="locationForm.type" :options="['station', 'shop']" class="w-full" />
+            </div>
+            <div class="field mb-3">
+                <label>地址</label>
+                <InputText v-model="locationForm.address" class="w-full" />
             </div>
             <div class="field mb-3">
                 <label>纬度</label>
@@ -724,6 +772,11 @@ const adminLocations = ref([])
 // 站点表单
 const locationDialog = ref(false)
 const locationForm = ref({})
+const locationTypeFilter = ref(null)
+const filteredLocations = computed(() => {
+    if (!locationTypeFilter.value) return adminLocations.value
+    return adminLocations.value.filter(l => l.type === locationTypeFilter.value)
+})
 
 // 用户表单
 const userDialog = ref(false)
@@ -1054,6 +1107,7 @@ watch(activeTab, (idx) => {
     if (idx === 2) loadMgmtRecords()
     if (idx === 3) loadAttachments()
     if (idx === 4) loadLogs()
+    if (idx === 5) loadAdminLocations()
 })
 
 const formatDate = fmtDate
