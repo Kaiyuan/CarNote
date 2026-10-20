@@ -3,23 +3,54 @@
 -->
 
 <template>
-  <div class="flex align-items-center justify-content-center min-h-screen">
-    <Card style="width: 450px" class="shadow-4">
-      <template #header>
-        <div class="text-center pt-4">
-          <div
-            class="flex align-items-center justify-content-center border-circle bg-primary overflow-hidden mx-auto mb-3"
-            style="width: 4rem; height: 4rem">
-            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
-              style="width: 100%; height: 100%; object-fit: cover;" />
-            <i v-else class="pi pi-car text-3xl"></i>
-          </div>
-          <h2 class="mt-2 mb-0">{{ siteStore.state.siteName }}</h2>
-          <p class="text-600">车辆记录管理系统</p>
+  <div class="login-page">
+    <!-- 品牌介绍 -->
+    <aside class="login-brand-panel hidden lg:flex">
+      <div class="login-brand-content">
+        <div class="login-brand-mark">
+          <span class="login-brand-mark-icon">
+            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon" alt="logo" />
+            <i v-else class="pi pi-car"></i>
+          </span>
+          <span>{{ siteStore.state.siteName }}</span>
         </div>
-      </template>
 
-      <template #content>
+        <h1 class="login-headline">
+          记录每一次出行，<br />
+          <span>让用车更从容。</span>
+        </h1>
+        <p class="login-description">
+          油耗电耗、保养维修、配件与车险，集中在一个清晰的仪表盘中。数据属于你，随时可导出。
+        </p>
+
+        <div class="login-features">
+          <div class="login-feature"><i class="pi pi-bolt"></i> 能耗趋势追踪</div>
+          <div class="login-feature"><i class="pi pi-wrench"></i> 保养到期提醒</div>
+          <div class="login-feature"><i class="pi pi-chart-bar"></i> 费用结构分析</div>
+          <div class="login-feature"><i class="pi pi-shield"></i> 私有数据管理</div>
+        </div>
+      </div>
+
+      <div class="login-brand-footer">
+        &copy; {{ new Date().getFullYear() }} {{ siteStore.state.siteName }} · 安全、轻量的车辆记录系统
+      </div>
+    </aside>
+
+    <!-- 表单区域 -->
+    <main class="login-form-panel">
+      <Card class="login-card">
+        <template #header>
+          <div class="login-card-header">
+            <div class="login-logo">
+              <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon" alt="logo" />
+              <i v-else class="pi pi-car text-xl"></i>
+            </div>
+            <h2 class="login-card-title">{{ siteStore.state.siteName }}</h2>
+            <p class="login-card-subtitle">车辆记录管理系统</p>
+          </div>
+        </template>
+
+        <template #content>
         <!-- 验证码输入（注册后或登录未验证时） -->
         <div v-if="showVerification">
           <div class="text-center mb-4">
@@ -197,8 +228,9 @@
             </div>
           </div>
         </div>
-      </template>
-    </Card>
+        </template>
+      </Card>
+    </main>
 
     <!-- 忘记密码对话框 -->
     <Dialog :visible="showForgotDialog" @update:visible="showForgotDialog = $event" header="重置密码" :modal="true"

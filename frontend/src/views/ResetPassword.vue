@@ -1,11 +1,13 @@
 <template>
-    <div class="flex align-items-center justify-content-center min-h-screen">
-        <Card style="width: 450px" class="shadow-4">
+    <div class="login-form-panel" style="min-height: 100vh">
+        <Card class="login-card">
             <template #header>
-                <div class="text-center pt-4">
-                    <i class="pi pi-key" style="font-size: 3rem; color: var(--primary-color)"></i>
-                    <h2 class="mt-2 mb-0">重置密码</h2>
-                    <p class="text-600">设置您的新密码</p>
+                <div class="login-card-header">
+                    <div class="login-logo">
+                        <i class="pi pi-key text-xl"></i>
+                    </div>
+                    <h2 class="login-card-title">重置密码</h2>
+                    <p class="login-card-subtitle">设置一个安全的新密码</p>
                 </div>
             </template>
 

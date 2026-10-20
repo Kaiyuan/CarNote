@@ -1,123 +1,151 @@
 <template>
-    <div class="layout-topbar hidden md:flex justify-content-between align-items-center px-4 py-3 bg-transparent">
-        <!-- Breadcrumb / Title area -->
-        <div class="flex align-items-center">
-            <h2 class="m-0 text-900 font-semibold hidden md:block">{{ siteStore.state.siteName }}</h2>
+    <header class="layout-topbar hidden md:flex">
+        <div class="topbar-context">
+            <span class="topbar-brand">CarNote</span>
+            <i class="pi pi-angle-right topbar-separator"></i>
+            <span class="topbar-page">{{ currentTitle }}</span>
         </div>
 
-        <!-- Actions -->
-        <div class="flex align-items-center gap-3">
+        <div class="topbar-actions">
             <!-- VIP 会员状态 (由 VIP 模块注入) -->
             <component :is="'VipMembershipBadge'" v-if="siteStore.state.hasVip" />
 
-            <!-- Search Bar (Visual only for now) -->
-            <span class="p-input-icon-left hidden md:block">
-                <i class="pi pi-search text-500" />
-                <InputText placeholder="Search" class="border-round-2xl surface-100 border-none w-15rem" />
-            </span>
+            <div class="topbar-search">
+                <i class="pi pi-search"></i>
+                <InputText v-model="searchText" placeholder="搜索车辆、记录..." />
+                <span class="topbar-search-hint">⌘K</span>
+            </div>
 
-            <!-- Notifications Bell -->
             <div class="relative">
-                <Button icon="pi pi-bell" text rounded class="text-500" @click="toggleNotifications"
-                    :badge="notificationCount > 0 ? notificationCount.toString() : null" badgeSeverity="danger" />
+                <Button icon="pi pi-bell" text rounded class="topbar-icon-button" @click="toggleNotifications"
+                    aria-label="通知" />
+
+                <span v-if="notificationCount > 0" class="topbar-badge">{{ notificationCount > 9 ? '9+' :
+                    notificationCount }}</span>
 
                 <!-- Notification Panel -->
-                <div v-if="showNotifications" class="notification-panel surface-0 shadow-4 border-round p-3"
-                    @click.stop>
-                    <div class="flex justify-content-between align-items-center mb-3">
-                        <h3 class="m-0 text-lg font-semibold">通知</h3>
+                <div v-if="showNotifications" class="notification-panel" @click.stop>
+                    <div class="notification-header">
+                        <div>
+                            <h3>通知</h3>
+                            <p>{{ notificationCount }} 条待处理消息</p>
+                        </div>
                         <Button icon="pi pi-times" text rounded size="small" @click="showNotifications = false" />
                     </div>
 
-                    <div v-if="loading" class="text-center p-3">
-                        <ProgressSpinner style="width: 40px; height: 40px" />
+                    <div v-if="loading" class="text-center p-4">
+                        <ProgressSpinner style="width: 36px; height: 36px" />
                     </div>
 
                     <div v-else-if="!notifications || (!notifications.maintenanceReminders?.length && !notifications.partsReminders?.length && !notifications.announcements?.length)"
-                        class="text-center text-500 p-4">
-                        <i class="pi pi-inbox text-4xl mb-2"></i>
-                        <p>暂无新通知</p>
+                        class="notification-empty">
+                        <i class="pi pi-inbox"></i>
+                        <span>暂无新通知</span>
                     </div>
 
-                    <div v-else class="notification-list" style="max-height: 400px; overflow-y: auto">
-                        <!-- Announcements -->
-                        <div v-if="notifications.announcements?.length > 0" class="mb-3">
-                            <small class="text-600 font-semibold">系统公告</small>
+                    <div v-else class="notification-list">
+                        <div v-if="notifications.announcements?.length > 0" class="notification-group">
+                            <small class="notification-group-title">系统公告</small>
                             <div v-for="announcement in notifications.announcements" :key="'ann-' + announcement.id"
-                                class="notification-item p-2 border-round mt-2 cursor-pointer hover:surface-100"
-                                @click="viewAnnouncement(announcement)">
-                                <div class="flex align-items-start gap-2">
-                                    <i class="pi pi-megaphone text-blue-500 mt-1"></i>
-                                    <div class="flex-1">
-                                        <div class="font-semibold">{{ announcement.title }}</div>
-                                        <small class="text-600">{{ formatDate(announcement.created_at) }}</small>
-                                    </div>
+                                class="notification-item" @click="viewAnnouncement(announcement)">
+                                <span class="notification-item-icon info"><i class="pi pi-megaphone"></i></span>
+                                <div class="notification-item-body">
+                                    <div class="notification-item-title">{{ announcement.title }}</div>
+                                    <small>{{ formatDate(announcement.created_at) }}</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Maintenance Reminders -->
-                        <div v-if="notifications.maintenanceReminders?.length > 0" class="mb-3">
-                            <small class="text-600 font-semibold">保养提醒</small>
+                        <div v-if="notifications.maintenanceReminders?.length > 0" class="notification-group">
+                            <small class="notification-group-title">保养提醒</small>
                             <div v-for="reminder in notifications.maintenanceReminders" :key="'maint-' + reminder.id"
-                                class="notification-item p-2 border-round mt-2 surface-50 cursor-pointer hover:surface-100"
-                                @click="goToRemind('/maintenance', reminder.vehicle_id)">
-                                <div class="flex align-items-start gap-2">
-                                    <i class="pi pi-wrench text-orange-500 mt-1"></i>
-                                    <div class="flex-1">
-                                        <div>{{ reminder.plate_number }} 即将到达保养里程</div>
-                                        <small class="text-600">还剩 {{ reminder.next_maintenance_mileage -
-                                            reminder.current_mileage }} 公里</small>
-                                    </div>
+                                class="notification-item" @click="goToRemind('/maintenance', reminder.vehicle_id)">
+                                <span class="notification-item-icon warning"><i class="pi pi-wrench"></i></span>
+                                <div class="notification-item-body">
+                                    <div class="notification-item-title">{{ reminder.plate_number }} 即将到达保养里程</div>
+                                    <small>还剩 {{ reminder.next_maintenance_mileage - reminder.current_mileage }}
+                                        公里</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Parts Reminders -->
-                        <div v-if="notifications.partsReminders?.length > 0" class="mb-3">
-                            <small class="text-600 font-semibold">配件提醒</small>
+                        <div v-if="notifications.partsReminders?.length > 0" class="notification-group">
+                            <small class="notification-group-title">配件提醒</small>
                             <div v-for="part in notifications.partsReminders" :key="'part-' + part.id"
-                                class="notification-item p-2 border-round mt-2 surface-50 cursor-pointer hover:surface-100"
-                                @click="goToRemind('/parts', part.vehicle_id)">
-                                <div class="flex align-items-start gap-2">
-                                    <i class="pi pi-cog text-red-500 mt-1"></i>
-                                    <div class="flex-1">
-                                        <div>{{ part.plate_number }} - {{ part.name }}</div>
-                                        <small class="text-600">即将需要更换</small>
-                                    </div>
+                                class="notification-item" @click="goToRemind('/parts', part.vehicle_id)">
+                                <span class="notification-item-icon danger"><i class="pi pi-cog"></i></span>
+                                <div class="notification-item-body">
+                                    <div class="notification-item-title">{{ part.plate_number }} - {{ part.name }}</div>
+                                    <small>即将需要更换</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- View All Link -->
-                        <div class="text-center mt-3 pt-2 border-top-1 surface-border">
-                            <router-link to="/messages" class="text-primary no-underline">
-                                <small>查看全部消息</small>
+                        <div class="notification-footer">
+                            <router-link to="/messages">
+                                查看全部消息 <i class="pi pi-arrow-right"></i>
                             </router-link>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <button type="button" class="topbar-avatar" v-tooltip.bottom="'账户设置'"
+                @click="router.push('/settings')">
+                {{ userInitial }}
+            </button>
         </div>
-    </div>
+    </header>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useSiteStore } from '../utils/siteStore'
 import { messagesAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
 import logger from '../utils/logger'
-import { formatDateTime as fmtDateTime } from '../utils/date'
 
 const siteStore = useSiteStore()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
 const showNotifications = ref(false)
 const notifications = ref(null)
 const loading = ref(false)
+const searchText = ref('')
+
+const pageTitles = {
+    '/': '概览',
+    '/vehicles': '车辆管理',
+    '/energy': '能耗记录',
+    '/maintenance': '保养维修',
+    '/parts': '配件管理',
+    '/insurance': '车险管理',
+    '/analytics': '数据分析',
+    '/messages': '消息中心',
+    '/settings': '设置',
+    '/admin': '系统管理',
+    '/membership': '会员中心'
+}
+
+const currentTitle = computed(() => {
+    const match = Object.keys(pageTitles)
+        .filter(path => path !== '/')
+        .sort((a, b) => b.length - a.length)
+        .find(path => route.path.startsWith(path))
+    return match ? pageTitles[match] : (pageTitles[route.path] || '概览')
+})
+
+const userInitial = computed(() => {
+    try {
+        const user = JSON.parse(localStorage.getItem('currentUser') || '{}')
+        return (user.nickname || user.username || 'U').charAt(0).toUpperCase()
+    } catch {
+        return 'U'
+    }
+})
 
 const notificationCount = computed(() => {
     if (!notifications.value) return 0
@@ -150,7 +178,7 @@ const loadNotifications = async () => {
 
 const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    const date = new Date(dateStr)  // JS Date handles UTC ISO strings correctly
+    const date = new Date(dateStr)
     const now = new Date()
     const diff = now - date
     const seconds = Math.floor(diff / 1000)
@@ -178,10 +206,9 @@ const goToRemind = (path, vehicleId) => {
     router.push({ path, query: { vehicle_id: vehicleId } })
 }
 
-// Close notifications panel when clicking outside
 const handleClickOutside = (event) => {
     const panel = event.target.closest('.notification-panel')
-    const button = event.target.closest('.p-button')
+    const button = event.target.closest('.topbar-icon-button')
     if (!panel && !button && showNotifications.value) {
         showNotifications.value = false
     }
@@ -195,37 +222,294 @@ onMounted(() => {
 
 <style scoped>
 .layout-topbar {
-    height: 70px;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    height: 72px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0 clamp(1rem, 2.5vw, 2.25rem);
+    background: rgba(245, 246, 248, 0.86);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--cn-border);
+}
+
+.topbar-context {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    font-size: 0.82rem;
+}
+
+.topbar-brand {
+    color: var(--cn-muted);
+    font-weight: 600;
+}
+
+.topbar-separator {
+    font-size: 0.62rem;
+    color: var(--cn-subtle);
+}
+
+.topbar-page {
+    color: var(--cn-text);
+    font-weight: 650;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.topbar-search {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    height: 2.5rem;
+    width: 280px;
+    padding: 0 0.75rem;
+    background: var(--cn-card);
+    border: 1px solid var(--cn-border);
+    border-radius: 10px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topbar-search:focus-within {
+    border-color: var(--cn-primary);
+    box-shadow: var(--focus-ring);
+}
+
+.topbar-search > i {
+    color: var(--cn-subtle);
+    font-size: 0.85rem;
+}
+
+.topbar-search :deep(.p-inputtext) {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    font-size: 0.82rem;
+}
+
+.topbar-search :deep(.p-inputtext:enabled:focus) {
+    box-shadow: none;
+    border: 0;
+}
+
+.topbar-search-hint {
+    color: var(--cn-subtle);
+    font-size: 0.68rem;
+    border: 1px solid var(--cn-border);
+    border-radius: 5px;
+    padding: 0.05rem 0.3rem;
+    white-space: nowrap;
+}
+
+.topbar-icon-button {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    color: var(--cn-muted) !important;
+    background: var(--cn-card) !important;
+    border: 1px solid var(--cn-border) !important;
+    border-radius: 10px !important;
+}
+
+.topbar-icon-button:hover {
+    color: var(--cn-text) !important;
+    background: var(--surface-50) !important;
+}
+
+.topbar-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.22rem;
+    border-radius: 999px;
+    background: var(--cn-danger);
+    border: 2px solid var(--cn-bg);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.topbar-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid var(--cn-border);
+    background: var(--surface-100);
+    color: var(--cn-text);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.topbar-avatar:hover {
+    background: var(--surface-200);
+    border-color: var(--cn-border-strong);
 }
 
 .notification-panel {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 0.65rem);
     right: 0;
-    margin-top: 0.5rem;
-    width: 350px;
-    max-width: 90vw;
+    width: 360px;
+    max-width: calc(100vw - 2rem);
+    background: var(--cn-card);
+    border: 1px solid var(--cn-border);
+    border-radius: 16px;
+    box-shadow: var(--cn-shadow-md);
     z-index: 1000;
+    overflow: hidden;
+}
+
+.notification-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem 0.8rem;
+    border-bottom: 1px solid var(--cn-border);
+}
+
+.notification-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.notification-header p {
+    margin: 0.15rem 0 0;
+    color: var(--cn-subtle);
+    font-size: 0.72rem;
+}
+
+.notification-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2.5rem 1rem;
+    color: var(--cn-subtle);
+    font-size: 0.82rem;
+}
+
+.notification-empty i {
+    font-size: 1.6rem;
+}
+
+.notification-list {
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 0.4rem;
+}
+
+.notification-group {
+    padding: 0.35rem 0.35rem 0.15rem;
+}
+
+.notification-group-title {
+    display: block;
+    color: var(--cn-subtle);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.45rem;
 }
 
 .notification-item {
-    transition: all 0.2s;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.6rem 0.5rem;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
 }
 
-.notification-list::-webkit-scrollbar {
-    width: 6px;
+.notification-item:hover {
+    background: var(--surface-50);
 }
 
-.notification-list::-webkit-scrollbar-track {
-    background: transparent;
+.notification-item-icon {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    font-size: 0.8rem;
 }
 
-.notification-list::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+.notification-item-icon.info {
+    background: #eff8ff;
+    color: #175cd3;
 }
 
-.notification-list::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+.notification-item-icon.warning {
+    background: #fffaeb;
+    color: #b54708;
+}
+
+.notification-item-icon.danger {
+    background: #fef3f2;
+    color: #b42318;
+}
+
+.notification-item-body {
+    min-width: 0;
+}
+
+.notification-item-title {
+    color: var(--cn-text);
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.notification-item-body small {
+    color: var(--cn-subtle);
+    font-size: 0.7rem;
+}
+
+.notification-footer {
+    padding: 0.7rem 0.75rem 0.55rem;
+    border-top: 1px solid var(--cn-border);
+    text-align: center;
+}
+
+.notification-footer a {
+    color: var(--cn-text);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.notification-footer a:hover {
+    color: var(--cn-accent);
+}
+
+@media screen and (max-width: 1200px) {
+    .topbar-search {
+        width: 220px;
+    }
 }
 </style>

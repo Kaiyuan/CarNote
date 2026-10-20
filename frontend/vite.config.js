@@ -35,7 +35,7 @@ export default defineConfig({
                 name: 'CarNote 车记录',
                 short_name: 'CarNote',
                 description: `您的车辆全能管家 v${pkg.version}`,
-                theme_color: '#3B82F6',
+                theme_color: '#101828',
                 icons: [
                     {
                         src: 'pwa-192x192.png',

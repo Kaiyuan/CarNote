@@ -1,6 +1,7 @@
 <template>
-    <div class="card">
-        <h1 class="text-3xl font-bold mb-4">消息中心</h1>
+    <div>
+        <PageHeader eyebrow="Inbox" title="消息中心"
+            description="查看系统公告、工单进度与保养到期提醒，重要信息不再遗漏。" />
 
         <TabView>
             <!-- 公告标签页 -->
@@ -227,6 +228,7 @@
 </template>
 
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted, computed } from 'vue'
 import { messagesAPI } from '../api'
 import { formatDateTime as fmtDateTime } from '../utils/date'

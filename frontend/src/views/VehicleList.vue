@@ -4,10 +4,12 @@
 
 <template>
   <div>
-    <div class="flex justify-content-between align-items-center mb-4">
-      <h1 class="text-3xl font-bold">车辆管理</h1>
-      <Button label="添加车辆" icon="pi pi-plus" @click="showDialog = true" />
-    </div>
+    <PageHeader eyebrow="Garage" title="车辆管理"
+      description="集中维护车辆资料、动力类型与当前里程，为所有记录提供统一基础。">
+      <template #actions>
+        <Button label="添加车辆" icon="pi pi-plus" @click="showDialog = true" />
+      </template>
+    </PageHeader>
 
     <!-- 车辆列表 -->
     <DataTable :value="vehicles" :loading="loading" stripedRows responsiveLayout="stack" breakpoint="960px"
@@ -29,12 +31,20 @@
       <Column field="purchase_date" header="购车时间" sortable>
         <template #body="slotProps">{{ formatDate(slotProps.data.purchase_date) }}</template>
       </Column>
-      <Column header="操作">
+      <Column header="操作" style="width: 8rem">
         <template #body="slotProps">
-          <Button icon="pi pi-pencil" text rounded @click="editVehicle(slotProps.data)" />
+          <Button icon="pi pi-pencil" text rounded severity="secondary" @click="editVehicle(slotProps.data)" />
           <Button icon="pi pi-trash" text rounded severity="danger" @click="deleteVehicle(slotProps.data.id)" />
         </template>
       </Column>
+      <template #empty>
+        <div class="cn-empty">
+          <i class="pi pi-car"></i>
+          <div class="font-semibold text-900 mb-1">还没有车辆</div>
+          <div class="text-600 mb-3">添加第一辆车，开始记录用车数据</div>
+          <Button label="添加车辆" icon="pi pi-plus" @click="showDialog = true" />
+        </div>
+      </template>
     </DataTable>
 
     <!-- 添加/编辑对话框 -->
@@ -83,6 +93,7 @@ import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { vehicleAPI } from '../api'
 import { formatDate as fmtDate, toLocalDateString, parseLocalDate } from '../utils/date'
+import PageHeader from '../components/PageHeader.vue'
 
 const toast = useToast()
 

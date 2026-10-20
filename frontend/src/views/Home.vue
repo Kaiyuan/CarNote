@@ -3,201 +3,268 @@
 -->
 
 <template>
-  <div>
-    <!-- 顶部工具栏 -->
-    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4 gap-3">
-      <div class="flex align-items-center">
-        <h2 class="text-xl md:text-2xl font-bold m-0 text-900 line-height-3">欢迎回来, {{ currentUser?.nickname ||
-          currentUser?.username }}</h2>
-      </div>
-      <div class="flex gap-2 align-items-center w-full md:w-auto overflow-hidden">
+  <div class="home-page">
+    <PageHeader eyebrow="Overview" :live="true" title="车辆概览"
+      :description="`欢迎回来，${displayName}。在这里查看车辆里程、费用与保养状态。`">
+      <template #actions>
         <!-- VIP: 多车对比开关 -->
-        <div v-if="isAdvanced" class="flex align-items-center bg-primary-50 px-3 py-2 border-round-xl mr-2">
+        <div v-if="isAdvanced" class="compare-toggle">
           <Checkbox v-model="comparisonMode" :binary="true" inputId="compMode" />
-          <label for="compMode"
-            class="ml-2 text-primary font-bold text-sm cursor-pointer whitespace-nowrap">多车对比</label>
+          <label for="compMode">多车对比</label>
         </div>
 
-        <Button label="记一笔" icon="pi pi-plus" class="p-button-primary flex-shrink-0"
-          @click="router.push('/energy?action=add')" />
-
         <Dropdown v-if="!comparisonMode" v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number"
-          optionValue="id" placeholder="车辆" class="flex-auto md:w-14rem min-w-0" />
-        <MultiSelect v-else v-model="selectedVehicleIds" :options="vehicles" optionLabel="plate_number" optionValue="id"
-          placeholder="选择对比车辆" class="flex-auto md:w-14rem min-w-0" display="chip" />
+          optionValue="id" placeholder="选择车辆" class="vehicle-select" />
+        <MultiSelect v-else v-model="selectedVehicleIds" :options="vehicles" optionLabel="plate_number"
+          optionValue="id" placeholder="选择对比车辆" class="vehicle-select" display="chip" />
 
-        <!-- 桌面端显示范围选择器 -->
+        <Button label="记一笔" icon="pi pi-plus" @click="router.push('/energy?action=add')" />
+      </template>
+    </PageHeader>
+
+    <!-- 时间范围工具栏 -->
+    <div class="home-toolbar">
+      <div class="flex align-items-center gap-2 flex-wrap">
         <SelectButton v-model="timeRange" :options="filteredTimeRanges" optionLabel="label" optionValue="value"
-          :allowEmpty="false" class="hidden lg:flex flex-shrink-0" />
-        <!-- 移动端显示范围下拉框 -->
+          :allowEmpty="false" class="hidden sm:flex" />
         <Dropdown v-model="timeRange" :options="filteredTimeRanges" optionLabel="label" optionValue="value"
-          placeholder="范围" class="flex-auto lg:hidden min-w-0" />
+          class="sm:hidden" />
       </div>
-    </div>
-
-    <!-- VIP: 自定义时间范围日期选择 -->
-    <div v-if="timeRange === 'custom'" class="flex gap-2 mb-4 animate-fadein">
-      <Calendar v-model="customDates" selectionMode="range" :manualInput="false" placeholder="选择日期范围"
-        class="w-full md:w-20rem" showIcon />
+      <div class="flex align-items-center gap-2 flex-wrap">
+        <Calendar v-if="timeRange === 'custom'" v-model="customDates" selectionMode="range" :manualInput="false"
+          placeholder="选择日期范围" showIcon />
+        <span class="home-updated"><i class="pi pi-verified"></i> 数据实时同步</span>
+      </div>
     </div>
 
     <!-- 加载中状态 -->
-    <div v-if="loading && !selectedVehicleId && !comparisonMode"
-      class="flex justify-content-center align-items-center py-8">
-      <ProgressSpinner />
+    <div v-if="loading && !selectedVehicleId && !comparisonMode" class="cn-card">
+      <div class="flex justify-content-center align-items-center py-8">
+        <ProgressSpinner />
+      </div>
     </div>
 
     <!-- 空状态提示 -->
-    <div v-else-if="!selectedVehicleId && !loading && !comparisonMode" class="text-center py-8">
-      <div class="surface-card p-6 border-round-2xl shadow-1 inline-block">
-        <i class="pi pi-car mb-3 text-primary" style="font-size: 4rem"></i>
-        <div class="text-xl font-medium text-900 mb-2">开始您的车辆管理之旅</div>
-        <div class="text-600 mb-4">请先添加一辆车来查看分析数据</div>
-        <Button label="添加车辆" icon="pi pi-plus" @click="router.push('/vehicles')" />
-      </div>
+    <div v-else-if="!selectedVehicleId && !loading && !comparisonMode" class="cn-card cn-empty">
+      <i class="pi pi-car"></i>
+      <div class="text-xl font-semibold text-900 mb-2">开始您的车辆管理之旅</div>
+      <div class="text-600 mb-4">请先添加一辆车来查看分析数据</div>
+      <Button label="添加车辆" icon="pi pi-plus" @click="router.push('/vehicles')" />
     </div>
 
     <!-- 仪表盘内容 -->
-    <div v-else class="grid">
+    <div v-else>
       <!-- 核心指标卡片 -->
-      <div class="col-12 md:col-6 lg:col-3">
-        <div class="surface-card shadow-1 p-3 border-round-xl h-full border-left-3 border-blue-500">
-          <div class="flex justify-content-between mb-3">
+      <div class="cn-stat-grid">
+        <div class="cn-stat-card">
+          <div class="cn-stat-top">
             <div>
-              <span class="block text-500 font-medium mb-3">总里程</span>
-              <div class="text-900 font-medium text-xl">{{ formatNumber(overview.total_mileage) }} km</div>
+              <div class="cn-stat-label">总里程</div>
+              <div class="cn-stat-value">{{ formatNumber(overview.total_mileage) }}<small>km</small></div>
             </div>
-            <div class="flex align-items-center justify-content-center bg-blue-100 border-round"
-              style="width:2.5rem;height:2.5rem">
-              <i class="pi pi-compass text-blue-500 text-xl"></i>
-            </div>
+            <span class="cn-stat-icon"><i class="pi pi-compass"></i></span>
           </div>
-          <span class="text-green-500 font-medium">行驶数据 </span>
-          <span class="text-500">累计统计</span>
-        </div>
-      </div>
-      <div class="col-12 md:col-6 lg:col-3">
-        <div class="surface-card shadow-1 p-3 border-round-xl h-full border-left-3 border-orange-500">
-          <div class="flex justify-content-between mb-3">
-            <div>
-              <span class="block text-500 font-medium mb-3">总花费</span>
-              <div class="text-900 font-medium text-xl">{{ formatCurrency(overview.total_cost) }}</div>
-            </div>
-            <div class="flex align-items-center justify-content-center bg-orange-100 border-round"
-              style="width:2.5rem;height:2.5rem">
-              <i class="pi pi-wallet text-orange-500 text-xl"></i>
-            </div>
-          </div>
-          <div class="text-sm text-500 mt-1" v-if="overview.avg_cost_per_km">
-            平均 <span class="text-orange-500 font-medium">{{ formatCurrency(overview.avg_cost_per_km) }}/km</span>
+          <div class="cn-stat-footer">
+            <span class="cn-trend neutral">累计行驶</span>
+            <span class="cn-stat-hint">{{ rangeLabel }}</span>
           </div>
         </div>
-      </div>
-      <div class="col-12 md:col-6 lg:col-3">
-        <div class="surface-card shadow-1 p-3 border-round-xl h-full border-left-3 border-cyan-500">
-          <div class="flex justify-content-between mb-3">
+
+        <div class="cn-stat-card">
+          <div class="cn-stat-top">
             <div>
-              <span class="block text-500 font-medium mb-3">平均能耗</span>
-              <div class="text-900 font-medium text-xl">
+              <div class="cn-stat-label">总花费</div>
+              <div class="cn-stat-value">{{ formatCurrency(overview.total_cost) }}</div>
+            </div>
+            <span class="cn-stat-icon"><i class="pi pi-wallet"></i></span>
+          </div>
+          <div class="cn-stat-footer">
+            <span v-if="overview.avg_cost_per_km" class="cn-trend up">
+              {{ formatCurrency(overview.avg_cost_per_km) }}/km
+            </span>
+            <span v-else class="cn-trend neutral">暂无数据</span>
+            <span class="cn-stat-hint">平均用车成本</span>
+          </div>
+        </div>
+
+        <div class="cn-stat-card">
+          <div class="cn-stat-top">
+            <div>
+              <div class="cn-stat-label">平均能耗</div>
+              <div class="cn-stat-value">
                 {{ overview.avg_consumption ? Number(overview.avg_consumption).toFixed(1) : '--' }}
-                <span class="text-sm text-500">{{ unit }}</span>
+                <small>{{ unit }}</small>
               </div>
             </div>
-            <div class="flex align-items-center justify-content-center bg-cyan-100 border-round"
-              style="width:2.5rem;height:2.5rem">
-              <i class="pi pi-bolt text-cyan-500 text-xl"></i>
-            </div>
+            <span class="cn-stat-icon"><i class="pi pi-bolt"></i></span>
           </div>
-          <span class="text-cyan-500 font-medium">能效分析 </span>
+          <div class="cn-stat-footer">
+            <span class="cn-trend neutral">能效分析</span>
+            <span class="cn-stat-hint">{{ unit === 'kWh/100km' ? '纯电能耗' : '燃油能耗' }}</span>
+          </div>
         </div>
-      </div>
-      <div class="col-12 md:col-6 lg:col-3">
-        <div class="surface-card shadow-1 p-3 border-round-xl h-full border-left-3 border-purple-500">
-          <div class="flex justify-content-between mb-3">
+
+        <div class="cn-stat-card">
+          <div class="cn-stat-top">
             <div>
-              <span class="block text-500 font-medium mb-3">上次保养</span>
-              <div class="text-900 font-medium text-xl">
+              <div class="cn-stat-label">上次保养</div>
+              <div class="cn-stat-value">
                 {{ overview.last_maintenance_date ? formatDate(overview.last_maintenance_date) : '无记录' }}
               </div>
             </div>
-            <div class="flex align-items-center justify-content-center bg-purple-100 border-round"
-              style="width:2.5rem;height:2.5rem">
-              <i class="pi pi-wrench text-purple-500 text-xl"></i>
-            </div>
+            <span class="cn-stat-icon"><i class="pi pi-wrench"></i></span>
           </div>
-          <span v-if="overview.last_maintenance_days" class="text-purple-500 font-medium">{{
-            overview.last_maintenance_days }} 天前</span>
+          <div class="cn-stat-footer">
+            <span v-if="overview.last_maintenance_days" class="cn-trend up">
+              {{ overview.last_maintenance_days }} 天前
+            </span>
+            <span v-else class="cn-trend neutral">保养状态</span>
+            <span class="cn-stat-hint">保持定期保养</span>
+          </div>
         </div>
       </div>
 
-      <!-- 主图表区域 (月度趋势) -->
-      <div class="col-12 xl:col-8">
-        <div class="surface-card shadow-1 border-round-xl p-4 h-full">
-          <div class="flex justify-content-between align-items-center mb-4">
-            <h5 class="text-xl font-bold m-0 text-900">月度用车分析</h5>
-            <div class="flex align-items-center">
-              <span class="p-badge p-badge-dot bg-blue-500 mr-2"></span>
-              <span class="text-500 text-sm mr-3">里程</span>
-              <span class="p-badge p-badge-dot bg-orange-500 mr-2"></span>
-              <span class="text-500 text-sm">花费</span>
+      <!-- 主图表区域 -->
+      <div class="home-chart-grid">
+        <div class="cn-card p-4">
+          <div class="cn-section-header">
+            <div>
+              <h2 class="cn-section-title">用车趋势</h2>
+              <p class="cn-section-subtitle">按月度统计的行驶里程与用车费用</p>
+            </div>
+            <div class="cn-legend">
+              <span class="cn-legend-item"><span class="cn-legend-dot" style="background:#101828"></span>里程</span>
+              <span class="cn-legend-item"><span class="cn-legend-dot" style="background:#cbd5e1"></span>费用</span>
             </div>
           </div>
-          <Chart type="bar" :data="monthlyTrendData" :options="mainChartOptions" class="h-20rem" />
+          <Chart type="bar" :data="monthlyTrendData" :options="mainChartOptions" class="home-main-chart" />
         </div>
-      </div>
 
-      <!-- 费用分布 (圆环图) -->
-      <div class="col-12 xl:col-4">
-        <div class="surface-card shadow-1 border-round-xl p-4 h-auto">
-          <div class="flex justify-content-between align-items-center mb-4">
-            <h5 class="text-xl font-bold m-0 text-900">费用构成</h5>
-            <Button icon="pi pi-ellipsis-h" text rounded aria-label="Menu" />
-          </div>
-          <div class="flex justify-content-center align-items-center relative" style="height: 12rem">
-            <Chart type="doughnut" :data="expenseChartData" :options="pieOptions" class="expense-chart" />
-            <!-- Center Text Overlay -->
-            <div class="absolute flex flex-column align-items-center justify-content-center pointer-events-none">
-              <span class="text-xs text-500">总计</span>
-              <span class="text-lg font-bold text-900">{{ formatCurrency(overview.total_cost) }}</span>
+        <!-- 费用构成 -->
+        <div class="cn-card p-4 flex flex-column">
+          <div class="cn-section-header">
+            <div>
+              <h2 class="cn-section-title">费用构成</h2>
+              <p class="cn-section-subtitle">当前周期内的支出分布</p>
             </div>
+            <Button icon="pi pi-ellipsis-h" text rounded severity="secondary" aria-label="更多" />
           </div>
-          <div class="mt-4">
-            <div class="flex justify-content-between align-items-center mb-2" v-for="(item, index) in expenseList"
-              :key="index">
-              <div class="flex align-items-center">
-                <span class="border-circle w-1rem h-1rem mr-2" :style="{ backgroundColor: item.color }"></span>
-                <span class="text-700">{{ item.label }}</span>
+
+          <div class="cn-mix-total">
+            <div>
+              <div class="cn-stat-label">总支出</div>
+              <div class="cn-mix-value">{{ formatCurrency(expenseTotal) }}</div>
+            </div>
+            <Tag :value="`${expenseList.length} 类`" severity="secondary" rounded />
+          </div>
+
+          <div class="cn-mix-bar">
+            <template v-for="item in expenseList" :key="item.label">
+              <div v-if="item.value > 0" class="cn-mix-segment"
+                :style="{ width: item.percent + '%', backgroundColor: item.color }"></div>
+            </template>
+          </div>
+
+          <div class="cn-mix-list">
+            <div v-for="item in expenseList" :key="item.label" class="cn-mix-row">
+              <div class="cn-mix-row-label">
+                <span class="cn-legend-dot" :style="{ backgroundColor: item.color }"></span>
+                {{ item.label }}
               </div>
-              <span class="font-medium text-900">{{ formatCurrency(item.value) }}</span>
+              <div>
+                <span class="cn-mix-row-value">{{ formatCurrency(item.value) }}</span>
+                <span class="cn-mix-row-share">{{ item.percent }}%</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 最近活动列表 (Transactions Style) -->
-      <div class="col-12">
-        <div class="surface-card shadow-1 border-round-xl p-4">
-          <div class="flex justify-content-between align-items-center mb-4">
-            <h5 class="text-xl font-bold m-0 text-900">最近活动</h5>
-            <Button label="查看全部" text size="small" @click="router.push('/energy')" />
+      <!-- 最近活动 + 车辆信息 -->
+      <div class="home-bottom-grid">
+        <div class="cn-card p-0">
+          <div class="cn-section-header home-table-header">
+            <div>
+              <h2 class="cn-section-title">最近活动</h2>
+              <p class="cn-section-subtitle">最新的补能、保养与配件记录</p>
+            </div>
+            <Button label="查看全部" icon="pi pi-arrow-right" iconPos="right" text size="small"
+              @click="router.push('/energy')" />
           </div>
-          <DataTable :value="recentActivities" :rows="5" responsiveLayout="stack" breakpoint="960px">
-            <Column field="type" header="类型">
+
+          <DataTable :value="recentActivities" :rows="5" responsiveLayout="stack" breakpoint="960px"
+            class="home-table">
+            <Column field="type" header="类型" style="width: 7rem">
               <template #body="slotProps">
-                <Tag :severity="getActivitySeverity(slotProps.data.type)" :value="getActivityLabel(slotProps.data.type)"
-                  rounded></Tag>
+                <Tag :severity="getActivitySeverity(slotProps.data.type)"
+                  :value="getActivityLabel(slotProps.data.type)" />
               </template>
             </Column>
-            <Column field="date" header="日期">
+            <Column field="date" header="日期" style="width: 8rem">
               <template #body="slotProps">{{ formatDate(slotProps.data.date) }}</template>
             </Column>
             <Column field="description" header="描述"></Column>
-            <Column field="cost" header="金额" alignFrozen="right" frozen>
+            <Column field="cost" header="金额" alignFrozen="right" frozen style="width: 9rem">
               <template #body="slotProps">
-                <span class="text-900 font-medium">{{ formatCurrency(slotProps.data.cost) }}</span>
+                <span class="font-semibold text-900">{{ formatCurrency(slotProps.data.cost) }}</span>
               </template>
             </Column>
+            <template #empty>
+              <div class="cn-empty" style="padding: 2.5rem 1rem">
+                <i class="pi pi-inbox"></i>
+                <span>暂无最近活动</span>
+              </div>
+            </template>
           </DataTable>
+        </div>
+
+        <div class="cn-card p-4 flex flex-column">
+          <div class="cn-section-header">
+            <div>
+              <h2 class="cn-section-title">{{ comparisonMode ? '对比车辆' : '车辆信息' }}</h2>
+              <p class="cn-section-subtitle">{{ comparisonMode ? '当前参与对比的车辆' : '所选车辆的基本资料' }}</p>
+            </div>
+            <span class="cn-stat-icon"><i class="pi pi-car"></i></span>
+          </div>
+
+          <template v-if="comparisonMode">
+            <div class="cn-info-list">
+              <div v-for="vehicle in comparedVehicles" :key="vehicle.id" class="cn-info-row">
+                <span class="cn-info-label">{{ vehicle.plate_number }}</span>
+                <span class="cn-info-value">{{ vehicle.brand || vehicle.model || '车辆' }}</span>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="selectedVehicle">
+            <div class="vehicle-hero">
+              <div class="vehicle-plate">{{ selectedVehicle.plate_number }}</div>
+              <Tag :value="getPowerTypeLabel(selectedVehicle.power_type)"
+                :severity="getPowerSeverity(selectedVehicle.power_type)" />
+            </div>
+
+            <div class="cn-info-list">
+              <div class="cn-info-row">
+                <span class="cn-info-label">品牌 / 型号</span>
+                <span class="cn-info-value">{{ [selectedVehicle.brand, selectedVehicle.model].filter(Boolean).join(' ') || '未填写' }}</span>
+              </div>
+              <div class="cn-info-row">
+                <span class="cn-info-label">当前里程</span>
+                <span class="cn-info-value">{{ formatNumber(selectedVehicle.current_mileage) }} km</span>
+              </div>
+              <div class="cn-info-row">
+                <span class="cn-info-label">购车时间</span>
+                <span class="cn-info-value">{{ selectedVehicle.purchase_date ? formatDate(selectedVehicle.purchase_date) : '未填写' }}</span>
+              </div>
+              <div class="cn-info-row">
+                <span class="cn-info-label">年度花费</span>
+                <span class="cn-info-value">{{ formatCurrency(overview.total_cost) }}</span>
+              </div>
+            </div>
+          </template>
+
+          <Button label="查看车辆详情" icon="pi pi-arrow-right" iconPos="right" outlined class="w-full mt-auto"
+            @click="router.push('/vehicles')" />
         </div>
       </div>
     </div>
@@ -208,10 +275,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSiteStore } from '../utils/siteStore'
-import { vehicleAPI, analyticsAPI, energyAPI, maintenanceAPI } from '../api' // Added energy/maintenance APIs
+import { vehicleAPI, analyticsAPI, energyAPI, maintenanceAPI } from '../api'
 import logger from '../utils/logger'
 import { formatDate as fmtDate } from '../utils/date'
 import Chart from 'primevue/chart'
+import PageHeader from '../components/PageHeader.vue'
 
 const router = useRouter()
 const siteStore = useSiteStore()
@@ -220,8 +288,8 @@ const currentUser = ref(JSON.parse(localStorage.getItem('currentUser') || '{}'))
 // State
 const vehicles = ref([])
 const selectedVehicleId = ref(null)
-const selectedVehicleIds = ref([]) // 多车对比选中的车辆 IDs
-const timeRange = ref('year') // default to year
+const selectedVehicleIds = ref([])
+const timeRange = ref('year')
 const loading = ref(false)
 
 const overview = ref({})
@@ -253,10 +321,14 @@ const filteredTimeRanges = computed(() => {
   return timeRanges
 })
 
-// 多车对比数据存储
 const comparisonData = ref([])
 
-// ------------------
+const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || '车主')
+
+const rangeLabel = computed(() => {
+  const labels = { '6months': '近半年', 'year': '近一年', 'all': '全部时间', 'custom': '自定义范围' }
+  return labels[timeRange.value] || '累计统计'
+})
 
 // Fetch Vehicles
 const loadVehicles = async () => {
@@ -282,7 +354,6 @@ const loadDashboardData = async () => {
   try {
     const params = { range: timeRange.value }
 
-    // 如果是自定义时间范围
     if (timeRange.value === 'custom' && customDates.value && customDates.value[0] && customDates.value[1]) {
       params.start_date = customDates.value[0].toISOString().split('T')[0]
       params.end_date = customDates.value[1].toISOString().split('T')[0]
@@ -290,7 +361,6 @@ const loadDashboardData = async () => {
     }
 
     if (comparisonMode.value) {
-      // 对比模式：加载选中车辆的数据并聚合
       const vehiclesToCompare = selectedVehicleIds.value.length > 0
         ? vehicles.value.filter(v => selectedVehicleIds.value.includes(v.id))
         : vehicles.value
@@ -309,7 +379,6 @@ const loadDashboardData = async () => {
         return { vehicle: v, overview: ov.data, expenses: ex.data, monthly: mon.data }
       }))
 
-      // 简单聚合总览数据
       const summary = { total_mileage: 0, total_cost: 0, avg_consumption: 0, count: 0 }
       allData.forEach(d => {
         if (d.overview) {
@@ -347,11 +416,6 @@ const loadDashboardData = async () => {
       })
     ])
 
-    logger.debug('总览数据响应:', ovRes)
-    logger.debug('费用数据响应:', exRes)
-    logger.debug('月度趋势响应:', monRes)
-    logger.debug('最近活动响应:', actRes)
-
     if (ovRes.success) overview.value = ovRes.data
     if (exRes.success) expenseData.value = exRes.data
     if (monRes.success) monthlyData.value = monRes.data
@@ -364,22 +428,16 @@ const loadDashboardData = async () => {
   }
 }
 
-// Fetch Recent Activities (Manual combination of latest energy and maintenance)
 const fetchRecentActivities = async (vehicleId) => {
   try {
-    // Fetch last 5 energy logs and last 5 maintenance records
     const [energyRes, maintRes] = await Promise.all([
       energyAPI.getList({ vehicle_id: vehicleId, page: 1, limit: 5 }),
       maintenanceAPI.getList({ vehicle_id: vehicleId, page: 1, limit: 5 })
     ])
 
-    console.log('能耗活动响应:', energyRes)
-    console.log('保养活动响应:', maintRes)
-
     const activities = []
 
     if (energyRes.success) {
-      // Handle nested data structure: { success, data: { logs, pagination } }
       const energyLogs = energyRes.data?.logs || energyRes.data || []
       energyLogs.forEach(log => {
         activities.push({
@@ -405,9 +463,7 @@ const fetchRecentActivities = async (vehicleId) => {
       })
     }
 
-    // Sort by date desc and take top 5
     return activities.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5)
-
   } catch (e) {
     logger.error('获取最近活动失败:', e)
     return []
@@ -415,8 +471,17 @@ const fetchRecentActivities = async (vehicleId) => {
 }
 
 // Computed Props
+const selectedVehicle = computed(() => vehicles.value.find(ve => ve.id === selectedVehicleId.value) || null)
+
+const comparedVehicles = computed(() => {
+  if (selectedVehicleIds.value.length > 0) {
+    return vehicles.value.filter(v => selectedVehicleIds.value.includes(v.id))
+  }
+  return vehicles.value
+})
+
 const unit = computed(() => {
-  const v = vehicles.value.find(ve => ve.id === selectedVehicleId.value)
+  const v = selectedVehicle.value
   return v?.power_type === 'electric' ? 'kWh/100km' : 'L/100km'
 })
 
@@ -424,27 +489,39 @@ const unit = computed(() => {
 const mainChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { display: false } }, // Custom legend used in template
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#101828',
+      padding: 10,
+      cornerRadius: 8,
+      titleFont: { size: 12 },
+      bodyFont: { size: 12 }
+    }
+  },
   scales: {
     y: {
       type: 'linear',
       display: true,
       position: 'left',
       beginAtZero: true,
-      grid: { color: '#f3f4f6', drawBorder: false },
-      ticks: { color: '#9ca3af', callback: (value) => '¥' + value }
+      border: { display: false },
+      grid: { color: '#f1f5f9', drawTicks: false },
+      ticks: { color: '#98a2b3', padding: 8, callback: (value) => '¥' + value }
     },
     y1: {
       type: 'linear',
       display: true,
       position: 'right',
       beginAtZero: true,
+      border: { display: false },
       grid: { drawOnChartArea: false },
-      ticks: { color: '#9ca3af', callback: (value) => value + ' km' }
+      ticks: { color: '#98a2b3', padding: 8, callback: (value) => value + ' km' }
     },
     x: {
+      border: { display: false },
       grid: { display: false },
-      ticks: { color: '#9ca3af' }
+      ticks: { color: '#98a2b3', padding: 6 }
     }
   }
 }
@@ -457,18 +534,24 @@ const monthlyTrendData = computed(() => {
       {
         type: 'bar',
         label: '费用',
-        backgroundColor: '#FFA726',
+        backgroundColor: '#e2e8f0',
+        hoverBackgroundColor: '#cbd5e1',
         data: data.map(d => d.total_cost),
-        borderRadius: 4,
+        borderRadius: 6,
+        barPercentage: 0.55,
+        categoryPercentage: 0.7,
         yAxisID: 'y'
       },
       {
         type: 'line',
         label: '里程',
-        borderColor: '#3B82F6',
+        borderColor: '#101828',
         borderWidth: 2,
+        pointBackgroundColor: '#101828',
+        pointRadius: 0,
+        pointHoverRadius: 4,
         fill: false,
-        tension: 0.4,
+        tension: 0.38,
         data: data.map(d => d.total_mileage || 0),
         yAxisID: 'y1'
       }
@@ -476,52 +559,44 @@ const monthlyTrendData = computed(() => {
   }
 })
 
-const pieOptions = {
-  cutout: '70%',
-  plugins: {
-    legend: { display: false }
-  }
-}
-
-const expenseChartData = computed(() => {
-  const s = expenseData.value?.summary || {}
-  return {
-    labels: ['补能费用', '保养维修', '配件更换', '保险费用'],
-    datasets: [{
-      data: [s.energy || 0, s.maintenance || 0, s.parts || 0, s.insurance || 0],
-      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
-      borderWidth: 0
-    }]
-  }
-})
+const expenseColorList = ['#101828', '#475467', '#98a2b3', '#d0d5dd']
 
 const expenseList = computed(() => {
   const s = expenseData.value?.summary || {}
-  return [
-    { label: '补能费用', value: s.energy || 0, color: '#3B82F6' },
-    { label: '保养维修', value: s.maintenance || 0, color: '#10B981' },
-    { label: '配件更换', value: s.parts || 0, color: '#F59E0B' },
-    { label: '保险费用', value: s.insurance || 0, color: '#8B5CF6' }
+  const items = [
+    { label: '补能费用', value: s.energy || 0 },
+    { label: '保养维修', value: s.maintenance || 0 },
+    { label: '配件更换', value: s.parts || 0 },
+    { label: '保险费用', value: s.insurance || 0 }
   ]
+  const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  return items.map((item, index) => ({
+    ...item,
+    color: expenseColorList[index],
+    percent: total > 0 ? Math.round((Number(item.value) / total) * 100) : 0
+  }))
+})
+
+const expenseTotal = computed(() => {
+  return expenseList.value.reduce((sum, item) => sum + Number(item.value || 0), 0) || overview.value.total_cost || 0
 })
 
 // Formatters
 const formatNumber = (n) => n ? Number(n).toLocaleString() : 0
-const formatCurrency = (v) => v ? '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '¥0.00'
-const formatDate = fmtDate
+const formatCurrency = (v) => v ? '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '¥0.00'
+const formatDate = (date) => fmtDate(date, '未填写')
 const getActivityLabel = (t) => t === 'energy' ? '能耗' : '保养'
 const getActivitySeverity = (t) => t === 'energy' ? 'info' : 'warning'
+const getPowerTypeLabel = (type) => ({ fuel: '燃油', electric: '纯电', hybrid: '混动' }[type] || type)
+const getPowerSeverity = (type) => ({ fuel: 'warning', electric: 'info', hybrid: 'success' }[type] || 'secondary')
 
-// Watch for vehicle or time range changes
 watch(selectedVehicleId, (newVal) => {
-  logger.debug('车辆选择变更:', newVal)
   if (newVal) {
     loadDashboardData()
   }
 })
 
 watch(timeRange, (newVal) => {
-  logger.debug('时间范围变更:', newVal)
   if (selectedVehicleId.value) {
     loadDashboardData()
   }
@@ -529,7 +604,6 @@ watch(timeRange, (newVal) => {
 
 watch(comparisonMode, (newVal) => {
   if (newVal && vehicles.value.length > 0) {
-    // 切换到对比模式时，默认选中所有车辆
     selectedVehicleIds.value = vehicles.value.map(v => v.id)
   }
   loadDashboardData()
@@ -550,11 +624,11 @@ watch(customDates, (newVal) => {
 onMounted(async () => {
   if (typeof __HAS_VIP__ !== 'undefined' && __HAS_VIP__) {
     try {
-      const { useVipStore } = await import('@vip/utils/vipStore');
-      vipStore.value = useVipStore();
-      vipStore.value.fetchStatus();
+      const { useVipStore } = await import('@vip/utils/vipStore')
+      vipStore.value = useVipStore()
+      vipStore.value.fetchStatus()
     } catch (e) {
-      logger.error('[VIP] 加载 Store 失败:', e);
+      logger.error('[VIP] 加载 Store 失败:', e)
     }
   }
   loadVehicles()
@@ -562,7 +636,131 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.expense-chart {
-  width: 50% !important;
+.home-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 1rem;
+  background: var(--cn-card);
+  border: 1px solid var(--cn-border);
+  border-radius: 12px;
+}
+
+.home-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--cn-subtle);
+  font-size: 0.75rem;
+  padding-right: 0.35rem;
+}
+
+.home-updated i {
+  color: var(--cn-success);
+}
+
+.compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--cn-border);
+  border-radius: 10px;
+  background: var(--cn-card);
+}
+
+.compare-toggle label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cn-muted);
+    cursor: pointer;
+}
+
+.vehicle-select {
+  min-width: 10rem;
+}
+
+.home-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.home-main-chart {
+  height: 310px;
+}
+
+.home-bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr);
+  gap: 1rem;
+}
+
+.home-table-header {
+  padding: 1.25rem 1.25rem 0.9rem;
+  margin-bottom: 0;
+}
+
+.home-table {
+  border: 0 !important;
+  border-top: 1px solid var(--cn-border) !important;
+  border-radius: 0 0 var(--cn-radius) var(--cn-radius) !important;
+  box-shadow: none !important;
+}
+
+.home-table :deep(.p-datatable-thead > tr > th) {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.home-table :deep(.p-datatable-tbody > tr > td) {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.vehicle-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+  border-radius: 12px;
+  background: var(--surface-50);
+  border: 1px solid var(--cn-border);
+}
+
+.vehicle-plate {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--cn-text);
+}
+
+@media screen and (max-width: 1100px) {
+
+  .home-chart-grid,
+  .home-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .vehicle-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .home-toolbar {
+    padding: 0.55rem;
+  }
+
+  .home-main-chart {
+    height: 260px;
+  }
 }
 </style>

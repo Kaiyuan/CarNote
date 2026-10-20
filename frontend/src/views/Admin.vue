@@ -1,6 +1,7 @@
 <template>
     <div>
-        <h1 class="text-3xl font-bold mb-4">系统管理</h1>
+        <PageHeader eyebrow="Administration" title="系统管理"
+            description="配置站点信息、邮件服务、用户权限与全局数据。" />
 
         <TabView :activeIndex="activeTab" @update:activeIndex="activeTab = $event">
             <!-- 1. 系统设置 (原 341) -->
@@ -654,6 +655,7 @@
 </template>
 
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted, computed, watch } from 'vue'
 import api, { adminAPI, systemAPI } from '../api'
 import { useToast } from 'primevue/usetoast'

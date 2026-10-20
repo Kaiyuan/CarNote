@@ -3,15 +3,19 @@
 -->
 
 <template>
-    <div class="grid justify-content-center">
-        <div class="col-12 md:col-8 lg:col-6">
-            <Card class="shadow-2">
-                <template #title>
-                    <div class="flex align-items-center">
-                        <i class="pi pi-cog mr-2"></i>
-                        用户设置
-                    </div>
-                </template>
+    <div>
+        <PageHeader eyebrow="Account" title="设置"
+            description="管理个人资料、偏好设置、API 密钥与数据备份。" />
+
+        <div class="grid justify-content-center">
+            <div class="col-12 lg:col-9 xl:col-8">
+                <Card>
+                    <template #title>
+                        <div class="flex align-items-center">
+                            <i class="pi pi-cog mr-2"></i>
+                            个人与系统设置
+                        </div>
+                    </template>
 
                 <template #content>
                     <div v-if="loading" class="text-center py-5">
@@ -215,6 +219,7 @@
                     <Button label="确认导入" icon="pi pi-check" @click="executeImport" :loading="importing" />
                 </template>
             </Dialog>
+            </div>
         </div>
     </div>
 </template>
@@ -224,6 +229,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { userAPI, vehicleAPI, systemAPI, exportAPI, importAPI } from '../api'
+import PageHeader from '../components/PageHeader.vue'
 import { convertToCSV, downloadFile, downloadBackupJSON } from '../utils/dataExport'
 import { formatDate as fmtDate } from '../utils/date'
 import { validateBackupFormat } from '../utils/dataImport'

@@ -4,9 +4,13 @@
 
 <template>
   <div>
-    <div class="mb-4">
-      <Button label="返回保单列表" icon="pi pi-arrow-left" text @click="router.push('/insurance')" />
-    </div>
+    <PageHeader eyebrow="Insurance" title="保单详情"
+      :description="insurance ? `${insurance.insurance_company || '保单'} · ${insurance.plate_number || '未指定车辆'}` : '查看保单信息与理赔记录'">
+      <template #actions>
+        <Button label="返回保单列表" icon="pi pi-arrow-left" severity="secondary" outlined
+          @click="router.push('/insurance')" />
+      </template>
+    </PageHeader>
 
     <div v-if="loading" class="text-center py-5">
       <ProgressSpinner />
@@ -168,6 +172,7 @@
 </template>
 
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'

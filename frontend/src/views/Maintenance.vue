@@ -4,28 +4,22 @@
 
 <template>
   <div>
-    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
-      <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">保养维修</h1>
-      <div class="flex gap-2">
+    <PageHeader eyebrow="Service" title="保养维修"
+      description="跟踪保养与维修历史，设置下次保养提醒，避免错过关键养护节点。">
+      <template #actions>
         <Button label="记录保养" icon="pi pi-plus" @click="openAddDialog" />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- 过滤器 -->
-    <div class="grid p-fluid mb-4">
-      <div class="col-12 md:col-4">
-        <span class="p-float-label">
-          <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
-            showClear @change="loadRecords" placeholder="选择车辆" class="w-full" />
-          <label>筛选车辆</label>
-        </span>
+    <div class="cn-filter-bar">
+      <div style="width: 16rem; max-width: 100%">
+        <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
+          showClear @change="loadRecords" placeholder="筛选车辆" class="w-full" />
       </div>
-      <div class="col-12 md:col-4">
-        <span class="p-float-label">
-          <Dropdown v-model="filters.type" :options="serviceTypes" optionLabel="label" optionValue="value" showClear
-            @change="loadRecords" placeholder="类型" class="w-full" />
-          <label>筛选类型</label>
-        </span>
+      <div style="width: 14rem; max-width: 100%">
+        <Dropdown v-model="filters.type" :options="serviceTypes" optionLabel="label" optionValue="value" showClear
+          @change="loadRecords" placeholder="筛选类型" class="w-full" />
       </div>
     </div>
 
@@ -174,6 +168,7 @@ import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { maintenanceAPI, vehicleAPI, locationsAPI } from '../api'
+import PageHeader from '../components/PageHeader.vue'
 import logger from '../utils/logger'
 import { formatDate as fmtDate, parseLocalDate, toLocalDateString } from '../utils/date'
 

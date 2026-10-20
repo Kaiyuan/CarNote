@@ -4,23 +4,20 @@
 
 <template>
   <div>
-    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
-      <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">配件管理</h1>
-      <div class="flex gap-2">
-        <Button label="添加配件" icon="pi pi-plus" @click="openAddDialog" />
+    <PageHeader eyebrow="Parts" title="配件管理"
+      description="掌握轮胎、电瓶等配件的寿命与更换历史，提前发现维护需求。">
+      <template #actions>
         <Button label="更换记录" icon="pi pi-history" severity="secondary"
           @click="showHistoryDialog = true; loadHistory()" />
-      </div>
-    </div>
+        <Button label="添加配件" icon="pi pi-plus" @click="openAddDialog" />
+      </template>
+    </PageHeader>
 
     <!-- 过滤器 -->
-    <div class="grid p-fluid mb-4">
-      <div class="col-12 md:col-4">
-        <span class="p-float-label">
-          <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
-            showClear @change="loadParts" placeholder="选择车辆" class="w-full" />
-          <label>筛选车辆</label>
-        </span>
+    <div class="cn-filter-bar">
+      <div style="width: 16rem; max-width: 100%">
+        <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
+          showClear @change="loadParts" placeholder="筛选车辆" class="w-full" />
       </div>
     </div>
 
@@ -250,6 +247,7 @@ import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { partsAPI, vehicleAPI, locationsAPI } from '../api'
+import PageHeader from '../components/PageHeader.vue'
 import logger from '../utils/logger'
 import { formatDate as fmtDate, parseLocalDate, toLocalDateString } from '../utils/date'
 

@@ -4,23 +4,20 @@
 
 <template>
   <div>
-    <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
-      <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">车险管理</h1>
-      <div class="flex gap-2">
+    <PageHeader eyebrow="Insurance" title="车险管理"
+      description="集中管理保单、保障期限与理赔记录，及时掌握续保时间。">
+      <template #actions>
         <Button label="上传保单 (OCR)" icon="pi pi-upload" severity="secondary" @click="triggerFileUpload" :loading="uploading" />
         <input ref="fileInputRef" type="file" accept="image/*,application/pdf" class="hidden" @change="handleFileUpload" />
         <Button label="新增保单" icon="pi pi-plus" @click="openAddDialog" />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- 筛选条件 -->
-    <div class="grid p-fluid mb-4">
-      <div class="col-12 md:col-4">
-        <span class="p-float-label">
-          <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
-            showClear @change="loadInsurances" placeholder="选择车辆" class="w-full" />
-          <label>按车辆筛选</label>
-        </span>
+    <div class="cn-filter-bar">
+      <div style="width: 16rem; max-width: 100%">
+        <Dropdown v-model="filters.vehicle_id" :options="vehicles" optionLabel="plate_number" optionValue="id"
+          showClear @change="loadInsurances" placeholder="筛选车辆" class="w-full" />
       </div>
     </div>
 
@@ -154,6 +151,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { insuranceAPI, vehicleAPI } from '../api'
+import PageHeader from '../components/PageHeader.vue'
 import { formatDate as fmtDate, parseLocalDate, toLocalDateString } from '../utils/date'
 
 const router = useRouter()

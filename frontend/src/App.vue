@@ -1,64 +1,70 @@
 <!--
-  App.vue - 应用根组件 (New Dashboard Layout)
+  App.vue - 应用根组件
 -->
 
 <template>
-  <div id="app" class="layout-wrapper surface-ground min-h-screen flex relative">
+  <div id="app" class="layout-wrapper flex relative min-h-screen">
 
     <!-- Mobile Sidebar (Drawer) -->
-    <Sidebar :visible="mobileMenuVisible" @update:visible="mobileMenuVisible = $event">
-      <div class="flex flex-column align-items-center mb-5">
-        <div class="flex align-items-center justify-content-center border-circle bg-primary mb-3 overflow-hidden"
-          style="width: 3rem; height: 3rem">
-          <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon"
-            style="width: 100%; height: 100%; object-fit: cover;" />
-          <i v-else class="pi pi-car text-xl"></i>
+    <Sidebar :visible="mobileMenuVisible" @update:visible="mobileMenuVisible = $event" class="mobile-drawer">
+      <div class="flex flex-column h-full">
+        <div class="flex align-items-center gap-3 mb-5">
+          <div class="mobile-drawer-logo">
+            <img v-if="siteStore.state.siteIcon" :src="siteStore.state.siteIcon" />
+            <i v-else class="pi pi-car text-lg"></i>
+          </div>
+          <div>
+            <div class="font-bold text-lg text-900">{{ siteStore.state.siteName }}</div>
+            <small class="text-500">车辆记录管理系统</small>
+          </div>
         </div>
-        <span class="font-bold text-xl">{{ siteStore.state.siteName }}</span>
-      </div>
-      <div class="flex flex-column gap-2">
-        <Button v-for="item in menuItems" :key="item.label" :label="item.label" :icon="item.icon"
-          :text="route.path !== item.path" :severity="route.path === item.path ? 'primary' : 'secondary'"
-          class="w-full text-left justify-content-start" @click="navigateFromMobile(item.path)" />
-      </div>
-      <div class="mt-auto pt-4 border-top-1 border-200">
-        <Button label="设置" icon="pi pi-cog" text class="w-full text-left justify-content-start"
-          @click="navigateFromMobile('/settings')" />
-        <Button label="退出" icon="pi pi-sign-out" text severity="danger" class="w-full text-left justify-content-start"
-          @click="logout" />
+
+        <div class="flex flex-column gap-1">
+          <Button v-for="item in menuItems" :key="item.label" :label="item.label" :icon="item.icon"
+            :class="['mobile-nav-button', { active: isRouteActive(item.path) }]" text
+            @click="navigateFromMobile(item.path)" />
+        </div>
+
+        <div class="mt-auto pt-4">
+          <Divider />
+          <Button label="设置" icon="pi pi-cog" text class="mobile-nav-button w-full" @click="navigateFromMobile('/settings')" />
+          <Button label="退出登录" icon="pi pi-sign-out" text severity="danger" class="mobile-nav-button w-full"
+            @click="logout" />
+        </div>
       </div>
     </Sidebar>
 
-    <!-- Desktop Sidebar (Left) - Hidden on Mobile -->
+    <!-- Desktop Sidebar -->
     <div class="hidden md:block">
       <AppSidebar v-if="currentUser" :menuItems="menuItems" :currentUser="currentUser" @logout="logout" />
     </div>
 
-    <!-- Main Container (Right) -->
+    <!-- Main Container -->
     <div class="layout-main-container flex-1 flex flex-column min-h-screen overflow-x-hidden">
 
       <!-- Topbar (Desktop) -->
       <AppTopbar v-if="currentUser" />
 
-      <!-- Mobile Topbar (Visible on Mobile) -->
-      <div v-if="currentUser"
-        class="md:hidden flex align-items-center justify-content-between px-3 py-2 bg-white shadow-1 z-5 sticky top-0">
-        <div class="flex align-items-center">
-          <Button icon="pi pi-bars" text rounded @click="mobileMenuVisible = true" class="mr-2" />
-          <span class="font-bold text-xl text-900">{{ siteStore.state.siteName }}</span>
+      <!-- Mobile Topbar -->
+      <div v-if="currentUser" class="mobile-topbar md:hidden">
+        <div class="flex align-items-center gap-2">
+          <Button icon="pi pi-bars" text rounded @click="mobileMenuVisible = true" aria-label="打开菜单" />
+          <span class="font-semibold text-900">{{ siteStore.state.siteName }}</span>
         </div>
-        <div class="flex align-items-center">
-          <Button icon="pi pi-bell" text rounded class="text-500" @click="router.push('/messages')" />
+        <div class="flex align-items-center gap-1">
+          <Button icon="pi pi-bell" text rounded severity="secondary" @click="router.push('/messages')"
+            aria-label="消息" />
+          <button type="button" class="mobile-avatar" @click="router.push('/settings')">{{ userInitial }}</button>
         </div>
       </div>
 
       <!-- Content -->
-      <div class="layout-content flex-1 p-3 md:p-4">
+      <main class="layout-content flex-1">
         <router-view />
-      </div>
+      </main>
 
-      <!-- App Footer -->
-      <footer class="mt-auto py-4 px-3 text-center border-top-1 border-200 text-500 text-sm">
+      <!-- Footer -->
+      <footer class="layout-footer text-center">
         <div v-if="siteStore.state.footerCopyright" v-html="siteStore.state.footerCopyright"></div>
         <div v-else>
           &copy; {{ new Date().getFullYear() }} {{ siteStore.state.siteName }}. All rights reserved.
@@ -72,10 +78,7 @@
     <!-- Hidden Analytics Injection Point -->
     <div v-html="siteStore.state.websiteAnalytics" style="display: none"></div>
 
-    <!-- Global Toast -->
     <Toast />
-
-    <!-- Global Confirm Dialog -->
     <ConfirmDialog />
   </div>
 </template>
@@ -104,6 +107,7 @@ const menuItems = computed(() => {
     { label: '保养维修', icon: 'pi pi-wrench', path: '/maintenance' },
     { label: '配件管理', icon: 'pi pi-box', path: '/parts' },
     { label: '车险管理', icon: 'pi pi-file-edit', path: '/insurance' },
+    { label: '数据分析', icon: 'pi pi-chart-bar', path: '/analytics' },
     { label: '消息中心', icon: 'pi pi-megaphone', path: '/messages' },
   ]
 
@@ -118,12 +122,18 @@ const menuItems = computed(() => {
   return items
 })
 
+const userInitial = computed(() => {
+  if (currentUser.value) {
+    return (currentUser.value.nickname || currentUser.value.username || 'U').charAt(0).toUpperCase()
+  }
+  return 'U'
+})
+
 onMounted(() => {
   checkUser()
   siteStore.fetchConfig()
 })
 
-// Watch route changes to update user state (e.g. after login/logout)
 watch(() => route.fullPath, () => {
   checkUser()
 })
@@ -137,10 +147,17 @@ const checkUser = () => {
   }
 }
 
+const isRouteActive = (path) => {
+  if (path === '/' && route.path === '/') return true
+  if (path !== '/' && route.path.startsWith(path)) return true
+  return false
+}
+
 const logout = () => {
   localStorage.removeItem('currentUser')
   localStorage.removeItem('userId')
   currentUser.value = null
+  mobileMenuVisible.value = false
   router.push('/login')
 }
 
@@ -149,76 +166,103 @@ const navigateFromMobile = (path) => {
   mobileMenuVisible.value = false
 }
 
-// Watch for analytics code changes and inject scripts manually since v-html doesn't execute them
 watch(() => siteStore.state.websiteAnalytics, (newVal) => {
   if (!newVal) return
 
-  // Create a temporary div to parse the HTML string
   const div = document.createElement('div')
   div.innerHTML = newVal
 
-  // Extract and execute all scripts
   const scripts = div.querySelectorAll('script')
   scripts.forEach(oldScript => {
     const newScript = document.createElement('script')
 
-    // Copy all attributes
     Array.from(oldScript.attributes).forEach(attr => {
       newScript.setAttribute(attr.name, attr.value)
     })
 
-    // Copy inline content
     newScript.textContent = oldScript.textContent
-
     document.head.appendChild(newScript)
-    // Optional: remove old script to avoid duplicates if this runs multiple times
-    // (Though normally siteAnalytics only loads once per session)
   })
 }, { immediate: true })
 </script>
 
 <style>
-:root {
-  --primary-color: #3B82F6;
-  --surface-ground: #f8f9fa;
-  --surface-card: #ffffff;
-  --surface-border: #e5e7eb;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--surface-ground);
-  font-family: "Barlow Condensed", "Sarasa Term SC", "Helvetica Neue", Ubuntu, Helvetica, "Source Han Serif", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "WenQuanYi Zen Hei", "Apple LiGothic Medium", "ST Heiti", "WenQuanYi Zen Hei Sharp", Inter, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-}
-
-/* Layout Container Fluidity */
 .layout-content {
-  max-width: 1400px;
+  max-width: 1560px;
   margin: 0 auto;
-  padding: 1rem;
   width: 100%;
 }
 
-.layout-main-container {
-  transition: width 0.2s;
-  min-width: 0;
-  /* Prevent flex children from overflowing */
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 800;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  background: rgba(245, 246, 248, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cn-border);
 }
 
-/* Base Responsive Fixes */
-@media screen and (max-width: 768px) {
-  /* Mobile adjustments if needed */
+.mobile-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--cn-border);
+  background: var(--surface-100);
+  color: var(--cn-text);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
-/* Card Styling Override for Dashboard Look */
-.p-card {
-  border-radius: 1rem !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
-  border: none !important;
+.mobile-drawer-logo {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 12px;
+  background: var(--cn-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 auto;
 }
 
-/* Shared Utility for Tables in Small Screen */
+.mobile-drawer-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-nav-button {
+  width: 100%;
+  justify-content: flex-start !important;
+  color: var(--cn-muted) !important;
+  border-radius: 10px !important;
+  padding: 0.65rem 0.8rem !important;
+  font-weight: 550 !important;
+}
+
+.mobile-nav-button :deep(.p-button-label) {
+  flex: initial;
+}
+
+.mobile-nav-button.active {
+  background: var(--surface-100) !important;
+  color: var(--cn-text) !important;
+}
+
+.p-sidebar.mobile-drawer {
+  width: 290px;
+}
+
+.p-sidebar.mobile-drawer .p-sidebar-content {
+  padding: 1.25rem;
+}
+
 @media screen and (max-width: 960px) {
   .responsive-table .p-datatable-thead {
     display: none !important;

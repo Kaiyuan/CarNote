@@ -4,103 +4,130 @@
 
 <template>
     <div>
-        <div class="flex flex-column md:flex-row justify-content-between align-items-center mb-4">
-            <h1 class="text-3xl font-bold m-0 mb-2 md:mb-0">数据分析</h1>
-            <div class="flex gap-2 align-items-center w-full md:w-auto flex-wrap">
+        <PageHeader eyebrow="Insights" title="数据分析"
+            description="从能耗、费用与里程趋势中发现用车规律，做出更明智的决策。" />
+
+        <div class="cn-filter-bar">
+            <div style="width: 16rem; max-width: 100%">
                 <Dropdown v-model="selectedVehicleId" :options="vehicles" optionLabel="plate_number" optionValue="id"
-                    placeholder="选择车辆" class="flex-auto md:w-14rem min-w-0" @change="loadAllData" />
+                    placeholder="选择车辆" class="w-full" @change="loadAllData" />
+            </div>
+            <div style="width: 12rem; max-width: 100%">
                 <Dropdown v-model="timeRange" :options="timeRanges" optionLabel="label" optionValue="value"
-                    placeholder="范围" class="flex-auto md:w-10rem min-w-0" @change="loadAllData" />
-                <div class="flex align-items-center px-2 py-1 surface-100 border-round">
-                    <Checkbox v-model="excludeLent" :binary="true" inputId="exclude_lent" @change="loadAllData" />
-                    <label for="exclude_lent" class="ml-2 text-sm text-700 cursor-pointer white-space-nowrap">排除借出记录</label>
-                </div>
+                    placeholder="时间范围" class="w-full" @change="loadAllData" />
+            </div>
+            <div class="analytics-check">
+                <Checkbox v-model="excludeLent" :binary="true" inputId="exclude_lent" @change="loadAllData" />
+                <label for="exclude_lent">排除借出记录</label>
             </div>
         </div>
 
-        <div v-if="!selectedVehicleId" class="text-center py-8">
-            <i class="pi pi-chart-bar mb-3" style="font-size: 4rem; color: var(--surface-400)"></i>
-            <div class="text-xl text-600">请选择一辆车以查看分析数据</div>
+        <div v-if="!selectedVehicleId" class="cn-card cn-empty">
+            <i class="pi pi-chart-bar"></i>
+            <div class="text-lg font-semibold text-900 mb-1">暂无可分析的数据</div>
+            <div class="text-600">请选择一辆车以查看分析数据</div>
         </div>
 
-        <div v-else class="grid">
+        <div v-else>
             <!-- 概览卡片 -->
-            <div class="col-12 md:col-6 lg:col-3">
-                <Card class="h-full shadow-1 border-left-3 border-blue-500">
-                    <template #content>
-                        <div class="text-600 mb-2">总里程</div>
-                        <div class="text-2xl font-bold text-900">{{ formatNumber(overview.total_mileage) }} km</div>
-                    </template>
-                </Card>
-            </div>
-            <div class="col-12 md:col-6 lg:col-3">
-                <Card class="h-full shadow-1 border-left-3 border-green-500">
-                    <template #content>
-                        <div class="text-600 mb-2">总花费</div>
-                        <div class="text-2xl font-bold text-900">{{ formatCurrency(overview.total_cost) }}</div>
-                        <div class="text-sm text-green-600 mt-1" v-if="overview.avg_cost_per_km">
-                            {{ formatCurrency(overview.avg_cost_per_km) }}/km
+            <div class="cn-stat-grid">
+                <div class="cn-stat-card">
+                    <div class="cn-stat-top">
+                        <div>
+                            <div class="cn-stat-label">总里程</div>
+                            <div class="cn-stat-value">{{ formatNumber(overview.total_mileage) }}<small>km</small></div>
                         </div>
-                    </template>
-                </Card>
-            </div>
-            <div class="col-12 md:col-6 lg:col-3">
-                <Card class="h-full shadow-1 border-left-3 border-orange-500">
-                    <template #content>
-                        <div class="text-600 mb-2">平均能耗</div>
-                        <div class="text-2xl font-bold text-900">
-                            {{ overview.avg_consumption ? overview.avg_consumption.toFixed(2) : '--' }}
-                            <span class="text-base font-normal text-600">{{ unit }}</span>
+                        <span class="cn-stat-icon"><i class="pi pi-compass"></i></span>
+                    </div>
+                    <div class="cn-stat-footer">
+                        <span class="cn-trend neutral">累计行驶</span>
+                    </div>
+                </div>
+
+                <div class="cn-stat-card">
+                    <div class="cn-stat-top">
+                        <div>
+                            <div class="cn-stat-label">总花费</div>
+                            <div class="cn-stat-value">{{ formatCurrency(overview.total_cost) }}</div>
                         </div>
-                        <div class="text-xs text-500 mt-1" v-if="overview.lent && overview.lent.total_records > 0">
-                            {{ excludeLent ? '已排除借出记录' : `含借出 ${overview.lent.total_records} 笔 (${formatCurrency(overview.lent.total_cost)})` }}
+                        <span class="cn-stat-icon"><i class="pi pi-wallet"></i></span>
+                    </div>
+                    <div class="cn-stat-footer">
+                        <span v-if="overview.avg_cost_per_km" class="cn-trend up">{{ formatCurrency(overview.avg_cost_per_km) }}/km</span>
+                        <span v-else class="cn-trend neutral">暂无数据</span>
+                        <span class="cn-stat-hint">平均用车成本</span>
+                    </div>
+                </div>
+
+                <div class="cn-stat-card">
+                    <div class="cn-stat-top">
+                        <div>
+                            <div class="cn-stat-label">平均能耗</div>
+                            <div class="cn-stat-value">
+                                {{ overview.avg_consumption ? overview.avg_consumption.toFixed(2) : '--' }}
+                                <small>{{ unit }}</small>
+                            </div>
                         </div>
-                    </template>
-                </Card>
-            </div>
-            <div class="col-12 md:col-6 lg:col-3">
-                <Card class="h-full shadow-1 border-left-3 border-purple-500">
-                    <template #content>
-                        <div class="text-600 mb-2">最近保养</div>
-                        <div class="text-xl font-bold text-900">
-                            {{ overview.last_maintenance_date ? formatDate(overview.last_maintenance_date) : '无记录' }}
+                        <span class="cn-stat-icon"><i class="pi pi-bolt"></i></span>
+                    </div>
+                    <div class="cn-stat-footer">
+                        <span class="cn-trend neutral">能效分析</span>
+                        <span v-if="overview.lent && overview.lent.total_records > 0" class="cn-stat-hint">
+                            {{ excludeLent ? '已排除借出记录' : `含借出 ${overview.lent.total_records} 笔` }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="cn-stat-card">
+                    <div class="cn-stat-top">
+                        <div>
+                            <div class="cn-stat-label">最近保养</div>
+                            <div class="cn-stat-value">
+                                {{ overview.last_maintenance_date ? formatDate(overview.last_maintenance_date) : '无记录' }}
+                            </div>
                         </div>
-                        <div class="text-sm text-600 mt-1" v-if="overview.last_maintenance_days">
-                            {{ overview.last_maintenance_days }} 天前
-                        </div>
-                    </template>
-                </Card>
+                        <span class="cn-stat-icon"><i class="pi pi-wrench"></i></span>
+                    </div>
+                    <div class="cn-stat-footer">
+                        <span v-if="overview.last_maintenance_days" class="cn-trend up">{{ overview.last_maintenance_days }} 天前</span>
+                        <span v-else class="cn-trend neutral">保养状态</span>
+                    </div>
+                </div>
             </div>
 
             <!-- 图表区域 -->
-            <div class="col-12 lg:col-8">
-                <Card class="shadow-2 h-full">
-                    <template #title>能耗趋势</template>
-                    <template #content>
-                        <Chart type="line" :data="consumptionChartData" :options="chartOptions" class="h-20rem" />
-                    </template>
-                </Card>
-            </div>
-
-            <div class="col-12 lg:col-4">
-                <Card class="shadow-2 h-full">
-                    <template #title>费用构成</template>
-                    <template #content>
-                        <div class="flex justify-content-center">
-                            <Chart type="doughnut" :data="expenseChartData" :options="doughnutOptions" class="w-full"
-                                style="max-height: 20rem" />
+            <div class="analytics-grid">
+                <div class="cn-card p-4">
+                    <div class="cn-section-header">
+                        <div>
+                            <h2 class="cn-section-title">能耗趋势</h2>
+                            <p class="cn-section-subtitle">每次补能后的百公里能耗变化</p>
                         </div>
-                    </template>
-                </Card>
+                    </div>
+                    <Chart type="line" :data="consumptionChartData" :options="chartOptions" class="analytics-chart" />
+                </div>
+
+                <div class="cn-card p-4">
+                    <div class="cn-section-header">
+                        <div>
+                            <h2 class="cn-section-title">费用构成</h2>
+                            <p class="cn-section-subtitle">所选周期内的支出分类</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-content-center">
+                        <Chart type="doughnut" :data="expenseChartData" :options="doughnutOptions" class="analytics-doughnut" />
+                    </div>
+                </div>
             </div>
 
-            <div class="col-12">
-                <Card class="shadow-2">
-                    <template #title>月度费用统计</template>
-                    <template #content>
-                        <Chart type="bar" :data="monthlyTrendData" :options="chartOptions" class="h-20rem" />
-                    </template>
-                </Card>
+            <div class="cn-card p-4">
+                <div class="cn-section-header">
+                    <div>
+                        <h2 class="cn-section-title">月度费用统计</h2>
+                        <p class="cn-section-subtitle">按月份对比费用与行驶里程</p>
+                    </div>
+                </div>
+                <Chart type="bar" :data="monthlyTrendData" :options="chartOptions" class="analytics-chart" />
             </div>
         </div>
     </div>
@@ -109,6 +136,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { vehicleAPI, analyticsAPI } from '../api'
+import PageHeader from '../components/PageHeader.vue'
 import logger from '../utils/logger'
 import { formatDate as fmtDate } from '../utils/date'
 import Chart from 'primevue/chart'
@@ -187,17 +215,24 @@ const chartOptions = {
     maintainAspectRatio: false,
     plugins: {
         legend: {
-            position: 'bottom'
+            position: 'bottom',
+            labels: { color: '#667085', usePointStyle: true, boxWidth: 8, padding: 18 }
         }
+    },
+    scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#98a2b3' } },
+        y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { color: '#98a2b3' } }
     }
 }
 
 const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    cutout: '68%',
     plugins: {
         legend: {
-            position: 'right'
+            position: 'bottom',
+            labels: { color: '#667085', usePointStyle: true, boxWidth: 8, padding: 16 }
         }
     }
 }
@@ -211,8 +246,8 @@ const consumptionChartData = computed(() => {
                 label: `平均能耗 (${unit.value})`,
                 data: consumptionData.value.map(d => d.consumption),
                 fill: true,
-                borderColor: '#42A5F5',
-                backgroundColor: 'rgba(66, 165, 245, 0.2)',
+                borderColor: '#101828',
+                backgroundColor: 'rgba(16, 24, 40, 0.06)',
                 tension: 0.4
             }
         ]
@@ -232,8 +267,8 @@ const expenseChartData = computed(() => {
                     data.parts_cost || 0,
                     data.other_cost || 0
                 ],
-                backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC'],
-                hoverBackgroundColor: ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8']
+                backgroundColor: ['#101828', '#475467', '#98a2b3', '#d0d5dd'],
+                hoverBackgroundColor: ['#1d2939', '#344054', '#667085', '#98a2b3']
             }
         ]
     }
@@ -246,12 +281,12 @@ const monthlyTrendData = computed(() => {
         datasets: [
             {
                 label: '总费用',
-                backgroundColor: '#FFA726',
+                backgroundColor: '#e2e8f0',
                 data: monthlyData.value.map(d => d.total_cost)
             },
             {
                 label: '行驶里程 (km)',
-                backgroundColor: '#42A5F5',
+                backgroundColor: '#101828',
                 yAxisID: 'y1',
                 data: monthlyData.value.map(d => d.total_mileage) // 注意：需要后端支持
             }
@@ -268,3 +303,44 @@ onMounted(() => {
     loadVehicles()
 })
 </script>
+
+<style scoped>
+.analytics-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--cn-border);
+    border-radius: 10px;
+    background: var(--surface-50);
+}
+
+.analytics-check label {
+    color: var(--cn-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.analytics-chart {
+    height: 300px;
+}
+
+.analytics-doughnut {
+    max-height: 290px;
+}
+
+@media screen and (max-width: 1100px) {
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
