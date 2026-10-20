@@ -249,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, defineAsyncComponent, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, defineAsyncComponent, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter, useRoute } from 'vue-router'
 import DataView from 'primevue/dataview'
@@ -692,6 +692,12 @@ onMounted(async () => {
     // Optional: Clean up query param
     router.replace({ query: null })
   }
+
+  window.addEventListener('carnote:add-energy', openAddDialog)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('carnote:add-energy', openAddDialog)
 })
 </script>
 

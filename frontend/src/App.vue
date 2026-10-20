@@ -27,6 +27,12 @@
 
         <div class="mt-auto pt-4">
           <Divider />
+          <div class="mobile-preferences">
+            <Button :label="isDark ? '深色' : '浅色'" :icon="isDark ? 'pi pi-moon' : 'pi pi-sun'"
+              text class="mobile-nav-button" @click="cycleMode" />
+            <Dropdown v-model="locale" :options="supportedLocales" optionLabel="label" optionValue="code"
+              class="w-full" />
+          </div>
           <Button label="设置" icon="pi pi-cog" text class="mobile-nav-button w-full" @click="navigateFromMobile('/settings')" />
           <Button label="退出登录" icon="pi pi-sign-out" text severity="danger" class="mobile-nav-button w-full"
             @click="logout" />
@@ -59,9 +65,18 @@
       </div>
 
       <!-- Content -->
-      <main class="layout-content flex-1">
+      <main class="layout-content flex-1" :class="{ 'has-mobile-nav': currentUser }">
         <router-view />
       </main>
+
+      <!-- Mobile bottom navigation -->
+      <nav v-if="currentUser" class="mobile-bottom-nav md:hidden">
+        <router-link v-for="item in mobileNavItems" :key="item.path" :to="item.path" class="mobile-bottom-item"
+          :class="{ active: !item.primary && isRouteActive(item.path), primary: item.primary }" @click="onMobileNavClick($event, item)">
+          <i :class="item.icon"></i>
+          <span>{{ item.shortLabel }}</span>
+        </router-link>
+      </nav>
 
       <!-- Footer -->
       <footer class="layout-footer text-center">
@@ -91,13 +106,25 @@ import AppTopbar from './layout/AppTopbar.vue'
 import Sidebar from 'primevue/sidebar'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useSiteStore } from './utils/siteStore'
+import { useI18n } from './i18n'
+import { useTheme } from './utils/theme'
 
 const router = useRouter()
 const route = useRoute()
 const currentUser = ref(null)
 const mobileMenuVisible = ref(false)
 const siteStore = useSiteStore()
+const { locale, supportedLocales } = useI18n()
+const { isDark, cycleMode } = useTheme()
 const appVersion = ref(__APP_VERSION__ || '1.3.5')
+
+const mobileNavItems = computed(() => [
+  { label: '首页', shortLabel: '首页', icon: 'pi pi-home', path: '/' },
+  { label: '能耗记录', shortLabel: '能耗', icon: 'pi pi-bolt', path: '/energy' },
+  { label: '记一笔', shortLabel: '记录', icon: 'pi pi-plus', path: '/energy?action=add', primary: true },
+  { label: '保养维修', shortLabel: '保养', icon: 'pi pi-wrench', path: '/maintenance' },
+  { label: '车辆管理', shortLabel: '车辆', icon: 'pi pi-car', path: '/vehicles' }
+])
 
 const menuItems = computed(() => {
   const items = [
@@ -164,6 +191,16 @@ const logout = () => {
 const navigateFromMobile = (path) => {
   router.push(path)
   mobileMenuVisible.value = false
+}
+
+const onMobileNavClick = (event, item) => {
+  if (!item.primary) return
+  event.preventDefault()
+  if (route.path === '/energy') {
+    window.dispatchEvent(new CustomEvent('carnote:add-energy'))
+  } else {
+    router.push(item.path)
+  }
 }
 
 watch(() => siteStore.state.websiteAnalytics, (newVal) => {
@@ -253,6 +290,13 @@ watch(() => siteStore.state.websiteAnalytics, (newVal) => {
 .mobile-nav-button.active {
   background: var(--surface-100) !important;
   color: var(--cn-text) !important;
+}
+
+.mobile-preferences {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .p-sidebar.mobile-drawer {

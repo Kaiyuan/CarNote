@@ -5,7 +5,7 @@
 <template>
   <div class="home-page">
     <PageHeader eyebrow="Overview" :live="true" title="车辆概览"
-      :description="`欢迎回来，${displayName}。在这里查看车辆里程、费用与保养状态。`">
+      :description="t('欢迎回来，{name}。在这里查看车辆里程、费用与保养状态。', { name: displayName })">
       <template #actions>
         <!-- VIP: 多车对比开关 -->
         <div v-if="isAdvanced" class="compare-toggle">
@@ -116,7 +116,7 @@
           </div>
           <div class="cn-stat-footer">
             <span v-if="overview.last_maintenance_days" class="cn-trend up">
-              {{ overview.last_maintenance_days }} 天前
+              {{ t('{n} 天前', { n: overview.last_maintenance_days }) }}
             </span>
             <span v-else class="cn-trend neutral">保养状态</span>
             <span class="cn-stat-hint">保持定期保养</span>
@@ -280,6 +280,8 @@ import logger from '../utils/logger'
 import { formatDate as fmtDate } from '../utils/date'
 import Chart from 'primevue/chart'
 import PageHeader from '../components/PageHeader.vue'
+import { t, monthLabel } from '../i18n'
+import { useTheme } from '../utils/theme'
 
 const router = useRouter()
 const siteStore = useSiteStore()
@@ -298,11 +300,13 @@ const monthlyData = ref([])
 const recentActivities = ref([])
 
 // Options
-const timeRanges = [
-  { label: '半年', value: '6months' },
-  { label: '一年', value: 'year' },
-  { label: '全部', value: 'all' }
-]
+const { isDark } = useTheme()
+
+const timeRanges = computed(() => [
+  { label: t('近半年'), value: '6months' },
+  { label: t('近一年'), value: 'year' },
+  { label: t('全部时间'), value: 'all' }
+])
 
 // --- VIP 相关逻辑 ---
 const comparisonMode = ref(false)
@@ -316,18 +320,18 @@ const isAdvanced = computed(() => {
 
 const filteredTimeRanges = computed(() => {
   if (siteStore.state.hasVip && isAdvanced.value) {
-    return [...timeRanges, { label: '自定义', value: 'custom' }]
+    return [...timeRanges.value, { label: t('自定义范围'), value: 'custom' }]
   }
-  return timeRanges
+  return timeRanges.value
 })
 
 const comparisonData = ref([])
 
-const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || '车主')
+const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || t('车主'))
 
 const rangeLabel = computed(() => {
-  const labels = { '6months': '近半年', 'year': '近一年', 'all': '全部时间', 'custom': '自定义范围' }
-  return labels[timeRange.value] || '累计统计'
+  const labels = { '6months': t('近半年'), 'year': t('近一年'), 'all': t('全部时间'), 'custom': t('自定义范围') }
+  return labels[timeRange.value] || t('累计统计')
 })
 
 // Fetch Vehicles
@@ -486,56 +490,59 @@ const unit = computed(() => {
 })
 
 // Charts Logic
-const mainChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      backgroundColor: '#101828',
-      padding: 10,
-      cornerRadius: 8,
-      titleFont: { size: 12 },
-      bodyFont: { size: 12 }
-    }
-  },
-  scales: {
-    y: {
-      type: 'linear',
-      display: true,
-      position: 'left',
-      beginAtZero: true,
-      border: { display: false },
-      grid: { color: '#f1f5f9', drawTicks: false },
-      ticks: { color: '#98a2b3', padding: 8, callback: (value) => '¥' + value }
+const mainChartOptions = computed(() => {
+  const dark = isDark.value
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: dark ? '#1c222a' : '#101828',
+        padding: 10,
+        cornerRadius: 8,
+        titleFont: { size: 12 },
+        bodyFont: { size: 12 }
+      }
     },
-    y1: {
-      type: 'linear',
-      display: true,
-      position: 'right',
-      beginAtZero: true,
-      border: { display: false },
-      grid: { drawOnChartArea: false },
-      ticks: { color: '#98a2b3', padding: 8, callback: (value) => value + ' km' }
-    },
-    x: {
-      border: { display: false },
-      grid: { display: false },
-      ticks: { color: '#98a2b3', padding: 6 }
+    scales: {
+      y: {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        beginAtZero: true,
+        border: { display: false },
+        grid: { color: dark ? '#1f242c' : '#f1f5f9', drawTicks: false },
+        ticks: { color: '#98a2b3', padding: 8, callback: (value) => '¥' + value }
+      },
+      y1: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        beginAtZero: true,
+        border: { display: false },
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#98a2b3', padding: 8, callback: (value) => value + ' km' }
+      },
+      x: {
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: '#98a2b3', padding: 6 }
+      }
     }
   }
-}
+})
 
 const monthlyTrendData = computed(() => {
   const data = Array.isArray(monthlyData.value) ? monthlyData.value : []
   return {
-    labels: data.map(d => d.month + '月'),
+    labels: data.map(d => monthLabel(d.month)),
     datasets: [
       {
         type: 'bar',
-        label: '费用',
-        backgroundColor: '#e2e8f0',
-        hoverBackgroundColor: '#cbd5e1',
+        label: t('费用'),
+        backgroundColor: isDark.value ? '#2a313b' : '#e2e8f0',
+        hoverBackgroundColor: isDark.value ? '#3a4450' : '#cbd5e1',
         data: data.map(d => d.total_cost),
         borderRadius: 6,
         barPercentage: 0.55,
@@ -544,10 +551,10 @@ const monthlyTrendData = computed(() => {
       },
       {
         type: 'line',
-        label: '里程',
-        borderColor: '#101828',
+        label: t('里程'),
+        borderColor: isDark.value ? '#f2f4f7' : '#101828',
         borderWidth: 2,
-        pointBackgroundColor: '#101828',
+        pointBackgroundColor: isDark.value ? '#f2f4f7' : '#101828',
         pointRadius: 0,
         pointHoverRadius: 4,
         fill: false,
@@ -559,20 +566,22 @@ const monthlyTrendData = computed(() => {
   }
 })
 
-const expenseColorList = ['#101828', '#475467', '#98a2b3', '#d0d5dd']
+const expenseColorList = computed(() => isDark.value
+  ? ['#f2f4f7', '#98a2b3', '#667085', '#3a4450']
+  : ['#101828', '#475467', '#98a2b3', '#d0d5dd'])
 
 const expenseList = computed(() => {
   const s = expenseData.value?.summary || {}
   const items = [
-    { label: '补能费用', value: s.energy || 0 },
-    { label: '保养维修', value: s.maintenance || 0 },
-    { label: '配件更换', value: s.parts || 0 },
-    { label: '保险费用', value: s.insurance || 0 }
+    { label: t('补能费用'), value: s.energy || 0 },
+    { label: t('保养维修'), value: s.maintenance || 0 },
+    { label: t('配件更换'), value: s.parts || 0 },
+    { label: t('保险费用'), value: s.insurance || 0 }
   ]
   const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0)
   return items.map((item, index) => ({
     ...item,
-    color: expenseColorList[index],
+    color: expenseColorList.value[index],
     percent: total > 0 ? Math.round((Number(item.value) / total) * 100) : 0
   }))
 })
@@ -585,7 +594,7 @@ const expenseTotal = computed(() => {
 const formatNumber = (n) => n ? Number(n).toLocaleString() : 0
 const formatCurrency = (v) => v ? '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '¥0.00'
 const formatDate = (date) => fmtDate(date, '未填写')
-const getActivityLabel = (t) => t === 'energy' ? '能耗' : '保养'
+const getActivityLabel = (type) => type === 'energy' ? t('能耗记录') : t('保养维修')
 const getActivitySeverity = (t) => t === 'energy' ? 'info' : 'warning'
 const getPowerTypeLabel = (type) => ({ fuel: '燃油', electric: '纯电', hybrid: '混动' }[type] || type)
 const getPowerSeverity = (type) => ({ fuel: 'warning', electric: 'info', hybrid: 'success' }[type] || 'secondary')

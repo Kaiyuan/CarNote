@@ -11,6 +11,20 @@
   <meta name="theme-color" content="#101828">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-status-bar-style" content="default">
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('carnote_theme') || 'system';
+        var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#000000' : '#101828');
+        var locale = localStorage.getItem('carnote_locale');
+        if (locale) document.documentElement.lang = locale;
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

@@ -23,13 +23,27 @@
                 <span>CarNote</span>
             </div>
             <div class="nav-links">
-                <a href="#features">功能特性</a>
-                <a href="#deployment">部署指南</a>
+                <a href="#features" data-i18n="navFeatures">功能特性</a>
+                <a href="#deployment" data-i18n="navDeploy">部署指南</a>
                 <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="github-link"><i
-                        class="fab fa-github"></i> GitHub</a>
+                        class="fab fa-github"></i> <span data-i18n="navGithub">GitHub</span></a>
             </div>
-            <div class="mobile-menu-btn">
-                <i class="fas fa-bars"></i>
+            <div class="nav-actions">
+                <label class="lang-select-wrap">
+                    <i class="fas fa-globe" aria-hidden="true"></i>
+                    <select id="langSelect" class="lang-select" aria-label="Language">
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                        <option value="ko">한국어</option>
+                        <option value="fr">Français</option>
+                        <option value="it">Italiano</option>
+                    </select>
+                </label>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
             </div>
         </div>
     </nav>
@@ -38,13 +52,13 @@
     <header class="hero">
         <div class="container">
             <div class="hero-content">
-                <h1>您的专属<span class="gradient-text">车辆管理</span>管家</h1>
-                <p class="hero-subtitle">全能型车辆记录与数据分析平台。追踪油耗电耗、管理保养维修、掌控车辆全生命周期成本。私有化部署，数据完全掌握在自己手中。</p>
+                <h1 data-i18n-html="heroTitle">您的专属<span class="gradient-text">车辆管理</span>管家</h1>
+                <p class="hero-subtitle" data-i18n="heroSubtitle">全能型车辆记录与数据分析平台。追踪油耗电耗、管理保养维修、掌控车辆全生命周期成本。私有化部署，数据完全掌握在自己手中。</p>
                 <div class="hero-buttons">
                     <a href="https://carnote.boxks.com" target="_blank" class="btn btn-primary"><i
-                            class="fas fa-rocket"></i> 在线演示</a>
+                            class="fas fa-rocket"></i> <span data-i18n="demo">在线演示</span></a>
                     <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="btn btn-secondary"><i
-                            class="fab fa-github"></i> 源码下载</a>
+                            class="fab fa-github"></i> <span data-i18n="source">源码下载</span></a>
                 </div>
                 <div class="tech-stack-icons">
                     <span title="Docker"><i class="fab fa-docker"></i></span>
@@ -61,7 +75,7 @@
                         <span class="dot green"></span>
                         <div class="url-bar">carnote.boxks.com</div>
                     </div>
-                    <img src="assets/carnote-index.png" alt="CarNote 仪表盘界面">
+                    <img src="assets/carnote-index.png" alt="CarNote dashboard">
                 </div>
             </div>
         </div>
@@ -71,63 +85,57 @@
     <section id="features" class="features">
         <div class="container">
             <div class="section-header">
-                <h2>核心功能特性</h2>
-                <p>精心打磨的每一个细节，只为更好的用车体验</p>
+                <h2 data-i18n="featuresTitle">核心功能特性</h2>
+                <p data-i18n="featuresSubtitle">精心打磨的每一个细节，只为更好的用车体验</p>
             </div>
 
             <div class="features-grid">
-                <!-- 1. 多车辆管理 -->
                 <div class="feature-card">
                     <div class="icon-box bg-blue">
                         <i class="fas fa-car"></i>
                     </div>
-                    <h3>多车辆管理</h3>
-                    <p>完美支持燃油车、纯电车及混动车型。统一管理家中所有车辆，一键切换视角。</p>
+                    <h3 data-i18n="f1Title">多车辆管理</h3>
+                    <p data-i18n="f1Desc">完美支持燃油车、纯电车及混动车型。统一管理家中所有车辆，一键切换视角。</p>
                 </div>
 
-                <!-- 2. 能耗追踪 -->
                 <div class="feature-card">
                     <div class="icon-box bg-green">
                         <i class="fas fa-gas-pump"></i>
                     </div>
-                    <h3>能耗精准追踪</h3>
-                    <p>自动计算百公里油耗/电耗。支持"加满"逻辑算法，精确统计每一次补能的里程差与成本。</p>
+                    <h3 data-i18n="f2Title">能耗精准追踪</h3>
+                    <p data-i18n="f2Desc">自动计算百公里油耗/电耗。支持"加满"逻辑算法，精确统计每一次补能的里程差与成本。</p>
                 </div>
 
-                <!-- 3. 保养管理 -->
                 <div class="feature-card">
                     <div class="icon-box bg-purple">
                         <i class="fas fa-wrench"></i>
                     </div>
-                    <h3>保养维修记录</h3>
-                    <p>记录每一次保养详情、费用及单据。智能预测下次保养时间与里程，告别逾期焦虑。</p>
+                    <h3 data-i18n="f3Title">保养维修记录</h3>
+                    <p data-i18n="f3Desc">记录每一次保养详情、费用及单据。智能预测下次保养时间与里程，告别逾期焦虑。</p>
                 </div>
 
-                <!-- 4. 配件追踪 -->
                 <div class="feature-card">
                     <div class="icon-box bg-orange">
                         <i class="fas fa-cogs"></i>
                     </div>
-                    <h3>全车配件追踪</h3>
-                    <p>甚至连雨刮器、轮胎、电瓶都能独立追踪。记录更换历史、供应商信息及保修状态。</p>
+                    <h3 data-i18n="f4Title">全车配件追踪</h3>
+                    <p data-i18n="f4Desc">甚至连雨刮器、轮胎、电瓶都能独立追踪。记录更换历史、供应商信息及保修状态。</p>
                 </div>
 
-                <!-- 5. 数据分析 -->
                 <div class="feature-card">
                     <div class="icon-box bg-cyan">
                         <i class="fas fa-chart-pie"></i>
                     </div>
-                    <h3>深度数据分析</h3>
-                    <p>直观的仪表盘展示月度费用趋势、能耗曲线及位置热力图。让每一分钱花得明明白白。</p>
+                    <h3 data-i18n="f5Title">深度数据分析</h3>
+                    <p data-i18n="f5Desc">直观的仪表盘展示月度费用趋势、能耗曲线及位置热力图。让每一分钱花得明明白白。</p>
                 </div>
 
-                <!-- 6. PWA 支持 -->
                 <div class="feature-card">
                     <div class="icon-box bg-red">
                         <i class="fas fa-mobile-alt"></i>
                     </div>
-                    <h3>全功能 PWA</h3>
-                    <p>支持安装到手机主屏幕，提供类原生 App 的流畅体验。随时随地，快速记账。</p>
+                    <h3 data-i18n="f6Title">全功能 PWA</h3>
+                    <p data-i18n="f6Desc">支持安装到手机主屏幕，提供类原生 App 的流畅体验。随时随地，快速记账。</p>
                 </div>
             </div>
         </div>
@@ -137,14 +145,14 @@
     <section id="deployment" class="cta-section">
         <div class="container">
             <div class="cta-content">
-                <h2>准备好开始了吗？</h2>
-                <p>基于 Docker 容器化技术，您可以轻松在 NAS、服务器或个人电脑上部署您私有的 CarNote。</p>
+                <h2 data-i18n="ctaTitle">准备好开始了吗？</h2>
+                <p data-i18n="ctaText">基于 Docker 容器化技术，您可以轻松在 NAS、服务器或个人电脑上部署您私有的 CarNote。</p>
                 <div class="code-preview">
                     <code>docker-compose up -d</code>
                 </div>
                 <div class="cta-buttons">
                     <a href="https://github.com/Kaiyuan/CarNote#快速开始" target="_blank"
-                        class="btn btn-outline-white">查看部署文档</a>
+                        class="btn btn-outline-white" data-i18n="deployDocs">查看部署文档</a>
                 </div>
             </div>
         </div>
@@ -159,9 +167,9 @@
                     <span>CarNote</span>
                 </div>
                 <div class="footer-links">
-                    <a href="https://github.com/Kaiyuan/CarNote">GitHub 仓库</a>
-                    <a href="https://github.com/Kaiyuan/CarNote/issues">问题反馈</a>
-                    <a href="https://carnote.boxks.com">在线演示</a>
+                    <a href="https://github.com/Kaiyuan/CarNote" data-i18n="footerRepo">GitHub 仓库</a>
+                    <a href="https://github.com/Kaiyuan/CarNote/issues" data-i18n="footerIssues">问题反馈</a>
+                    <a href="https://carnote.boxks.com" data-i18n="footerDemo">在线演示</a>
                 </div>
                 <div class="copyright">
                     &copy; 2024-2026 CarNote Project. Open Source under MIT License.
@@ -171,9 +179,182 @@
     </footer>
 
     <script>
-        //简单的移动端菜单切换
+        const translations = {
+            'zh-CN': {
+                title: 'CarNote - 您的专属车辆管理管家',
+                meta: '一个功能完整的车辆记录管理系统，支持油耗、电耗追踪、保养管理、配件跟踪和数据分析。',
+                navFeatures: '功能特性', navDeploy: '部署指南', navGithub: 'GitHub',
+                heroTitle: '您的专属<span class="gradient-text">车辆管理</span>管家',
+                heroSubtitle: '全能型车辆记录与数据分析平台。追踪油耗电耗、管理保养维修、掌控车辆全生命周期成本。私有化部署，数据完全掌握在自己手中。',
+                demo: '在线演示', source: '源码下载',
+                featuresTitle: '核心功能特性', featuresSubtitle: '精心打磨的每一个细节，只为更好的用车体验',
+                f1Title: '多车辆管理', f1Desc: '完美支持燃油车、纯电车及混动车型。统一管理家中所有车辆，一键切换视角。',
+                f2Title: '能耗精准追踪', f2Desc: '自动计算百公里油耗/电耗。支持“加满”逻辑算法，精确统计每一次补能的里程差与成本。',
+                f3Title: '保养维修记录', f3Desc: '记录每一次保养详情、费用及单据。智能预测下次保养时间与里程，告别逾期焦虑。',
+                f4Title: '全车配件追踪', f4Desc: '甚至连雨刮器、轮胎、电瓶都能独立追踪。记录更换历史、供应商信息及保修状态。',
+                f5Title: '深度数据分析', f5Desc: '直观的仪表盘展示月度费用趋势、能耗曲线及位置热力图。让每一分钱花得明明白白。',
+                f6Title: '全功能 PWA', f6Desc: '支持安装到手机主屏幕，提供类原生 App 的流畅体验。随时随地，快速记账。',
+                ctaTitle: '准备好开始了吗？', ctaText: '基于 Docker 容器化技术，您可以轻松在 NAS、服务器或个人电脑上部署您私有的 CarNote。',
+                deployDocs: '查看部署文档', footerRepo: 'GitHub 仓库', footerIssues: '问题反馈', footerDemo: '在线演示'
+            },
+            'zh-TW': {
+                title: 'CarNote - 您的專屬車輛管理管家',
+                meta: '功能完整的車輛紀錄管理系統，支援油耗、電耗追蹤、保養管理、配件追蹤與資料分析。',
+                navFeatures: '功能特色', navDeploy: '部署指南', navGithub: 'GitHub',
+                heroTitle: '您的專屬<span class="gradient-text">車輛管理</span>管家',
+                heroSubtitle: '全能型車輛紀錄與資料分析平台。追蹤油耗電耗、管理保養維修、掌控車輛全生命週期成本。私有化部署，資料完全掌握在自己手中。',
+                demo: '線上示範', source: '下載原始碼',
+                featuresTitle: '核心功能特色', featuresSubtitle: '精心打磨每一個細節，只為更好的用車體驗',
+                f1Title: '多車輛管理', f1Desc: '完整支援燃油車、純電車及油電混合車。統一管理家中所有車輛，一鍵切換視角。',
+                f2Title: '能耗精準追蹤', f2Desc: '自動計算百公里油耗/電耗。支援「加滿」邏輯演算法，精確統計每次補能的里程差與成本。',
+                f3Title: '保養維修紀錄', f3Desc: '記錄每次保養詳情、費用及單據。智慧預測下次保養時間與里程，告別逾期焦慮。',
+                f4Title: '全車配件追蹤', f4Desc: '連雨刷、輪胎、電瓶都能獨立追蹤。記錄更換歷史、供應商資訊及保固狀態。',
+                f5Title: '深度資料分析', f5Desc: '直觀的儀表板展示月度費用趨勢、能耗曲線及位置熱力圖。讓每一分錢花得明明白白。',
+                f6Title: '全功能 PWA', f6Desc: '支援安裝到手機主畫面，提供類原生 App 的流暢體驗。隨時隨地，快速記帳。',
+                ctaTitle: '準備好開始了嗎？', ctaText: '基於 Docker 容器化技術，您可以輕鬆在 NAS、伺服器或個人電腦上部署專屬的 CarNote。',
+                deployDocs: '查看部署文件', footerRepo: 'GitHub 倉庫', footerIssues: '問題回報', footerDemo: '線上示範'
+            },
+            en: {
+                title: 'CarNote - Your personal vehicle manager',
+                meta: 'A complete vehicle logging system for fuel and energy tracking, maintenance, parts and analytics.',
+                navFeatures: 'Features', navDeploy: 'Deploy', navGithub: 'GitHub',
+                heroTitle: 'Your personal <span class="gradient-text">vehicle manager</span>',
+                heroSubtitle: 'An all-in-one platform for vehicle logs and analytics. Track fuel and energy use, manage maintenance, and understand the full cost of ownership. Self-hosted, with your data staying yours.',
+                demo: 'Live demo', source: 'View source',
+                featuresTitle: 'Everything you need', featuresSubtitle: 'Thoughtfully built details for a better ownership experience',
+                f1Title: 'Multiple vehicles', f1Desc: 'Supports petrol, electric and hybrid vehicles. Manage every car in your household and switch views in one click.',
+                f2Title: 'Precise energy tracking', f2Desc: 'Automatic fuel and energy consumption per 100 km, with full-tank logic for accurate distance and cost calculations.',
+                f3Title: 'Maintenance history', f3Desc: 'Keep every service detail, cost and receipt. Smart predictions for the next service date and mileage.',
+                f4Title: 'Parts tracking', f4Desc: 'Track wipers, tires, batteries and more independently, including replacement history, suppliers and warranty status.',
+                f5Title: 'Deep analytics', f5Desc: 'Clear dashboards for monthly spending trends, consumption curves and location heatmaps.',
+                f6Title: 'Full PWA support', f6Desc: 'Install to your home screen for a native-like experience. Log entries wherever you are.',
+                ctaTitle: 'Ready to get started?', ctaText: 'Deploy your own CarNote on a NAS, server or personal computer with Docker.',
+                deployDocs: 'Read the deployment guide', footerRepo: 'GitHub repository', footerIssues: 'Report an issue', footerDemo: 'Live demo'
+            },
+            ja: {
+                title: 'CarNote - あなた専用の車両管理アシスタント',
+                meta: '燃費・電費の記録、メンテナンス管理、パーツ追跡、データ分析に対応した車両記録管理システム。',
+                navFeatures: '機能', navDeploy: '導入ガイド', navGithub: 'GitHub',
+                heroTitle: 'あなた専用の<span class="gradient-text">車両管理</span>アシスタント',
+                heroSubtitle: '車両記録とデータ分析のオールインワンプラットフォーム。燃費・電費、メンテナンス、維持費を一元管理。セルフホストでデータを完全に手元に。',
+                demo: 'デモを見る', source: 'ソースコード',
+                featuresTitle: '主な機能', featuresSubtitle: 'より良いカーライフのための、細部までこだわった機能',
+                f1Title: '複数車両の管理', f1Desc: 'ガソリン車、EV、ハイブリッド車に対応。家族の車をまとめて管理し、ワンクリックで切り替え。',
+                f2Title: '正確なエネルギー記録', f2Desc: '100kmあたりの燃費・電費を自動計算。満タン方式で距離とコストを正確に記録。',
+                f3Title: 'メンテナンス履歴', f3Desc: '整備内容、費用、領収書を記録。次回の整備時期と距離を予測して通知します。',
+                f4Title: 'パーツ管理', f4Desc: 'ワイパー、タイヤ、バッテリーなども個別に管理。交換履歴、販売店、保証状況を記録。',
+                f5Title: '詳細な分析', f5Desc: '月別費用、燃費推移、位置ヒートマップを分かりやすいダッシュボードで表示。',
+                f6Title: 'PWA対応', f6Desc: 'ホーム画面に追加してネイティブアプリのような体験。いつでもどこでも素早く記録。',
+                ctaTitle: '始めませんか？', ctaText: 'Dockerを使ってNAS、サーバー、パソコンに自分だけのCarNoteを簡単に導入できます。',
+                deployDocs: '導入ガイドを読む', footerRepo: 'GitHubリポジトリ', footerIssues: '問題を報告', footerDemo: 'デモを見る'
+            },
+            ko: {
+                title: 'CarNote - 나만의 차량 관리 도우미',
+                meta: '연료 및 전력 기록, 정비 관리, 부품 추적, 데이터 분석을 지원하는 차량 기록 관리 시스템.',
+                navFeatures: '기능', navDeploy: '배포 가이드', navGithub: 'GitHub',
+                heroTitle: '나만의 <span class="gradient-text">차량 관리</span> 도우미',
+                heroSubtitle: '차량 기록과 데이터 분석을 위한 올인원 플랫폼. 연료와 전력, 정비, 유지비를 한곳에서 관리하세요. 셀프 호스팅으로 데이터를 직접 보관합니다.',
+                demo: '라이브 데모', source: '소스 코드',
+                featuresTitle: '주요 기능', featuresSubtitle: '더 나은 차량 생활을 위한 세심한 기능',
+                f1Title: '다중 차량 관리', f1Desc: '가솔린, 전기, 하이브리드 차량을 모두 지원합니다. 가족의 모든 차량을 한곳에서 관리하세요.',
+                f2Title: '정확한 에너지 기록', f2Desc: '100km당 연료 및 전력 소비량을 자동 계산합니다. 만충 방식으로 거리와 비용을 정확히 기록합니다.',
+                f3Title: '정비 기록', f3Desc: '정비 내용, 비용, 영수증을 기록합니다. 다음 정비 시기와 주행거리를 예측해 알려드립니다.',
+                f4Title: '부품 추적', f4Desc: '와이퍼, 타이어, 배터리까지 개별 관리합니다. 교체 이력, 공급업체, 보증 상태를 기록하세요.',
+                f5Title: '심층 분석', f5Desc: '월별 비용 추세, 소비 곡선, 위치 히트맵을 직관적인 대시보드로 확인하세요.',
+                f6Title: 'PWA 지원', f6Desc: '홈 화면에 설치해 네이티브 앱처럼 사용하세요. 언제 어디서나 빠르게 기록할 수 있습니다.',
+                ctaTitle: '시작할 준비가 되셨나요?', ctaText: 'Docker를 사용해 NAS, 서버 또는 개인 컴퓨터에 나만의 CarNote를 배포하세요.',
+                deployDocs: '배포 가이드 보기', footerRepo: 'GitHub 저장소', footerIssues: '문제 신고', footerDemo: '라이브 데모'
+            },
+            fr: {
+                title: 'CarNote - Votre gestionnaire de véhicules personnel',
+                meta: 'Un système complet de suivi des véhicules : carburant, énergie, entretien, pièces et analyses.',
+                navFeatures: 'Fonctionnalités', navDeploy: 'Déploiement', navGithub: 'GitHub',
+                heroTitle: 'Votre <span class="gradient-text">gestionnaire de véhicules</span> personnel',
+                heroSubtitle: 'Une plateforme tout-en-un pour le suivi et l’analyse de vos véhicules. Carburant, énergie, entretien et coût total de possession, en toute autonomie.',
+                demo: 'Démo en ligne', source: 'Code source',
+                featuresTitle: 'Fonctionnalités principales', featuresSubtitle: 'Des détails soignés pour une meilleure expérience automobile',
+                f1Title: 'Plusieurs véhicules', f1Desc: 'Compatible essence, électrique et hybride. Gérez tous les véhicules du foyer et changez de vue en un clic.',
+                f2Title: 'Suivi précis de l’énergie', f2Desc: 'Calcul automatique de la consommation aux 100 km, avec une logique de plein complet pour des coûts exacts.',
+                f3Title: 'Historique d’entretien', f3Desc: 'Conservez chaque intervention, coût et justificatif. Prédiction intelligente de la prochaine échéance.',
+                f4Title: 'Suivi des pièces', f4Desc: 'Suivez essuie-glaces, pneus, batteries et plus encore : historique, fournisseurs et garantie.',
+                f5Title: 'Analyses détaillées', f5Desc: 'Des tableaux de bord clairs pour les dépenses mensuelles, les courbes de consommation et les cartes de lieux.',
+                f6Title: 'Prise en charge PWA', f6Desc: 'Installez l’application sur votre écran d’accueil pour une expérience proche du natif.',
+                ctaTitle: 'Prêt à commencer ?', ctaText: 'Déployez votre propre CarNote sur un NAS, un serveur ou un ordinateur personnel avec Docker.',
+                deployDocs: 'Lire le guide de déploiement', footerRepo: 'Dépôt GitHub', footerIssues: 'Signaler un problème', footerDemo: 'Démo en ligne'
+            },
+            it: {
+                title: 'CarNote - Il tuo gestore personale dei veicoli',
+                meta: 'Un sistema completo per registrare carburante, energia, manutenzione, ricambi e analisi dei veicoli.',
+                navFeatures: 'Funzioni', navDeploy: 'Distribuzione', navGithub: 'GitHub',
+                heroTitle: 'Il tuo <span class="gradient-text">gestore dei veicoli</span> personale',
+                heroSubtitle: 'Una piattaforma tutto-in-uno per registrare e analizzare i tuoi veicoli. Carburante, energia, manutenzione e costo totale di possesso, con i dati sempre tuoi.',
+                demo: 'Demo online', source: 'Codice sorgente',
+                featuresTitle: 'Funzioni principali', featuresSubtitle: 'Dettagli curati per un’esperienza automobilistica migliore',
+                f1Title: 'Più veicoli', f1Desc: 'Supporta benzina, elettrico e ibrido. Gestisci tutte le auto di famiglia e cambia vista con un clic.',
+                f2Title: 'Consumi precisi', f2Desc: 'Calcolo automatico dei consumi ogni 100 km, con logica del pieno completo per costi e distanze accurati.',
+                f3Title: 'Storico manutenzioni', f3Desc: 'Registra ogni intervento, costo e documento. Previsione intelligente della prossima scadenza.',
+                f4Title: 'Gestione ricambi', f4Desc: 'Tieni traccia di tergicristalli, pneumatici, batterie e altro: sostituzioni, fornitori e garanzia.',
+                f5Title: 'Analisi approfondite', f5Desc: 'Dashboard chiare per spese mensili, curve dei consumi e mappe delle posizioni.',
+                f6Title: 'Supporto PWA', f6Desc: 'Installa l’app sulla schermata home per un’esperienza simile a quella nativa.',
+                ctaTitle: 'Pronto a iniziare?', ctaText: 'Installa il tuo CarNote su NAS, server o computer personale con Docker.',
+                deployDocs: 'Leggi la guida alla distribuzione', footerRepo: 'Repository GitHub', footerIssues: 'Segnala un problema', footerDemo: 'Demo online'
+            }
+        };
+
+        function normalizeLocale(value) {
+            if (!value) return null;
+            const lower = String(value).toLowerCase();
+            if (lower.startsWith('zh')) return /tw|hk|mo|hant/.test(lower) ? 'zh-TW' : 'zh-CN';
+            if (lower.startsWith('ja')) return 'ja';
+            if (lower.startsWith('ko')) return 'ko';
+            if (lower.startsWith('fr')) return 'fr';
+            if (lower.startsWith('it')) return 'it';
+            if (lower.startsWith('en')) return 'en';
+            return null;
+        }
+
+        const select = document.getElementById('langSelect');
+        const meta = document.querySelector('meta[name="description"]');
+
+        function setLanguage(code, persist) {
+            const locale = translations[code] ? code : 'zh-CN';
+            const dict = translations[locale];
+            document.documentElement.lang = locale;
+            document.title = dict.title;
+            if (meta) meta.setAttribute('content', dict.meta);
+
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                const key = el.getAttribute('data-i18n');
+                if (dict[key]) el.textContent = dict[key];
+            });
+            document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
+                const key = el.getAttribute('data-i18n-html');
+                if (dict[key]) el.innerHTML = dict[key];
+            });
+
+            select.value = locale;
+            if (persist) {
+                try { localStorage.setItem('carnote_docs_locale', locale); } catch (e) {}
+            }
+        }
+
+        let initial = null;
+        try { initial = normalizeLocale(localStorage.getItem('carnote_docs_locale')); } catch (e) {}
+        if (!initial) initial = normalizeLocale(navigator.language) || 'zh-CN';
+        setLanguage(initial, false);
+
+        select.addEventListener('change', function () {
+            setLanguage(select.value, true);
+        });
+
         document.querySelector('.mobile-menu-btn').addEventListener('click', function () {
             document.querySelector('.nav-links').classList.toggle('active');
+        });
+
+        document.querySelectorAll('.nav-links a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                document.querySelector('.nav-links').classList.remove('active');
+            });
         });
     </script>
     <script defer="" src="https://tj.ooio.win/tracker.min.js" data-website-id="CarNote-page"></script>

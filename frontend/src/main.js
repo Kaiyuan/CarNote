@@ -8,6 +8,8 @@ import App from './App.vue'
 import router from './router'
 import PrimeVue from 'primevue/config'
 import logger from './utils/logger'
+import { initTheme } from './utils/theme'
+import { installI18n, startAutoLocalization } from './i18n'
 
 // PrimeVue 样式
 import 'primevue/resources/themes/lara-light-blue/theme.css'
@@ -36,8 +38,12 @@ import Tag from 'primevue/tag'
 import Menubar from 'primevue/menubar'
 import Chart from 'primevue/chart'
 
+// 初始化主题与国际化
+initTheme()
+
 // 创建应用
 const app = createApp(App)
+installI18n(app)
 
 // 使用插件
 app.use(router)
@@ -108,6 +114,7 @@ const startApp = async () => {
 
     // 挂载应用
     app.mount('#app');
+    startAutoLocalization();
 }
 
 startApp();

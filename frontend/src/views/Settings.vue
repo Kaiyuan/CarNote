@@ -42,6 +42,18 @@
                         <Divider />
 
                         <h3 class="text-lg font-semibold mb-3">偏好设置</h3>
+                        <div class="formgrid grid mb-2">
+                            <div class="field col-12 md:col-6">
+                                <label>{{ t('外观') }} / {{ t('主题') }}</label>
+                                <SelectButton v-model="themeMode" :options="themeOptions" optionLabel="label"
+                                    optionValue="value" class="w-full" :allowEmpty="false" />
+                            </div>
+                            <div class="field col-12 md:col-6">
+                                <label>{{ t('语言') }}</label>
+                                <Dropdown v-model="locale" :options="supportedLocales" optionLabel="label"
+                                    optionValue="code" class="w-full" />
+                            </div>
+                        </div>
                         <div class="formgrid grid">
                             <div class="field col-6">
                                 <label>货币单位</label>
@@ -233,9 +245,19 @@ import PageHeader from '../components/PageHeader.vue'
 import { convertToCSV, downloadFile, downloadBackupJSON } from '../utils/dataExport'
 import { formatDate as fmtDate } from '../utils/date'
 import { validateBackupFormat } from '../utils/dataImport'
+import { useI18n } from '../i18n'
+import { useTheme } from '../utils/theme'
 
 const router = useRouter()
 const toast = useToast()
+const { t, locale, supportedLocales } = useI18n()
+const { mode: themeMode } = useTheme()
+
+const themeOptions = computed(() => [
+    { label: t('浅色'), value: 'light' },
+    { label: t('深色'), value: 'dark' },
+    { label: t('跟随系统'), value: 'system' }
+])
 
 const appVersion = ref(__APP_VERSION__ || '1.0.0')
 

@@ -16,6 +16,12 @@
                 <span class="topbar-search-hint">⌘K</span>
             </div>
 
+            <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded class="topbar-icon-button"
+                @click="cycleMode" :aria-label="t('主题')" v-tooltip.bottom="themeLabel" />
+
+            <Dropdown v-model="locale" :options="supportedLocales" optionLabel="label" optionValue="code"
+                class="topbar-locale" :aria-label="t('语言')" v-tooltip.bottom="t('语言')" />
+
             <div class="relative">
                 <Button icon="pi pi-bell" text rounded class="topbar-icon-button" @click="toggleNotifications"
                     aria-label="通知" />
@@ -28,7 +34,7 @@
                     <div class="notification-header">
                         <div>
                             <h3>通知</h3>
-                            <p>{{ notificationCount }} 条待处理消息</p>
+                            <p>{{ t('{n} 条待处理消息', { n: notificationCount }) }}</p>
                         </div>
                         <Button icon="pi pi-times" text rounded size="small" @click="showNotifications = false" />
                     </div>
@@ -62,9 +68,8 @@
                                 class="notification-item" @click="goToRemind('/maintenance', reminder.vehicle_id)">
                                 <span class="notification-item-icon warning"><i class="pi pi-wrench"></i></span>
                                 <div class="notification-item-body">
-                                    <div class="notification-item-title">{{ reminder.plate_number }} 即将到达保养里程</div>
-                                    <small>还剩 {{ reminder.next_maintenance_mileage - reminder.current_mileage }}
-                                        公里</small>
+                                    <div class="notification-item-title">{{ t('{plate} 即将到达保养里程', { plate: reminder.plate_number }) }}</div>
+                                    <small>{{ t('还剩 {n} 公里', { n: reminder.next_maintenance_mileage - reminder.current_mileage }) }}</small>
                                 </div>
                             </div>
                         </div>
@@ -105,9 +110,13 @@ import { useSiteStore } from '../utils/siteStore'
 import { messagesAPI } from '../api'
 import { useToast } from 'primevue/usetoast'
 import logger from '../utils/logger'
+import { useI18n, relativeTime } from '../i18n'
+import { useTheme } from '../utils/theme'
 
 const siteStore = useSiteStore()
 const toast = useToast()
+const { t, locale, supportedLocales } = useI18n()
+const { isDark, cycleMode } = useTheme()
 const router = useRouter()
 const route = useRoute()
 
@@ -115,6 +124,8 @@ const showNotifications = ref(false)
 const notifications = ref(null)
 const loading = ref(false)
 const searchText = ref('')
+
+const themeLabel = computed(() => `${t('主题')}: ${isDark.value ? t('深色') : t('浅色')}`)
 
 const pageTitles = {
     '/': '概览',
@@ -176,21 +187,7 @@ const loadNotifications = async () => {
     }
 }
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diff = now - date
-    const seconds = Math.floor(diff / 1000)
-    const minutes = Math.floor(seconds / 60)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
-
-    if (days > 0) return `${days}天前`
-    if (hours > 0) return `${hours}小时前`
-    if (minutes > 0) return `${minutes}分钟前`
-    return '刚刚'
-}
+const formatDate = (dateStr) => relativeTime(dateStr)
 
 const viewAnnouncement = (announcement) => {
     toast.add({
@@ -511,5 +508,22 @@ onMounted(() => {
     .topbar-search {
         width: 220px;
     }
+
+    .topbar-locale {
+        width: 7.5rem;
+    }
+}
+
+.topbar-locale {
+    width: 8.75rem;
+}
+
+.topbar-locale :deep(.p-dropdown-label) {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+}
+
+.topbar-locale :deep(.p-dropdown-trigger) {
+    width: 2rem;
 }
 </style>

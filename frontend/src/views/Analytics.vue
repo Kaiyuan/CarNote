@@ -89,7 +89,7 @@
                         <span class="cn-stat-icon"><i class="pi pi-wrench"></i></span>
                     </div>
                     <div class="cn-stat-footer">
-                        <span v-if="overview.last_maintenance_days" class="cn-trend up">{{ overview.last_maintenance_days }} 天前</span>
+                        <span v-if="overview.last_maintenance_days" class="cn-trend up">{{ t('{n} 天前', { n: overview.last_maintenance_days }) }}</span>
                         <span v-else class="cn-trend neutral">保养状态</span>
                     </div>
                 </div>
@@ -140,6 +140,8 @@ import PageHeader from '../components/PageHeader.vue'
 import logger from '../utils/logger'
 import { formatDate as fmtDate } from '../utils/date'
 import Chart from 'primevue/chart'
+import { t, monthLabel } from '../i18n'
+import { useTheme } from '../utils/theme'
 
 // 状态
 const vehicles = ref([])
@@ -150,13 +152,14 @@ const overview = ref({})
 const consumptionData = ref([])
 const expenseData = ref({})
 const monthlyData = ref([])
+const { isDark } = useTheme()
 
-const timeRanges = [
-    { label: '最近一个月', value: 'month' },
-    { label: '最近半年', value: '6months' },
-    { label: '最近一年', value: 'year' },
-    { label: '全部', value: 'all' }
-]
+const timeRanges = computed(() => [
+    { label: t('最近一个月'), value: 'month' },
+    { label: t('近半年'), value: '6months' },
+    { label: t('近一年'), value: 'year' },
+    { label: t('全部时间'), value: 'all' }
+])
 
 // 获取车辆列表
 const loadVehicles = async () => {
@@ -210,32 +213,40 @@ const unit = computed(() => {
 })
 
 // 图表配置
-const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: {
-            position: 'bottom',
-            labels: { color: '#667085', usePointStyle: true, boxWidth: 8, padding: 18 }
+const chartOptions = computed(() => {
+    const dark = isDark.value
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { color: dark ? '#98a2b3' : '#667085', usePointStyle: true, boxWidth: 8, padding: 18 }
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, border: { display: false }, ticks: { color: '#98a2b3' } },
+            y: { grid: { color: dark ? '#1f242c' : '#f1f5f9' }, border: { display: false }, ticks: { color: '#98a2b3' } }
         }
-    },
-    scales: {
-        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#98a2b3' } },
-        y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { color: '#98a2b3' } }
     }
-}
+})
 
-const doughnutOptions = {
+const doughnutOptions = computed(() => ({
     responsive: true,
     maintainAspectRatio: false,
     cutout: '68%',
     plugins: {
         legend: {
             position: 'bottom',
-            labels: { color: '#667085', usePointStyle: true, boxWidth: 8, padding: 16 }
+            labels: {
+                color: isDark.value ? '#98a2b3' : '#667085',
+                usePointStyle: true,
+                boxWidth: 8,
+                padding: 16
+            }
         }
     }
-}
+}))
 
 // 能耗趋势图数据
 const consumptionChartData = computed(() => {
@@ -243,11 +254,11 @@ const consumptionChartData = computed(() => {
         labels: consumptionData.value.map(d => d.date),
         datasets: [
             {
-                label: `平均能耗 (${unit.value})`,
+                label: `${t('平均能耗')} (${unit.value})`,
                 data: consumptionData.value.map(d => d.consumption),
                 fill: true,
-                borderColor: '#101828',
-                backgroundColor: 'rgba(16, 24, 40, 0.06)',
+                borderColor: isDark.value ? '#f2f4f7' : '#101828',
+                backgroundColor: isDark.value ? 'rgba(242, 244, 247, 0.10)' : 'rgba(16, 24, 40, 0.06)',
                 tension: 0.4
             }
         ]
@@ -258,7 +269,7 @@ const consumptionChartData = computed(() => {
 const expenseChartData = computed(() => {
     const data = expenseData.value || {}
     return {
-        labels: ['能耗', '保养', '配件', '其他'],
+        labels: [t('能耗记录'), t('保养维修'), t('配件管理'), t('其它')],
         datasets: [
             {
                 data: [
@@ -267,8 +278,12 @@ const expenseChartData = computed(() => {
                     data.parts_cost || 0,
                     data.other_cost || 0
                 ],
-                backgroundColor: ['#101828', '#475467', '#98a2b3', '#d0d5dd'],
-                hoverBackgroundColor: ['#1d2939', '#344054', '#667085', '#98a2b3']
+                backgroundColor: isDark.value
+                    ? ['#f2f4f7', '#98a2b3', '#667085', '#3a4450']
+                    : ['#101828', '#475467', '#98a2b3', '#d0d5dd'],
+                hoverBackgroundColor: isDark.value
+                    ? ['#ffffff', '#b8c0cc', '#98a2b3', '#4b5563']
+                    : ['#1d2939', '#344054', '#667085', '#98a2b3']
             }
         ]
     }
@@ -277,16 +292,16 @@ const expenseChartData = computed(() => {
 // 月度趋势图数据
 const monthlyTrendData = computed(() => {
     return {
-        labels: monthlyData.value.map(d => d.month + '月'),
+        labels: monthlyData.value.map(d => monthLabel(d.month)),
         datasets: [
             {
-                label: '总费用',
-                backgroundColor: '#e2e8f0',
+                label: t('总花费'),
+                backgroundColor: isDark.value ? '#2a313b' : '#e2e8f0',
                 data: monthlyData.value.map(d => d.total_cost)
             },
             {
-                label: '行驶里程 (km)',
-                backgroundColor: '#101828',
+                label: `${t('里程')} (km)`,
+                backgroundColor: isDark.value ? '#f2f4f7' : '#101828',
                 yAxisID: 'y1',
                 data: monthlyData.value.map(d => d.total_mileage) // 注意：需要后端支持
             }

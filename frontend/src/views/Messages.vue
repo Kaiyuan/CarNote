@@ -37,7 +37,7 @@
                             </div>
                             <p class="text-700 m-0 white-space-pre-wrap">{{ ann.content }}</p>
                             <div class="mt-3 flex justify-content-between align-items-center">
-                                <small class="text-500">发布者: {{ ann.creator_name }}</small>
+                                <small class="text-500">{{ t('发布者:') }} {{ ann.creator_name }}</small>
                                 <small class="text-500">{{ formatDate(ann.created_at) }}</small>
                             </div>
                         </div>
@@ -233,10 +233,12 @@ import { ref, onMounted, computed } from 'vue'
 import { messagesAPI } from '../api'
 import { formatDateTime as fmtDateTime } from '../utils/date'
 import { useToast } from 'primevue/usetoast'
+import { useI18n } from '../i18n'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 
 const toast = useToast()
+const { t } = useI18n()
 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
 const isAdmin = computed(() => currentUser.role === 'admin')
 
