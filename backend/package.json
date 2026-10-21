@@ -1,6 +1,6 @@
 {
   "name": "carnote-backend",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "CarNote 车记录后端 API 服务",
   "main": "server.js",
   "scripts": {
