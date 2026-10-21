@@ -769,7 +769,10 @@ const savingBranding = ref(false)
 const iconInput = ref(null)
 
 const loadBranding = async () => {
-    await siteStore.fetchConfig()
+    await Promise.all([
+        siteStore.fetchConfig(),
+        siteStore.fetchPrivateConfig()
+    ])
     siteBranding.value = {
         site_name: siteStore.state.siteName,
         site_description: siteStore.state.siteDescription,

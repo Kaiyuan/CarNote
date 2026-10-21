@@ -9,22 +9,9 @@ import logger from '../utils/logger'
 // 创建 axios 实例
 const api = axios.create({
     baseURL: '/api',
-    timeout: 10000
+    timeout: 10000,
+    withCredentials: true
 })
-
-// 请求拦截器 - 添加认证头
-api.interceptors.request.use(
-    config => {
-        const userId = localStorage.getItem('userId')
-        if (userId) {
-            config.headers['X-User-Id'] = userId
-        }
-        return config
-    },
-    error => {
-        return Promise.reject(error)
-    }
-)
 
 // 响应拦截器 - 统一处理错误
 api.interceptors.response.use(
@@ -57,6 +44,8 @@ export const userAPI = {
     register: (data) => api.post('/users/register', data),
     // 登录
     login: (data) => api.post('/users/login', data),
+    // 退出登录
+    logout: () => api.post('/users/logout'),
     // 验证邮箱
     verifyEmail: (data) => api.post('/users/verify-email', data),
     // 重新发送验证邮件
@@ -90,6 +79,7 @@ export const userAPI = {
 // System configuration
 export const systemAPI = {
     getConfig: () => api.get('/system/config'),
+    getPrivateConfig: () => api.get('/system/config/private'),
     updateConfig: (data) => api.put('/system/config', data),
     uploadIcon: (formData) => api.post('/system/upload-icon', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

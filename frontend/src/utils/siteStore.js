@@ -19,6 +19,7 @@ const state = reactive({
     smtpFrom: 'noreply@carnote.com',
     websiteAnalytics: '',
     footerCopyright: '',
+    privateConfigLoaded: false,
     loading: false
 })
 
@@ -37,8 +38,6 @@ export const useSiteStore = () => {
                 state.siteIcon = res.data.siteIcon
                 state.allowRegistration = res.data.allowRegistration
                 state.isFirstUser = res.data.isFirstUser
-                state.afdianWebhookToken = res.data.afdianWebhookToken || ''
-                state.afdianWebhookKey = res.data.afdianWebhookKey || ''
                 state.afdianHomeUrl = res.data.afdianHomeUrl || ''
                 state.afdianAdvancedUrl = res.data.afdianAdvancedUrl || ''
                 state.afdianPremiumUrl = res.data.afdianPremiumUrl || ''
@@ -58,6 +57,20 @@ export const useSiteStore = () => {
             console.error('Failed to fetch site config:', e)
         } finally {
             state.loading = false
+        }
+    }
+
+    const fetchPrivateConfig = async () => {
+        state.privateConfigLoaded = false
+        try {
+            const res = await systemAPI.getPrivateConfig()
+            if (res.success) {
+                state.afdianWebhookToken = res.data.afdianWebhookToken || ''
+                state.afdianWebhookKey = res.data.afdianWebhookKey || ''
+                state.privateConfigLoaded = true
+            }
+        } catch (e) {
+            console.error('Failed to fetch private site config:', e)
         }
     }
 
@@ -124,6 +137,7 @@ export const useSiteStore = () => {
     return {
         state: readonly(state),
         fetchConfig,
+        fetchPrivateConfig,
         updateConfig,
         setHasVip,
         setSiteIcon: (url) => { state.siteIcon = url }

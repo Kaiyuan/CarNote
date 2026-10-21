@@ -213,10 +213,21 @@ networks:
 
 ### 认证
 
-大部分 API 需要在请求头中包含用户 ID：
+大部分 API 使用登录后由服务端设置的 HttpOnly Cookie 认证，浏览器会自动携带：
 ```
-X-User-Id: <user_id>
+Cookie: carnote_session=<session_token>
 ```
+
+命令行调用可先登录并保存 Cookie：
+```bash
+curl -c cookies.txt -X POST http://localhost:53300/api/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user1", "password": "your-password"}'
+
+curl -b cookies.txt http://localhost:53300/api/vehicles
+```
+
+也支持 `Authorization: Bearer <session_token>` 供受信任的 API 客户端使用。
 
 快速记账 API 支持 API Key 认证：
 ```

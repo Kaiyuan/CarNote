@@ -98,7 +98,7 @@ curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&
 ## 🔑 获取 API Key
 
 1. 登录系统
-2. 访问 `http://localhost:53300/api/users/api-keys`（需要 X-User-Id 头）
+2. 访问 `http://localhost:53300/api/users/api-keys`（需要登录 Cookie）
 3. 或通过前端界面生成
 
 使用 curl 生成：
@@ -106,7 +106,7 @@ curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&
 ```bash
 curl -X POST http://localhost:53300/api/users/api-keys \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: 1" \
+  -b cookies.txt \
   -d '{"key_name": "我的API密钥", "vehicle_id": 1}'
 ```
 
@@ -117,11 +117,19 @@ curl -X POST http://localhost:53300/api/users/api-keys \
 ```bash
 # 注册
 POST /api/users/register
-Body: { "username": "user1", "password": "pass123" }
+Body: { "username": "user1", "password": "your-password" }
 
-# 登录
+# 登录（成功后服务端设置 HttpOnly Cookie）
 POST /api/users/login
-Body: { "username": "user1", "password": "pass123" }
+Body: { "username": "user1", "password": "your-password" }
+```
+
+命令行登录并保存 Cookie：
+
+```bash
+curl -c cookies.txt -X POST http://localhost:53300/api/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"user1","password":"your-password"}'
 ```
 
 ### 车辆管理
@@ -129,11 +137,11 @@ Body: { "username": "user1", "password": "pass123" }
 ```bash
 # 获取车辆列表
 GET /api/vehicles
-Headers: X-User-Id: 1
+Cookie: carnote_session=<登录后 Cookie>
 
 # 添加车辆
 POST /api/vehicles
-Headers: X-User-Id: 1
+Cookie: carnote_session=<登录后 Cookie>
 Body: {
   "plate_number": "京A12345",
   "brand": "比亚迪",
@@ -151,7 +159,7 @@ GET /api/energy/quick?apiKey=YOUR_KEY&mileage=5100&amount=50&cost=400
 
 # 完整添加
 POST /api/energy
-Headers: X-User-Id: 1
+Cookie: carnote_session=<登录后 Cookie>
 Body: {
   "vehicle_id": 1,
   "log_date": "2026-01-12T10:00:00",

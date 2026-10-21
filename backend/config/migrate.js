@@ -87,11 +87,107 @@ async function autoMigrate() {
     }
 }
 
+/**
+ * 修复旧版 SQLite 重建流程中，子表外键被改写成 users_old 等失效表名的问题。
+ * 只更新 sqlite_master 中的外键目标表名，不修改业务数据。
+ */
+async function repairBrokenSqliteForeignKeys() {
+    const tables = await query(
+        "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    );
+    if (!tables.length) return;
+
+    const tableNames = new Set(tables.map(table => table.name));
+    const updates = [];
+
+    for (const table of tables) {
+        if (!table.sql) continue;
+
+        const foreignKeys = await query(`PRAGMA foreign_key_list(${quoteSqliteIdentifier(table.name)})`);
+        let fixedSql = table.sql;
+        let changed = false;
+
+        for (const foreignKey of foreignKeys) {
+            const target = String(foreignKey.table || '');
+            if (!target.endsWith('_old')) continue;
+
+            const base = target.slice(0, -4);
+            if (!tableNames.has(base)) continue;
+
+            const quotedTarget = `"${target}"`;
+            const quotedBase = `"${base}"`;
+            fixedSql = fixedSql.split(quotedTarget).join(quotedBase);
+            fixedSql = fixedSql.split(target).join(base);
+            changed = true;
+        }
+
+        if (changed && fixedSql !== table.sql) {
+            updates.push({ name: table.name, sql: fixedSql });
+        }
+    }
+
+    if (!updates.length) return;
+
+    console.log(`[数据库修复] 检测到 ${updates.length} 张表的外键指向已删除的 _old 表，正在修复...`);
+
+    await query('PRAGMA writable_schema = ON');
+    try {
+        for (const update of updates) {
+            await query(
+                "UPDATE sqlite_master SET sql = ? WHERE type = 'table' AND name = ?",
+                [update.sql, update.name]
+            );
+        }
+
+        const version = await get('PRAGMA schema_version');
+        const nextVersion = Number(version?.schema_version || 0) + 1;
+        await query(`PRAGMA schema_version = ${nextVersion}`);
+    } finally {
+        await query('PRAGMA writable_schema = OFF');
+    }
+
+    console.log(`[数据库修复] 外键引用修复完成，共 ${updates.length} 张表`);
+}
+
+/**
+ * 为旧版 SQLite 用户表增量添加新列，避免触发整表重建。
+ */
+async function ensureSqliteUserColumns() {
+    const columns = await query('PRAGMA table_info(users)');
+    if (!columns.length) return;
+
+    const existing = new Set(columns.map(column => column.name));
+    const additions = [
+        ['verification_attempts', 'INTEGER DEFAULT 0'],
+        ['reset_password_attempts', 'INTEGER DEFAULT 0']
+    ];
+
+    for (const [name, definition] of additions) {
+        if (!existing.has(name)) {
+            await query(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+            console.log(`[数据库迁移] users 表已添加列: ${name}`);
+        }
+    }
+}
+
+/**
+ * SQLite 标识符引用。表名来自 sqlite_master，仍做转义以防特殊字符。
+ */
+function quoteSqliteIdentifier(identifier) {
+    return `"${String(identifier).replace(/"/g, '""')}"`;
+}
+
 async function migrateSQLite() {
     // 锁定外键检查，防止级联删除
     await query("PRAGMA foreign_keys = OFF");
 
     try {
+        // 修复历史迁移遗留的 _old 外键引用（例如 users_old）
+        await repairBrokenSqliteForeignKeys();
+
+        // 新列优先使用 ALTER TABLE 增量添加，避免整表重建影响其他表的外键
+        await ensureSqliteUserColumns();
+
         // 1. 定义期望的架构模板
         const tablesTemplates = [
             {
@@ -109,6 +205,8 @@ async function migrateSQLite() {
                 reset_password_expires TIMESTAMP,
                 verification_code VARCHAR(20),
                 verification_code_expires TIMESTAMP,
+                verification_attempts INTEGER DEFAULT 0,
+                reset_password_attempts INTEGER DEFAULT 0,
                 is_verified BOOLEAN DEFAULT 0,
                 email_last_sent_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -318,61 +416,68 @@ async function migrateSQLite() {
         if (needsRepair) {
             console.log('检测到数据库异常或版本变更，正在执行安全修复流程...');
 
-            await transaction(async (db) => {
-                // a. 获取所有待迁移表的当前行数，用于迁移后核对
-                const counts = {};
-                for (const table of tablesTemplates) {
-                    const res = await get(`SELECT COUNT(*) as cnt FROM ${table.name}`).catch(() => ({ cnt: 0 }));
-                    counts[table.name] = res.cnt;
-                }
+            // 防止 SQLite 在重命名父表时自动改写其他表的外键目标
+            await query('PRAGMA legacy_alter_table = ON');
 
-                // b. 重命名旧表
-                for (const table of tablesTemplates) {
-                    const exists = await get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${table.name}'`);
-                    if (exists) {
-                        // 如果 _old 已存在，先删除它（这通常是之前失败修复留下的残余）
+            try {
+                await transaction(async (db) => {
+                    // a. 获取所有待迁移表的当前行数，用于迁移后核对
+                    const counts = {};
+                    for (const table of tablesTemplates) {
+                        const res = await get(`SELECT COUNT(*) as cnt FROM ${table.name}`).catch(() => ({ cnt: 0 }));
+                        counts[table.name] = res.cnt;
+                    }
+
+                    // b. 重命名旧表
+                    for (const table of tablesTemplates) {
+                        const exists = await get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${table.name}'`);
+                        if (exists) {
+                            // 如果 _old 已存在，先删除它（这通常是之前失败修复留下的残余）
+                            await query(`DROP TABLE IF EXISTS ${table.name}_old`);
+                            await query(`ALTER TABLE ${table.name} RENAME TO ${table.name}_old`);
+                        }
+                    }
+
+                    // c. 创建新表
+                    for (const table of tablesTemplates) {
+                        await query(table.template);
+                    }
+
+                    // d. 迁移数据并核对
+                    for (const table of tablesTemplates) {
+                        const oldExists = await get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${table.name}_old'`);
+                        if (oldExists) {
+                            const oldCols = await query(`PRAGMA table_info(${table.name}_old)`);
+                            const newCols = await query(`PRAGMA table_info(${table.name})`);
+                            const commonCols = oldCols
+                                .map(c => c.name)
+                                .filter(name => newCols.some(nc => nc.name === name))
+                                .join(', ');
+
+                            if (commonCols) {
+                                await query(`INSERT INTO ${table.name} (${commonCols}) SELECT ${commonCols} FROM ${table.name}_old`);
+                            }
+
+                            // 核对数据行数
+                            const newCountRes = await get(`SELECT COUNT(*) as cnt FROM ${table.name}`);
+                            if (newCountRes.cnt < counts[table.name]) {
+                                throw new Error(`数据迁移校验失败: 表 ${table.name} 行数减少 (${counts[table.name]} -> ${newCountRes.cnt})。修复已回滚。`);
+                            }
+                        }
+                    }
+
+                    // e. 安全删除旧表 (统一在所有数据迁移完成后删除，防止外键引用错误)
+                    for (const table of tablesTemplates) {
                         await query(`DROP TABLE IF EXISTS ${table.name}_old`);
-                        await query(`ALTER TABLE ${table.name} RENAME TO ${table.name}_old`);
                     }
-                }
 
-                // c. 创建新表
-                for (const table of tablesTemplates) {
-                    await query(table.template);
-                }
-
-                // d. 迁移数据并核对
-                for (const table of tablesTemplates) {
-                    const oldExists = await get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${table.name}_old'`);
-                    if (oldExists) {
-                        const oldCols = await query(`PRAGMA table_info(${table.name}_old)`);
-                        const newCols = await query(`PRAGMA table_info(${table.name})`);
-                        const commonCols = oldCols
-                            .map(c => c.name)
-                            .filter(name => newCols.some(nc => nc.name === name))
-                            .join(', ');
-
-                        if (commonCols) {
-                            await query(`INSERT INTO ${table.name} (${commonCols}) SELECT ${commonCols} FROM ${table.name}_old`);
-                        }
-
-                        // 核对数据行数
-                        const newCountRes = await get(`SELECT COUNT(*) as cnt FROM ${table.name}`);
-                        if (newCountRes.cnt < counts[table.name]) {
-                            throw new Error(`数据迁移校验失败: 表 ${table.name} 行数减少 (${counts[table.name]} -> ${newCountRes.cnt})。修复已回滚。`);
-                        }
-                    }
-                }
-
-                // e. 安全删除旧表 (统一在所有数据迁移完成后删除，防止外键引用错误)
-                for (const table of tablesTemplates) {
-                    await query(`DROP TABLE IF EXISTS ${table.name}_old`);
-                }
-
-                // f. 重建索引
-                await query("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)");
-                await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
-            });
+                    // f. 重建索引
+                    await query("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicles(user_id)");
+                    await query("CREATE INDEX IF NOT EXISTS idx_energy_logs_vehicle_id ON energy_logs(vehicle_id)");
+                });
+            } finally {
+                await query("PRAGMA legacy_alter_table = OFF");
+            }
             // 确保旧账户都标记为已验证
             await query("UPDATE users SET is_verified = TRUE WHERE is_verified IS NULL OR is_verified = FALSE");
             console.log('数据库结构修复完成，数据完整性已验证');
@@ -452,6 +557,16 @@ async function migratePostgreSQL() {
     const disabledExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_disabled'");
     if (disabledExists.length === 0) {
         await query("ALTER TABLE users ADD COLUMN is_disabled BOOLEAN DEFAULT FALSE");
+    }
+
+    const verificationAttemptsExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'verification_attempts'");
+    if (verificationAttemptsExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN verification_attempts INTEGER DEFAULT 0");
+    }
+
+    const resetAttemptsExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'reset_password_attempts'");
+    if (resetAttemptsExists.length === 0) {
+        await query("ALTER TABLE users ADD COLUMN reset_password_attempts INTEGER DEFAULT 0");
     }
 
     // maintenance_records location and next maintenance columns
@@ -534,6 +649,8 @@ const allExpectedTables = [
             reset_password_expires TIMESTAMP,
             verification_code VARCHAR(20),
             verification_code_expires TIMESTAMP,
+            verification_attempts INTEGER DEFAULT 0,
+            reset_password_attempts INTEGER DEFAULT 0,
             is_verified BOOLEAN DEFAULT 0,
             email_last_sent_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -878,6 +995,17 @@ const allExpectedTables = [
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )`
+    },
+    {
+        name: 'user_sessions',
+        sql: `CREATE TABLE IF NOT EXISTS user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash VARCHAR(64) UNIQUE NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
     }
 ];
 
@@ -946,7 +1074,9 @@ async function checkAndEnsureAllTablesExist() {
             "CREATE INDEX IF NOT EXISTS idx_membership_orders_user_id ON membership_orders(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_redemption_codes_code ON redemption_codes(code)",
             "CREATE INDEX IF NOT EXISTS idx_redemption_logs_user_id ON redemption_logs(user_id)",
-            "CREATE INDEX IF NOT EXISTS idx_membership_history_user_id ON membership_history(user_id)"
+            "CREATE INDEX IF NOT EXISTS idx_membership_history_user_id ON membership_history(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash)"
         ];
         for (const idxSql of indexes) {
             await query(idxSql).catch(() => {});

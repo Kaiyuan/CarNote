@@ -5,6 +5,7 @@
 
 const { query, get } = require('../config/database');
 const crypto = require('crypto');
+const { getSession, getRequestToken } = require('../utils/session');
 
 /**
  * API Key 认证中间件
@@ -69,31 +70,38 @@ async function optionalApiKey(req, res, next) {
 }
 
 /**
- * 简单的用户认证中间件（基于会话）
+ * 用户会话认证中间件
+ * 仅接受服务端签发的会话令牌，不再信任客户端提供的用户 ID。
  */
 async function authenticateUser(req, res, next) {
-    const userId = req.headers['x-user-id'];
+    try {
+        const token = getRequestToken(req);
 
-    if (!userId) {
-        return res.status(401).json({
-            success: false,
-            message: '未登录'
-        });
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: '未登录'
+            });
+        }
+
+        const session = await getSession(token);
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+        }
+
+        if (session.is_disabled) {
+            return res.status(403).json({ success: false, message: '您的账号已被禁用，请联系管理员' });
+        }
+
+        req.userId = Number(session.user_id);
+        req.userRole = session.role;
+        req.sessionId = session.id;
+        req.sessionToken = token;
+        next();
+    } catch (error) {
+        next(error);
     }
-
-    const user = await get('SELECT role, is_disabled FROM users WHERE id = ?', [userId]);
-
-    if (!user) {
-        return res.status(401).json({ success: false, message: '用户不存在' });
-    }
-
-    if (user.is_disabled) {
-        return res.status(403).json({ success: false, message: '您的账号已被禁用，请联系管理员' });
-    }
-
-    req.userId = parseInt(userId);
-    req.userRole = user.role;
-    next();
 }
 
 /**

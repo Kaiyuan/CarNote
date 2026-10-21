@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
     reset_password_expires TIMESTAMP, -- 令牌过期时间
     verification_code VARCHAR(20), -- 验证码
     verification_code_expires TIMESTAMP, -- 验证码过期时间
+    verification_attempts INTEGER DEFAULT 0, -- 邮箱验证码错误次数
+    reset_password_attempts INTEGER DEFAULT 0, -- 密码重置码错误次数
     is_verified BOOLEAN DEFAULT 0, -- 是否已验证邮箱
     email_last_sent_at TIMESTAMP, -- 最后一次发送邮件时间
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -521,3 +523,16 @@ CREATE INDEX IF NOT EXISTS idx_redemption_logs_user_id ON redemption_logs(user_i
 CREATE INDEX IF NOT EXISTS idx_membership_history_user_id ON membership_history(user_id);
 
 
+
+-- 用户会话表 (仅存储令牌哈希)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash VARCHAR(64) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash);

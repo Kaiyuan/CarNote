@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { query, get } = require('../config/database');
 const { authenticateUser, isAdmin, createAuditLog } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { invalidateUserSessions } = require('../utils/session');
 const { recalculateVehicleLogs } = require('./energy');
 
 // All routes here require admin
@@ -60,6 +62,10 @@ router.post('/users', asyncHandler(async (req, res) => {
 
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ success: false, message: '密码长度至少为 8 位' });
     }
 
     const existingUser = await get('SELECT id FROM users WHERE username = ?', [username]);
@@ -131,6 +137,11 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
         `, [targetId, vip_tier, vip_expiry]);
     }
 
+    const shouldInvalidate = is_disabled === true || is_disabled === 1 || is_disabled === '1' || is_disabled === 'true';
+    if (shouldInvalidate) {
+        await invalidateUserSessions(Number(targetId));
+    }
+
     await createAuditLog(req.userId, 'update_user', { targetId, role, is_disabled });
     res.json({ success: true, message: '用户信息已更新' });
 }));
@@ -143,10 +154,11 @@ router.post('/users/:id/reset-password', asyncHandler(async (req, res) => {
     const user = await get('SELECT username FROM users WHERE id = ?', [targetId]);
     if (!user) return res.status(404).json({ success: false, message: '用户不存在' });
 
-    const newPassword = Math.random().toString(36).slice(-8);
+    const newPassword = crypto.randomBytes(9).toString('base64url');
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await query('UPDATE users SET password_hash = ?, failed_login_attempts = 0 WHERE id = ?', [passwordHash, targetId]);
+    await invalidateUserSessions(Number(targetId));
 
     await createAuditLog(req.userId, 'admin_reset_password', { targetId, targetUsername: user.username });
 

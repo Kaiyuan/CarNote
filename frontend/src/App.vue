@@ -106,6 +106,7 @@ import AppTopbar from './layout/AppTopbar.vue'
 import Sidebar from 'primevue/sidebar'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useSiteStore } from './utils/siteStore'
+import { userAPI } from './api'
 import { useI18n } from './i18n'
 import { useTheme } from './utils/theme'
 
@@ -180,7 +181,12 @@ const isRouteActive = (path) => {
   return false
 }
 
-const logout = () => {
+const logout = async () => {
+  try {
+    await userAPI.logout()
+  } catch (e) {
+    // 即使请求失败也清理本地登录状态
+  }
   localStorage.removeItem('currentUser')
   localStorage.removeItem('userId')
   currentUser.value = null

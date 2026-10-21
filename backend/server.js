@@ -58,10 +58,58 @@ const PORT = process.env.PORT || 53300;
 const FRONTEND_PATH = path.join(__dirname, '../frontend/dist');
 
 // 中间件配置
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true
-}));
+const configuredOrigins = new Set(
+    String(process.env.CORS_ORIGIN || '')
+        .split(',')
+        .map(origin => origin.trim())
+        .filter(origin => origin && origin !== '*')
+);
+
+if (process.env.NODE_ENV !== 'production') {
+    configuredOrigins.add('http://localhost:53301');
+    configuredOrigins.add('http://127.0.0.1:53301');
+}
+
+if (String(process.env.CORS_ORIGIN || '').includes('*')) {
+    console.warn('CORS_ORIGIN=* 与 Cookie 认证不兼容，已忽略通配符；请配置明确的前端来源');
+}
+
+app.use((req, res, next) => {
+    const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase();
+
+    cors({
+        origin(origin, callback) {
+            // 无 Origin 的请求来自同源页面、curl 或服务端调用
+            if (!origin) {
+                return callback(null, true);
+            }
+
+            try {
+                const originHost = new URL(origin).host.toLowerCase();
+                if (requestHost && originHost === requestHost) {
+                    return callback(null, true);
+                }
+            } catch (e) {
+                // 非法 Origin，继续检查显式白名单
+            }
+
+            if (configuredOrigins.has(origin)) {
+                return callback(null, true);
+            }
+
+            return callback(new Error('不允许的跨域来源'));
+        },
+        credentials: true
+    })(req, res, next);
+});
+
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy === 'true') {
+    app.set('trust proxy', 1);
+} else if (/^\d+$/.test(String(trustProxy || ''))) {
+    app.set('trust proxy', Number(trustProxy));
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

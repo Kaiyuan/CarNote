@@ -9,16 +9,49 @@ const bcrypt = require('bcryptjs');
 const { query, get } = require('../config/database');
 const { authenticateUser, generateApiKey } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const {
+    createSession,
+    getRequestToken,
+    invalidateSession,
+    invalidateUserSessions,
+    setSessionCookie,
+    clearSessionCookie
+} = require('../utils/session');
+const {
+    loginLimiter,
+    registerLimiter,
+    emailLimiter,
+    resetPasswordLimiter,
+    verificationLimiter,
+    captchaLimiter
+} = require('../middleware/rateLimiters');
 const crypto = require('crypto');
 
-// 用于 Captcha 签名的密钥
-const CAPTCHA_SECRET = process.env.JWT_SECRET || 'carnote-captcha-secret';
+// 用于 Captcha 签名的密钥；未配置时使用进程级随机值，避免已知默认密钥
+const CAPTCHA_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+    console.warn('未配置 JWT_SECRET，Captcha 使用进程级随机密钥（重启后旧验证码失效）');
+}
+
+function generateVerificationCode() {
+    return crypto.randomInt(100000, 1000000).toString();
+}
+
+function safeEqual(left, right) {
+    const a = Buffer.from(String(left ?? ''));
+    const b = Buffer.from(String(right ?? ''));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function validatePassword(password) {
+    return typeof password === 'string' && password.length >= 8;
+}
 
 /**
  * 用户注册
  * POST /api/users/register
  */
-router.post('/register', asyncHandler(async (req, res) => {
+router.post('/register', registerLimiter, asyncHandler(async (req, res) => {
     const { username, password, email, nickname } = req.body;
 
     // 验证必填字段
@@ -26,6 +59,13 @@ router.post('/register', asyncHandler(async (req, res) => {
         return res.status(400).json({
             success: false,
             message: '用户名、密码和邮箱不能为空'
+        });
+    }
+
+    if (!validatePassword(password)) {
+        return res.status(400).json({
+            success: false,
+            message: '密码长度至少为 8 位'
         });
     }
 
@@ -74,7 +114,7 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     // 只有在满足三个条件时才进行验证：1. 不是第一个用户 2. SMTP 已配置 3. 后台开启了验证
     const isVerified = Boolean(isFirstUser || !smtpReady || !isVerificationRequired);
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCode = generateVerificationCode();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
 
     const now = new Date().toISOString();
@@ -123,7 +163,7 @@ router.post('/register', asyncHandler(async (req, res) => {
  * 验证邮箱
  * POST /api/users/verify-email
  */
-router.post('/verify-email', asyncHandler(async (req, res) => {
+router.post('/verify-email', verificationLimiter, asyncHandler(async (req, res) => {
     const { username, code } = req.body;
     if (!username || !code) return res.status(400).json({ success: false, message: '参数缺失' });
 
@@ -132,15 +172,27 @@ router.post('/verify-email', asyncHandler(async (req, res) => {
 
     if (user.is_verified) return res.json({ success: true, message: '已验证' });
 
-    if (user.verification_code !== code) {
+    const attempts = Number(user.verification_attempts || 0);
+    if (attempts >= 5 || !user.verification_code) {
+        return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新发送验证码' });
+    }
+
+    if (!user.verification_code_expires || new Date(user.verification_code_expires).getTime() < Date.now()) {
+        await query('UPDATE users SET verification_code = NULL, verification_code_expires = NULL, verification_attempts = 0 WHERE id = ?', [user.id]);
+        return res.status(400).json({ success: false, message: '验证码已过期，请重新发送验证码' });
+    }
+
+    if (!safeEqual(user.verification_code, code)) {
+        const nextAttempts = attempts + 1;
+        if (nextAttempts >= 5) {
+            await query('UPDATE users SET verification_code = NULL, verification_code_expires = NULL, verification_attempts = ? WHERE id = ?', [nextAttempts, user.id]);
+            return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新发送验证码' });
+        }
+        await query('UPDATE users SET verification_attempts = ? WHERE id = ?', [nextAttempts, user.id]);
         return res.status(400).json({ success: false, message: '验证码错误' });
     }
 
-    if (new Date(user.verification_code_expires) < new Date()) {
-        return res.status(400).json({ success: false, message: '验证码已过期，请重新注册或联系管理员' });
-    }
-
-    await query('UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL WHERE id = ?', [user.id]);
+    await query('UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL, verification_attempts = 0 WHERE id = ?', [user.id]);
     res.json({ success: true, message: '验证成功，请登录' });
 }));
 
@@ -148,7 +200,7 @@ router.post('/verify-email', asyncHandler(async (req, res) => {
  * 重新发送验证邮件 (带 Captcha)
  * POST /api/users/verify-email/resend
  */
-router.post('/verify-email/resend', asyncHandler(async (req, res) => {
+router.post('/verify-email/resend', emailLimiter, asyncHandler(async (req, res) => {
     const { username, captchaAnswer, captchaKey } = req.body;
     if (!username) return res.status(400).json({ success: false, message: '用户名不能为空' });
 
@@ -159,7 +211,7 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
     const expectedKey = crypto.createHmac('sha256', CAPTCHA_SECRET)
         .update(captchaAnswer.toString())
         .digest('hex');
-    if (expectedKey !== captchaKey) {
+    if (!safeEqual(expectedKey, captchaKey)) {
         return res.status(400).json({ success: false, message: '人机验证码错误' });
     }
 
@@ -183,10 +235,10 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
         }
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateVerificationCode();
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    await query('UPDATE users SET verification_code = ?, verification_code_expires = ?, email_last_sent_at = ? WHERE id = ?',
+    await query('UPDATE users SET verification_code = ?, verification_code_expires = ?, verification_attempts = 0, email_last_sent_at = ? WHERE id = ?',
         [code, expires, new Date().toISOString(), user.id]);
 
     await sendMail({
@@ -202,7 +254,7 @@ router.post('/verify-email/resend', asyncHandler(async (req, res) => {
  * 用户登录 (简化版本)
  * POST /api/users/login
  */
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -269,6 +321,9 @@ router.post('/login', asyncHandler(async (req, res) => {
     await query('UPDATE users SET failed_login_attempts = 0 WHERE id = ?', [user.id]);
     await query('INSERT INTO login_logs (username, ip_address, success) VALUES (?, ?, ?)', [username, clientIp, true]);
 
+    const sessionToken = await createSession(user.id);
+    setSessionCookie(req, res, sessionToken);
+
     // 返回用户信息
     res.json({
         success: true,
@@ -284,10 +339,23 @@ router.post('/login', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * 退出登录
+ * POST /api/users/logout
+ */
+router.post('/logout', asyncHandler(async (req, res) => {
+    const token = getRequestToken(req);
+    if (token) {
+        await invalidateSession(token);
+    }
+    clearSessionCookie(req, res);
+    res.json({ success: true, message: '已退出登录' });
+}));
+
+/**
  * 获取通用的算术验证码 (Captcha)
  * GET /api/users/captcha
  */
-router.get('/captcha', (req, res) => {
+router.get('/captcha', captchaLimiter, (req, res) => {
     const num1 = Math.floor(Math.random() * 10) + 1;
     const num2 = Math.floor(Math.random() * 10) + 1;
     const operators = ['+', '-'];
@@ -314,7 +382,7 @@ router.get('/captcha', (req, res) => {
 /**
  * 获取找回密码的验证码 (Captcha) - 兼容旧路由
  */
-router.get('/forgot-password/captcha', (req, res) => {
+router.get('/forgot-password/captcha', captchaLimiter, (req, res) => {
     // 转发到通用接口
     const num1 = Math.floor(Math.random() * 10) + 1;
     const num2 = Math.floor(Math.random() * 10) + 1;
@@ -342,7 +410,7 @@ router.get('/forgot-password/captcha', (req, res) => {
 /**
  * 忘记密码 - 发送重置邮件
  */
-router.post('/forgot-password', asyncHandler(async (req, res) => {
+router.post('/forgot-password', emailLimiter, asyncHandler(async (req, res) => {
     const { email, captchaAnswer, captchaKey } = req.body;
 
     if (!email) return res.status(400).json({ success: false, message: '邮箱不能为空' });
@@ -356,7 +424,7 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
         .update(captchaAnswer.toString())
         .digest('hex');
 
-    if (expectedKey !== captchaKey) {
+    if (!safeEqual(expectedKey, captchaKey)) {
         return res.status(400).json({ success: false, message: '验证码错误，请重试' });
     }
 
@@ -375,11 +443,11 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
         }
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateVerificationCode();
     const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
 
-    // 使用 reset_password_token 存储 6位数字验证码
-    await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ?, email_last_sent_at = ? WHERE id = ?',
+    // 使用 reset_password_token 存储 6 位数字验证码
+    await query('UPDATE users SET reset_password_token = ?, reset_password_expires = ?, reset_password_attempts = 0, email_last_sent_at = ? WHERE id = ?',
         [code, expires, new Date().toISOString(), user.id]);
 
     const { sendMail } = require('../utils/mailer');
@@ -403,20 +471,38 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
 /**
  * 重置密码 - 执行修改
  */
-router.post('/reset-password', asyncHandler(async (req, res) => {
+router.post('/reset-password', resetPasswordLimiter, asyncHandler(async (req, res) => {
     const { email, code, password } = req.body;
     if (!email || !code || !password) return res.status(400).json({ success: false, message: '参数不全' });
 
-    const user = await get('SELECT * FROM users WHERE email = ? AND reset_password_token = ?',
-        [email, code]);
+    if (!validatePassword(password)) {
+        return res.status(400).json({ success: false, message: '密码长度至少为 8 位' });
+    }
 
+    const user = await get('SELECT * FROM users WHERE email = ?', [email]);
     if (!user) {
-        return res.status(400).json({ success: false, message: '验证码无效' });
+        return res.status(400).json({ success: false, message: '验证码无效或已过期' });
+    }
+
+    const attempts = Number(user.reset_password_attempts || 0);
+    if (attempts >= 5 || !user.reset_password_token) {
+        return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新获取验证码' });
     }
 
     const expiresTime = new Date(user.reset_password_expires).getTime();
-    if (isNaN(expiresTime) || expiresTime < Date.now()) {
-        return res.status(400).json({ success: false, message: '验证码已过期' });
+    if (!Number.isFinite(expiresTime) || expiresTime < Date.now()) {
+        await query('UPDATE users SET reset_password_token = NULL, reset_password_expires = NULL, reset_password_attempts = 0 WHERE id = ?', [user.id]);
+        return res.status(400).json({ success: false, message: '验证码已过期，请重新获取' });
+    }
+
+    if (!safeEqual(user.reset_password_token, code)) {
+        const nextAttempts = attempts + 1;
+        if (nextAttempts >= 5) {
+            await query('UPDATE users SET reset_password_token = NULL, reset_password_expires = NULL, reset_password_attempts = ? WHERE id = ?', [nextAttempts, user.id]);
+            return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新获取验证码' });
+        }
+        await query('UPDATE users SET reset_password_attempts = ? WHERE id = ?', [nextAttempts, user.id]);
+        return res.status(400).json({ success: false, message: '验证码无效' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -424,9 +510,12 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
                  SET password_hash = ?, 
                      reset_password_token = NULL, 
                      reset_password_expires = NULL, 
+                     reset_password_attempts = 0,
                      failed_login_attempts = 0 
                  WHERE id = ?`,
         [passwordHash, user.id]);
+
+    await invalidateUserSessions(user.id);
 
     res.json({ success: true, message: '密码重置成功，请重新登录' });
 }));
@@ -486,11 +575,22 @@ router.put('/password', authenticateUser, asyncHandler(async (req, res) => {
         });
     }
 
+    if (!validatePassword(newPassword)) {
+        return res.status(400).json({
+            success: false,
+            message: '新密码长度至少为 8 位'
+        });
+    }
+
     // 验证旧密码
     const user = await get(
         'SELECT password_hash FROM users WHERE id = ?',
         [req.userId]
     );
+
+    if (!user) {
+        return res.status(404).json({ success: false, message: '用户不存在' });
+    }
 
     const isValidPassword = await bcrypt.compare(oldPassword, user.password_hash);
 
@@ -507,6 +607,8 @@ router.put('/password', authenticateUser, asyncHandler(async (req, res) => {
         'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [newPasswordHash, req.userId]
     );
+
+    await invalidateUserSessions(req.userId, req.sessionId);
 
     res.json({
         success: true,

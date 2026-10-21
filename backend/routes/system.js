@@ -145,7 +145,7 @@ router.get('/config', asyncHandler(async (req, res) => {
     // 获取配置项
     const settingsKeys = [
         'allow_registration', 'site_name', 'site_icon', 'site_description',
-        'afdian_webhook_token', 'afdian_webhook_key', 'debug_mode',
+        'debug_mode',
         'afdian_home_url', 'afdian_advanced_url', 'afdian_premium_url',
         'email_verification_enabled', 'smtp_from', 'website_analytics', 'footer_copyright'
     ];
@@ -165,7 +165,6 @@ router.get('/config', asyncHandler(async (req, res) => {
     const siteName = config['site_name'] || 'CarNote';
     const siteIcon = config['site_icon'] || null;
     const siteDescription = config['site_description'] || '';
-    const afdianWebhookToken = config['afdian_webhook_token'] || '';
     const emailVerificationEnabled = config['email_verification_enabled'] === 'true'; // 默认 false (undefined 为 false)
 
     // 检查是否已初始化（是否有用户）
@@ -180,8 +179,6 @@ router.get('/config', asyncHandler(async (req, res) => {
             siteName,
             siteIcon,
             siteDescription,
-            afdianWebhookToken,
-            afdianWebhookKey: config['afdian_webhook_key'] || '',
             debugMode: config['debug_mode'] === 'true',
             afdianHomeUrl: config['afdian_home_url'] || '',
             afdianAdvancedUrl: config['afdian_advanced_url'] || '',
@@ -192,6 +189,31 @@ router.get('/config', asyncHandler(async (req, res) => {
             footerCopyright: config['footer_copyright'] || '',
             hasVip: req.app.get('hasVip') || false,
             smtpReady: await isSmtpConfigured()
+        }
+    });
+}));
+
+/**
+ * 获取系统私密配置 (仅管理员)
+ * GET /api/system/config/private
+ */
+router.get('/config/private', authenticateUser, asyncHandler(async (req, res) => {
+    const user = await get("SELECT role FROM users WHERE id = ?", [req.userId]);
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '无权操作' });
+    }
+
+    const settings = await query(
+        "SELECT key, value FROM system_settings WHERE key IN ('afdian_webhook_token', 'afdian_webhook_key')"
+    );
+    const config = {};
+    settings.forEach(setting => config[setting.key] = setting.value);
+
+    res.json({
+        success: true,
+        data: {
+            afdianWebhookToken: config['afdian_webhook_token'] || '',
+            afdianWebhookKey: config['afdian_webhook_key'] || ''
         }
     });
 }));
