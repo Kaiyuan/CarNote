@@ -804,6 +804,14 @@ footer a {
     gap: 0.1rem;
 }
 
+.theme-mode-select .p-button.p-highlight,
+.theme-mode-select .p-button.p-highlight:not(:disabled):hover {
+    background: var(--cn-primary);
+    border-color: var(--cn-primary);
+    color: var(--cn-card);
+    box-shadow: none;
+}
+
 .p-tabview .p-tabview-nav {
     border-bottom: 1px solid var(--cn-border);
     gap: 0.25rem;
@@ -1347,6 +1355,13 @@ html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):no
     background: #1c222a;
     border-color: var(--cn-border-strong);
     color: #ffffff;
+}
+
+[data-theme="dark"] .theme-mode-select .p-button.p-highlight,
+[data-theme="dark"] .theme-mode-select .p-button.p-highlight:not(:disabled):hover {
+    background: var(--cn-primary);
+    border-color: var(--cn-primary);
+    color: var(--cn-card);
 }
 
 [data-theme="dark"] .p-tabview .p-tabview-nav li .p-tabview-nav-link,

@@ -119,7 +119,7 @@ router.get('/consumption/:vehicleId', authenticateUser, asyncHandler(async (req,
  */
 router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { start_date: query_start, end_date, range } = req.query;
+    const { start_date: query_start, end_date, range, exclude_lent } = req.query;
 
     // 如果提供了 range，优先使用 range
     const start_date = query_start || resolveRange(range);
@@ -142,6 +142,10 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
         WHERE vehicle_id = ?
     `;
     const energyParams = [vehicleId];
+
+    if (exclude_lent === 'true' || exclude_lent === '1') {
+        energySql += ' AND (is_lent = FALSE OR is_lent IS NULL)';
+    }
 
     if (start_date) {
         energySql += ' AND log_date >= ?';
@@ -418,7 +422,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
  */
 router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (req, res) => {
     const { vehicleId } = req.params;
-    const { range, months: queryMonths } = req.query;
+    const { range, months: queryMonths, exclude_lent } = req.query;
 
     // 如果是 range='all'，设为一个很大的数值
     let months = parseInt(queryMonths) || 12;
@@ -441,6 +445,9 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
 
     // 获取最近N个月的数据
     const isPostgres = process.env.DB_TYPE === 'postgresql';
+    const lentFilter = (exclude_lent === 'true' || exclude_lent === '1')
+        ? ' AND (is_lent = FALSE OR is_lent IS NULL)'
+        : '';
 
     let sql;
     if (isPostgres) {
@@ -452,7 +459,7 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
             SUM(COALESCE(mileage_diff, 0)) as total_mileage,
             COUNT(*) as record_count
          FROM energy_logs
-         WHERE vehicle_id = ? AND log_date >= NOW() - INTERVAL '${months} months'
+         WHERE vehicle_id = ? AND log_date >= NOW() - INTERVAL '${months} months'${lentFilter}
          GROUP BY TO_CHAR(log_date, 'YYYY-MM')
          ORDER BY month ASC`;
     } else {
@@ -464,7 +471,7 @@ router.get('/monthly-trend/:vehicleId', authenticateUser, asyncHandler(async (re
             SUM(COALESCE(mileage_diff, 0)) as total_mileage,
             COUNT(*) as record_count
          FROM energy_logs
-         WHERE vehicle_id = ? AND log_date >= date('now', '-${months} months')
+         WHERE vehicle_id = ? AND log_date >= date('now', '-${months} months')${lentFilter}
          GROUP BY strftime('%Y-%m', log_date)
          ORDER BY month ASC`;
     }

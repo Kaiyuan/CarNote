@@ -596,7 +596,7 @@ router.put('/password', authenticateUser, asyncHandler(async (req, res) => {
     const isValidPassword = await bcrypt.compare(oldPassword, user.password_hash);
 
     if (!isValidPassword) {
-        return res.status(401).json({
+        return res.status(400).json({
             success: false,
             message: '旧密码错误'
         });

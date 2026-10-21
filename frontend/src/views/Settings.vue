@@ -46,7 +46,7 @@
                             <div class="field col-12 md:col-6">
                                 <label>{{ t('外观') }} / {{ t('主题') }}</label>
                                 <SelectButton v-model="themeMode" :options="themeOptions" optionLabel="label"
-                                    optionValue="value" class="w-full" :allowEmpty="false" />
+                                    optionValue="value" class="w-full theme-mode-select" :allowEmpty="false" />
                             </div>
                             <div class="field col-12 md:col-6">
                                 <label>{{ t('语言') }}</label>
@@ -78,15 +78,29 @@
                             <InputNumber v-model="settingsForm.preferences.reminder_days_before" :min="1" suffix=" 天" />
                         </div>
 
-                        <Divider v-if="isAdmin" />
+                        <Divider />
 
-                        <div v-if="isAdmin">
-                            <h3 class="text-lg font-semibold mb-3">系统设置 (管理员)</h3>
-                            <div class="field-checkbox">
-                                <Checkbox v-model="systemSettings.allow_registration" :binary="true"
-                                    inputId="sys_reg" />
-                                <label for="sys_reg" class="ml-2">允许新用户注册</label>
+                        <h3 class="text-lg font-semibold mb-3">修改密码</h3>
+                        <div class="formgrid grid">
+                            <div class="field col-12 md:col-4">
+                                <label>当前密码</label>
+                                <InputText v-model="passwordForm.current" type="password"
+                                    autocomplete="current-password" class="w-full" />
                             </div>
+                            <div class="field col-12 md:col-4">
+                                <label>新密码</label>
+                                <InputText v-model="passwordForm.next" type="password"
+                                    autocomplete="new-password" class="w-full" placeholder="至少 8 位" />
+                            </div>
+                            <div class="field col-12 md:col-4">
+                                <label>确认新密码</label>
+                                <InputText v-model="passwordForm.confirm" type="password"
+                                    autocomplete="new-password" class="w-full" />
+                            </div>
+                        </div>
+                        <div class="flex justify-content-end">
+                            <Button label="修改密码" icon="pi pi-lock" size="small" outlined
+                                @click="changePassword" :loading="changingPassword" />
                         </div>
 
                         <Divider />
@@ -131,6 +145,28 @@
                                     :loading="validating" />
                                 <input type="file" ref="importFile" style="display: none" accept=".json"
                                     @change="onFileChange" />
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <p class="text-sm text-600 mb-2">按类别导出（JSON 格式）</p>
+                            <div class="formgrid grid align-items-end">
+                                <div class="field col-12 md:col-4 mb-0">
+                                    <label>导出范围</label>
+                                    <Dropdown v-model="exportMode" :options="exportModeOptions"
+                                        optionLabel="label" optionValue="value" class="w-full" />
+                                </div>
+                                <div v-if="exportMode === 'categories'" class="field col-12 md:col-5 mb-0">
+                                    <label>数据类别</label>
+                                    <MultiSelect v-model="exportCategories" :options="exportCategoryOptions"
+                                        optionLabel="label" optionValue="value" display="chip"
+                                        placeholder="选择要导出的类别" class="w-full" />
+                                </div>
+                                <div class="field col-12 md:col-3 mb-0">
+                                    <Button label="导出所选数据" icon="pi pi-download" size="small" outlined
+                                        class="w-full" @click="exportSelectedData"
+                                        :loading="exportingCategories" />
+                                </div>
                             </div>
                         </div>
 
@@ -214,9 +250,21 @@
                             <span>保养记录</span>
                             <Tag value="warning">{{ importSummary.maintenanceRecords }} 条</Tag>
                         </li>
-                        <li class="flex justify-content-between mb-2 pb-2">
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
                             <span>配件信息</span>
                             <Tag value="secondary">{{ importSummary.parts }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
+                            <span>配件更换</span>
+                            <Tag value="secondary">{{ importSummary.partReplacements }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2 border-bottom-1 surface-border">
+                            <span>保险</span>
+                            <Tag value="info">{{ importSummary.insurances }} 条</Tag>
+                        </li>
+                        <li class="flex justify-content-between mb-2 pb-2">
+                            <span>保险理赔</span>
+                            <Tag value="warning">{{ importSummary.insuranceClaims }} 条</Tag>
                         </li>
                     </ul>
                     <div class="mt-4 p-3 orange-50 surface-50 border-round">
@@ -240,7 +288,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import { userAPI, vehicleAPI, systemAPI, exportAPI, importAPI } from '../api'
+import { userAPI, vehicleAPI, exportAPI, importAPI } from '../api'
 import PageHeader from '../components/PageHeader.vue'
 import { convertToCSV, downloadFile, downloadBackupJSON } from '../utils/dataExport'
 import { formatDate as fmtDate } from '../utils/date'
@@ -264,6 +312,7 @@ const appVersion = ref(__APP_VERSION__ || '1.0.0')
 const loading = ref(false)
 const saving = ref(false)
 const exporting = ref(false)
+const exportingCategories = ref(false)
 const validating = ref(false)
 const importing = ref(false)
 const importFile = ref(null)
@@ -283,14 +332,31 @@ const settingsForm = ref({
         reminder_days_before: 7
     }
 })
-const systemSettings = ref({
-    allow_registration: true
+const passwordForm = ref({
+    current: '',
+    next: '',
+    confirm: ''
 })
+const changingPassword = ref(false)
+
+const exportMode = ref('all')
+const exportCategories = ref([])
+const exportModeOptions = [
+    { label: '全部数据', value: 'all' },
+    { label: '指定类别', value: 'categories' }
+]
+const exportCategoryOptions = [
+    { label: '车辆', value: 'vehicles' },
+    { label: '能耗记录', value: 'energyLogs' },
+    { label: '保养维修', value: 'maintenanceRecords' },
+    { label: '配件', value: 'parts' },
+    { label: '配件更换', value: 'partReplacements' },
+    { label: '保险', value: 'insurances' },
+    { label: '保险理赔', value: 'insuranceClaims' }
+]
 
 const apiKeys = ref([])
 const vehicles = ref([])
-
-const isAdmin = computed(() => userInfo.value.role === 'admin')
 
 // API Key 相关
 const showKeyDialog = ref(false)
@@ -313,14 +379,6 @@ const loadData = async () => {
             userInfo.value = profileRes.data
             settingsForm.value.profile.nickname = profileRes.data.nickname || ''
             settingsForm.value.profile.email = profileRes.data.email || ''
-        }
-
-        // If admin, load system settings
-        if (profileRes.data.role === 'admin') {
-            const sysRes = await systemAPI.getConfig()
-            if (sysRes.success) {
-                systemSettings.value.allow_registration = sysRes.data.allowRegistration
-            }
         }
 
         if (settingsRes.success && settingsRes.data) {
@@ -366,12 +424,6 @@ const saveSettings = async () => {
             userAPI.updateSettings(settingsForm.value.preferences)
         ]
 
-        if (isAdmin.value) {
-            promises.push(systemAPI.updateConfig({
-                allow_registration: systemSettings.value.allow_registration
-            }))
-        }
-
         const results = await Promise.all(promises)
         const allSuccess = results.every(r => r.success)
 
@@ -387,6 +439,36 @@ const saveSettings = async () => {
         toast.add({ severity: 'error', summary: '错误', detail: '保存失败', life: 3000 })
     } finally {
         saving.value = false
+    }
+}
+
+// 修改密码
+const changePassword = async () => {
+    const { current, next, confirm } = passwordForm.value
+    if (!current || !next) {
+        toast.add({ severity: 'warn', summary: '提示', detail: '请输入当前密码和新密码', life: 3000 })
+        return
+    }
+    if (next.length < 8) {
+        toast.add({ severity: 'warn', summary: '提示', detail: '新密码长度至少为 8 位', life: 3000 })
+        return
+    }
+    if (next !== confirm) {
+        toast.add({ severity: 'warn', summary: '提示', detail: '两次输入的新密码不一致', life: 3000 })
+        return
+    }
+
+    changingPassword.value = true
+    try {
+        const res = await userAPI.changePassword({ oldPassword: current, newPassword: next })
+        if (res.success) {
+            passwordForm.value = { current: '', next: '', confirm: '' }
+            toast.add({ severity: 'success', summary: '成功', detail: '密码已修改', life: 3000 })
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '修改失败', detail: error.message || '密码修改失败', life: 3000 })
+    } finally {
+        changingPassword.value = false
     }
 }
 
@@ -462,7 +544,38 @@ const exportFullData = async () => {
     }
 }
 
-// 2. 分类导出 (CSV)
+// 2. 按类别导出 (JSON)
+const exportSelectedData = async () => {
+    if (exportMode.value === 'categories' && exportCategories.value.length === 0) {
+        toast.add({ severity: 'warn', summary: '提示', detail: '请选择要导出的数据类别', life: 3000 })
+        return
+    }
+
+    exportingCategories.value = true
+    try {
+        const res = await exportAPI.all()
+        if (!res.success) return
+
+        if (exportMode.value === 'all') {
+            downloadBackupJSON(res.data)
+            toast.add({ severity: 'success', summary: '成功', detail: '全部数据已导出', life: 3000 })
+            return
+        }
+
+        const data = { export_date: new Date().toISOString() }
+        exportCategories.value.forEach(key => {
+            data[key] = Array.isArray(res.data[key]) ? res.data[key] : []
+        })
+        downloadBackupJSON(data)
+        toast.add({ severity: 'success', summary: '成功', detail: `已导出 ${exportCategories.value.length} 个类别`, life: 3000 })
+    } catch (error) {
+        toast.add({ severity: 'error', summary: '错误', detail: '导出失败', life: 3000 })
+    } finally {
+        exportingCategories.value = false
+    }
+}
+
+// 3. 分类导出 (CSV)
 const exportVehicles = async () => {
     try {
         const res = await exportAPI.vehicles()
@@ -506,7 +619,7 @@ const exportMaintenance = async () => {
     } catch (e) { toast.add({ severity: 'error', summary: '导出失败' }) }
 }
 
-// 3. 导入逻辑
+// 4. 导入逻辑
 const triggerImport = () => {
     importFile.value.click()
 }

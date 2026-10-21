@@ -33,6 +33,10 @@
       <div class="flex align-items-center gap-2 flex-wrap">
         <Calendar v-if="timeRange === 'custom'" v-model="customDates" selectionMode="range" :manualInput="false"
           placeholder="选择日期范围" showIcon />
+        <div class="home-filter-option">
+          <Checkbox v-model="excludeLent" :binary="true" inputId="home_exclude_lent" />
+          <label for="home_exclude_lent">排除借出记录</label>
+        </div>
         <span class="home-updated"><i class="pi pi-verified"></i> 数据实时同步</span>
       </div>
     </div>
@@ -292,6 +296,7 @@ const vehicles = ref([])
 const selectedVehicleId = ref(null)
 const selectedVehicleIds = ref([])
 const timeRange = ref('year')
+const excludeLent = ref(false)
 const loading = ref(false)
 
 const overview = ref({})
@@ -357,6 +362,9 @@ const loadDashboardData = async () => {
 
   try {
     const params = { range: timeRange.value }
+    if (excludeLent.value) {
+      params.exclude_lent = 'true'
+    }
 
     if (timeRange.value === 'custom' && customDates.value && customDates.value[0] && customDates.value[1]) {
       params.start_date = customDates.value[0].toISOString().split('T')[0]
@@ -414,7 +422,7 @@ const loadDashboardData = async () => {
         logger.error('获取月度趋势失败:', e)
         return { success: false, error: e }
       }),
-      fetchRecentActivities(selectedVehicleId.value).catch(e => {
+      fetchRecentActivities(selectedVehicleId.value, excludeLent.value).catch(e => {
         logger.error('获取最近活动失败:', e)
         return []
       })
@@ -432,10 +440,12 @@ const loadDashboardData = async () => {
   }
 }
 
-const fetchRecentActivities = async (vehicleId) => {
+const fetchRecentActivities = async (vehicleId, excludeLentRecords = false) => {
   try {
+    const energyParams = { vehicle_id: vehicleId, page: 1, limit: 5 }
+    if (excludeLentRecords) energyParams.is_lent = '0'
     const [energyRes, maintRes] = await Promise.all([
-      energyAPI.getList({ vehicle_id: vehicleId, page: 1, limit: 5 }),
+      energyAPI.getList(energyParams),
       maintenanceAPI.getList({ vehicle_id: vehicleId, page: 1, limit: 5 })
     ])
 
@@ -611,6 +621,12 @@ watch(timeRange, (newVal) => {
   }
 })
 
+watch(excludeLent, () => {
+  if (selectedVehicleId.value || comparisonMode.value) {
+    loadDashboardData()
+  }
+})
+
 watch(comparisonMode, (newVal) => {
   if (newVal && vehicles.value.length > 0) {
     selectedVehicleIds.value = vehicles.value.map(v => v.id)
@@ -669,6 +685,23 @@ onMounted(async () => {
 
 .home-updated i {
   color: var(--cn-success);
+}
+
+.home-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--cn-border);
+  border-radius: 9px;
+  background: var(--surface-50);
+}
+
+.home-filter-option label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cn-muted);
+  cursor: pointer;
 }
 
 .compare-toggle {

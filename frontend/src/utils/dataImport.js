@@ -68,8 +68,9 @@ function parseCSVLine(line) {
  */
 export const validateBackupFormat = (data) => {
     if (!data || typeof data !== 'object') return false;
-    // 检查基本结构
-    return Array.isArray(data.vehicles) ||
-        Array.isArray(data.energyLogs) ||
-        Array.isArray(data.maintenanceRecords);
+    const dataKeys = [
+        'vehicles', 'energyLogs', 'maintenanceRecords', 'parts', 'partReplacements',
+        'insurances', 'insuranceClaims'
+    ];
+    return dataKeys.some(key => Array.isArray(data[key]));
 };

@@ -135,7 +135,6 @@ const menuItems = computed(() => {
     { label: '保养维修', icon: 'pi pi-wrench', path: '/maintenance' },
     { label: '配件管理', icon: 'pi pi-box', path: '/parts' },
     { label: '车险管理', icon: 'pi pi-file-edit', path: '/insurance' },
-    { label: '数据分析', icon: 'pi pi-chart-bar', path: '/analytics' },
     { label: '消息中心', icon: 'pi pi-megaphone', path: '/messages' },
   ]
 

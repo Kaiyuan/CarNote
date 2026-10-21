@@ -24,13 +24,11 @@ router.get('/all', authenticateUser, asyncHandler(async (req, res) => {
         energyLogs = await query(`SELECT * FROM energy_logs WHERE vehicle_id IN (${placeholders})`, vehicleIds);
         maintenanceRecords = await query(`SELECT * FROM maintenance_records WHERE vehicle_id IN (${placeholders})`, vehicleIds);
         parts = await query(`SELECT * FROM parts WHERE vehicle_id IN (${placeholders})`, vehicleIds);
-
-        const partIds = parts.map(p => p.id);
-        if (partIds.length > 0) {
-            const partPlaceholders = partIds.map(() => '?').join(',');
-            partReplacements = await query(`SELECT * FROM part_replacements WHERE part_id IN (${partPlaceholders})`, partIds);
-        }
+        partReplacements = await query(`SELECT * FROM part_replacements WHERE vehicle_id IN (${placeholders})`, vehicleIds);
     }
+
+    const insurances = await query('SELECT * FROM insurances WHERE user_id = ?', [userId]);
+    const insuranceClaims = await query('SELECT * FROM insurance_claims WHERE user_id = ?', [userId]);
 
     res.json({
         success: true,
@@ -40,6 +38,8 @@ router.get('/all', authenticateUser, asyncHandler(async (req, res) => {
             maintenanceRecords,
             parts,
             partReplacements,
+            insurances,
+            insuranceClaims,
             export_date: new Date().toISOString()
         }
     });

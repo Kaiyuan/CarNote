@@ -20,14 +20,16 @@ router.post('/validate', authenticateUser, asyncHandler(async (req, res) => {
         energyLogs: Array.isArray(data.energyLogs) ? data.energyLogs.length : 0,
         maintenanceRecords: Array.isArray(data.maintenanceRecords) ? data.maintenanceRecords.length : 0,
         parts: Array.isArray(data.parts) ? data.parts.length : 0,
-        partReplacements: Array.isArray(data.partReplacements) ? data.partReplacements.length : 0
+        partReplacements: Array.isArray(data.partReplacements) ? data.partReplacements.length : 0,
+        insurances: Array.isArray(data.insurances) ? data.insurances.length : 0,
+        insuranceClaims: Array.isArray(data.insuranceClaims) ? data.insuranceClaims.length : 0
     };
 
     res.json({
         success: true,
         data: {
             summary,
-            isValid: summary.vehicles > 0 || summary.energyLogs > 0 // 至少需要车辆或记录
+            isValid: Object.values(summary).some(count => count > 0)
         }
     });
 }));
@@ -40,7 +42,11 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
     const userId = req.userId;
     const { data } = req.body;
 
-    if (!data || !data.vehicles) {
+    const dataKeys = [
+        'vehicles', 'energyLogs', 'maintenanceRecords', 'parts', 'partReplacements',
+        'insurances', 'insuranceClaims'
+    ];
+    if (!data || !dataKeys.some(key => Array.isArray(data[key]))) {
         return res.status(400).json({ success: false, message: '无效的数据格式' });
     }
 
@@ -48,9 +54,10 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
         await transaction(async (db) => {
             const vehicleIdMap = new Map();
             const partIdMap = new Map();
+            const insuranceIdMap = new Map();
 
             // 1. 导入车辆
-            for (const vehicle of data.vehicles) {
+            for (const vehicle of (data.vehicles || [])) {
                 // 检查是否已存在同车牌车辆
                 let targetId;
                 const existing = await query('SELECT id FROM vehicles WHERE plate_number = ? AND user_id = ?', [vehicle.plate_number, userId]);
@@ -117,6 +124,40 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     await query(
                         'INSERT INTO part_replacements (vehicle_id, part_id, replacement_date, mileage, cost, service_provider, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
                         [newVehicleId, partInfo ? partInfo.newId : null, replacement.replacement_date, replacement.mileage, replacement.cost, replacement.service_provider || replacement.shop_name, replacement.notes]
+                    );
+                }
+            }
+
+            // 6. 导入保险
+            if (data.insurances) {
+                for (const insurance of data.insurances) {
+                    const newVehicleId = insurance.vehicle_id ? (vehicleIdMap.get(insurance.vehicle_id) || null) : null;
+
+                    const result = await query(
+                        `INSERT INTO insurances
+                         (user_id, vehicle_id, policy_number, insurance_company, start_date, end_date,
+                          premium, type, policy_image_url, ocr_content, notes)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [userId, newVehicleId, insurance.policy_number, insurance.insurance_company,
+                            insurance.start_date, insurance.end_date, insurance.premium, insurance.type,
+                            insurance.policy_image_url, insurance.ocr_content, insurance.notes]
+                    );
+                    insuranceIdMap.set(insurance.id, result.lastID);
+                }
+            }
+
+            // 7. 导入保险理赔记录
+            if (data.insuranceClaims) {
+                for (const claim of data.insuranceClaims) {
+                    const newInsuranceId = insuranceIdMap.get(claim.insurance_id);
+                    if (!newInsuranceId) continue;
+
+                    await query(
+                        `INSERT INTO insurance_claims
+                         (insurance_id, user_id, claim_date, description, claim_amount, status, notes)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [newInsuranceId, userId, claim.claim_date, claim.description,
+                            claim.claim_amount, claim.status, claim.notes]
                     );
                 }
             }
