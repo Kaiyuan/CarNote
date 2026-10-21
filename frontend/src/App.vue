@@ -224,6 +224,9 @@ watch(() => siteStore.state.websiteAnalytics, (newVal) => {
 </script>
 
 <style>
+.body {
+    font-family: "Barlow Condensed", "Sarasa Term SC", "Helvetica Neue", Ubuntu, Helvetica, "Source Han Serif", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "WenQuanYi Zen Hei", "Apple LiGothic Medium", "ST Heiti", "WenQuanYi Zen Hei Sharp", Inter, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+}
 .layout-content {
   max-width: 1560px;
   margin: 0 auto;
