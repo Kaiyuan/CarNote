@@ -471,5 +471,14 @@ export default {
     "生成失败": "Échec de la génération",
     "请输入密钥名称": "Saisissez un nom de clé",
     "数据加载失败": "Échec du chargement des données",
-    "操作已完成": "Terminé"
+    "操作已完成": "Terminé",
+    "查询": "Rechercher",
+    "重置": "Réinitialiser",
+    "刷新": "Actualiser",
+    "搜索车牌、用户或记录内容": "Rechercher une plaque, un utilisateur ou un enregistrement",
+    "已应用筛选": "Filtres appliqués",
+    "需要更换": "À remplacer",
+    "所属用户": "Propriétaire",
+    "安装日期": "Date d’installation",
+    "显示 {first} 至 {last} 条，共 {totalRecords} 条": "Affichage de {first} à {last} sur {totalRecords}"
 }

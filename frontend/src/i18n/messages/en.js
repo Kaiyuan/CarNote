@@ -505,5 +505,14 @@ export default {
     "生成失败": "Generation failed",
     "请输入密钥名称": "Enter a key name",
     "数据加载失败": "Failed to load data",
-    "操作已完成": "Done"
+    "操作已完成": "Done",
+    "查询": "Search",
+    "重置": "Reset",
+    "刷新": "Refresh",
+    "搜索车牌、用户或记录内容": "Search plate, user or record content",
+    "已应用筛选": "Filters applied",
+    "需要更换": "Needs replacement",
+    "所属用户": "Owner",
+    "安装日期": "Installed on",
+    "显示 {first} 至 {last} 条，共 {totalRecords} 条": "Showing {first}-{last} of {totalRecords}"
 }

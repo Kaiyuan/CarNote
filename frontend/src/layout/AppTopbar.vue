@@ -10,12 +10,6 @@
             <!-- VIP 会员状态 (由 VIP 模块注入) -->
             <component :is="'VipMembershipBadge'" v-if="siteStore.state.hasVip" />
 
-            <div class="topbar-search">
-                <i class="pi pi-search"></i>
-                <InputText v-model="searchText" placeholder="搜索车辆、记录..." />
-                <span class="topbar-search-hint">⌘K</span>
-            </div>
-
             <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded class="topbar-icon-button"
                 @click="cycleMode" :aria-label="t('主题')" v-tooltip.bottom="themeLabel" />
 
@@ -123,8 +117,6 @@ const route = useRoute()
 const showNotifications = ref(false)
 const notifications = ref(null)
 const loading = ref(false)
-const searchText = ref('')
-
 const themeLabel = computed(() => `${t('主题')}: ${isDark.value ? t('深色') : t('浅色')}`)
 
 const pageTitles = {
@@ -263,53 +255,6 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 0.65rem;
-}
-
-.topbar-search {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    height: 2.5rem;
-    width: 280px;
-    padding: 0 0.75rem;
-    background: var(--cn-card);
-    border: 1px solid var(--cn-border);
-    border-radius: 10px;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.topbar-search:focus-within {
-    border-color: var(--cn-primary);
-    box-shadow: var(--focus-ring);
-}
-
-.topbar-search > i {
-    color: var(--cn-subtle);
-    font-size: 0.85rem;
-}
-
-.topbar-search :deep(.p-inputtext) {
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    padding: 0;
-    font-size: 0.82rem;
-}
-
-.topbar-search :deep(.p-inputtext:enabled:focus) {
-    box-shadow: none;
-    border: 0;
-}
-
-.topbar-search-hint {
-    color: var(--cn-subtle);
-    font-size: 0.68rem;
-    border: 1px solid var(--cn-border);
-    border-radius: 5px;
-    padding: 0.05rem 0.3rem;
-    white-space: nowrap;
 }
 
 .topbar-icon-button {
@@ -505,10 +450,6 @@ onMounted(() => {
 }
 
 @media screen and (max-width: 1200px) {
-    .topbar-search {
-        width: 220px;
-    }
-
     .topbar-locale {
         width: 7.5rem;
     }

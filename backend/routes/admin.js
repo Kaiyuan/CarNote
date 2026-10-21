@@ -9,6 +9,36 @@ const { recalculateVehicleLogs } = require('./energy');
 // All routes here require admin
 router.use(authenticateUser, isAdmin);
 
+function buildAdminDataFilters({ userId, vehicleId, keyword, startDate, endDate, dateColumn, searchColumns = [] }) {
+    let sql = '';
+    const params = [];
+
+    if (userId) {
+        sql += ' AND u.id = ?';
+        params.push(userId);
+    }
+    if (vehicleId) {
+        sql += ' AND v.id = ?';
+        params.push(vehicleId);
+    }
+    if (keyword && String(keyword).trim()) {
+        const term = `%${String(keyword).trim()}%`;
+        sql += ` AND (${searchColumns.map(column => `${column} LIKE ?`).join(' OR ')})`;
+        searchColumns.forEach(() => params.push(term));
+    }
+    if (startDate) {
+        sql += ` AND ${dateColumn} >= ?`;
+        params.push(startDate);
+    }
+    if (endDate) {
+        const endValue = String(endDate).includes(' ') ? endDate : `${endDate} 23:59:59`;
+        sql += ` AND ${dateColumn} <= ?`;
+        params.push(endValue);
+    }
+
+    return { sql, params };
+}
+
 /**
  * 获取所有用户列表 (整合会员状态)
  */
@@ -168,16 +198,22 @@ router.get('/logs/login', asyncHandler(async (req, res) => {
  * 支持筛选: user_id
  */
 router.get('/vehicles', asyncHandler(async (req, res) => {
-    const { user_id } = req.query;
-    let sql = `SELECT v.*, u.username as owner_name 
-               FROM vehicles v 
-               JOIN users u ON v.user_id = u.id`;
-    const params = [];
-    if (user_id) {
-        sql += ' WHERE v.user_id = ?';
-        params.push(user_id);
-    }
-    const vehicles = await query(sql, params);
+    const { user_id, vehicle_id, q, start_date, end_date } = req.query;
+    const filters = buildAdminDataFilters({
+        userId: user_id,
+        vehicleId: vehicle_id,
+        keyword: q,
+        startDate: start_date,
+        endDate: end_date,
+        dateColumn: 'v.purchase_date',
+        searchColumns: ['v.plate_number', 'v.brand', 'v.model', 'u.username', 'u.nickname']
+    });
+    const sql = `SELECT v.*, u.username as owner_name
+                 FROM vehicles v
+                 JOIN users u ON v.user_id = u.id
+                 WHERE 1=1 ${filters.sql}
+                 ORDER BY v.created_at DESC`;
+    const vehicles = await query(sql, filters.params);
     res.json({ success: true, data: vehicles });
 }));
 
@@ -200,23 +236,24 @@ router.delete('/vehicles/:id', asyncHandler(async (req, res) => {
  * 支持筛选: user_id, vehicle_id
  */
 router.get('/energy', asyncHandler(async (req, res) => {
-    const { user_id, vehicle_id } = req.query;
+    const { user_id, vehicle_id, q, start_date, end_date } = req.query;
+    const filters = buildAdminDataFilters({
+        userId: user_id,
+        vehicleId: vehicle_id,
+        keyword: q,
+        startDate: start_date,
+        endDate: end_date,
+        dateColumn: 'e.log_date',
+        searchColumns: ['v.plate_number', 'u.username', 'u.nickname', 'e.location_name', 'e.notes', 'e.lent_to']
+    });
     let sql = `
         SELECT e.*, v.plate_number, u.username as owner_name 
         FROM energy_logs e 
         JOIN vehicles v ON e.vehicle_id = v.id
         JOIN users u ON v.user_id = u.id
-        WHERE 1=1 `;
-    const params = [];
-    if (user_id) {
-        sql += ' AND u.id = ?';
-        params.push(user_id);
-    }
-    if (vehicle_id) {
-        sql += ' AND v.id = ?';
-        params.push(vehicle_id);
-    }
-    sql += ' ORDER BY e.log_date DESC';
+        WHERE 1=1 ${filters.sql}
+        ORDER BY e.log_date DESC`;
+    const params = [...filters.params];
     if (req.query.limit && req.query.limit !== 'all' && parseInt(req.query.limit) > 0) {
         sql += ' LIMIT ? OFFSET ?';
         params.push(parseInt(req.query.limit), parseInt(req.query.offset || 0));
@@ -252,24 +289,25 @@ router.delete('/energy/:id', asyncHandler(async (req, res) => {
  * 支持筛选: user_id, vehicle_id
  */
 router.get('/maintenance', asyncHandler(async (req, res) => {
-    const { user_id, vehicle_id } = req.query;
-    let sql = `
+    const { user_id, vehicle_id, q, start_date, end_date } = req.query;
+    const filters = buildAdminDataFilters({
+        userId: user_id,
+        vehicleId: vehicle_id,
+        keyword: q,
+        startDate: start_date,
+        endDate: end_date,
+        dateColumn: 'm.maintenance_date',
+        searchColumns: ['v.plate_number', 'u.username', 'u.nickname', 'm.type', 'm.description', 'm.service_provider']
+    });
+    const sql = `
         SELECT m.*, v.plate_number, u.username as owner_name 
         FROM maintenance_records m 
         JOIN vehicles v ON m.vehicle_id = v.id
         JOIN users u ON v.user_id = u.id
-        WHERE 1=1 `;
-    const params = [];
-    if (user_id) {
-        sql += ' AND u.id = ?';
-        params.push(user_id);
-    }
-    if (vehicle_id) {
-        sql += ' AND v.id = ?';
-        params.push(vehicle_id);
-    }
-    sql += ' ORDER BY m.maintenance_date DESC LIMIT 1000';
-    const logs = await query(sql, params);
+        WHERE 1=1 ${filters.sql}
+        ORDER BY m.maintenance_date DESC
+        LIMIT 1000`;
+    const logs = await query(sql, filters.params);
     res.json({ success: true, data: logs });
 }));
 
@@ -291,24 +329,24 @@ router.delete('/maintenance/:id', asyncHandler(async (req, res) => {
  * 全局数据管理 - 配件管理
  */
 router.get('/parts', asyncHandler(async (req, res) => {
-    const { user_id, vehicle_id } = req.query;
-    let sql = `
+    const { user_id, vehicle_id, q, start_date, end_date } = req.query;
+    const filters = buildAdminDataFilters({
+        userId: user_id,
+        vehicleId: vehicle_id,
+        keyword: q,
+        startDate: start_date,
+        endDate: end_date,
+        dateColumn: 'p.installed_date',
+        searchColumns: ['v.plate_number', 'u.username', 'u.nickname', 'p.name', 'p.part_number', 'p.status']
+    });
+    const sql = `
         SELECT p.*, v.plate_number, u.username as owner_name 
         FROM parts p 
         JOIN vehicles v ON p.vehicle_id = v.id
         JOIN users u ON v.user_id = u.id
-        WHERE 1=1 `;
-    const params = [];
-    if (user_id) {
-        sql += ' AND u.id = ?';
-        params.push(user_id);
-    }
-    if (vehicle_id) {
-        sql += ' AND v.id = ?';
-        params.push(vehicle_id);
-    }
-    sql += ' ORDER BY p.created_at DESC';
-    const parts = await query(sql, params);
+        WHERE 1=1 ${filters.sql}
+        ORDER BY p.created_at DESC`;
+    const parts = await query(sql, filters.params);
     res.json({ success: true, data: parts });
 }));
 

@@ -198,102 +198,171 @@
 
             <!-- 全局数据管理 -->
             <TabPanel header="全量数据管理">
-                <div class="surface-100 p-3 border-round mb-4">
-                    <div class="grid p-fluid">
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <label class="mb-1 block">所属用户</label>
-                            <Dropdown v-model="mgmtFilters.user_id" :options="users" optionLabel="username"
-                                optionValue="id" showClear placeholder="全部用户" @change="onMgmtFilterChange" />
-                        </div>
-                        <div class="col-12 md:col-6 lg:col-3">
-                            <label class="mb-1 block">指定车辆</label>
-                            <Dropdown v-model="mgmtFilters.vehicle_id" :options="mgmtVehicles"
-                                optionLabel="plate_number" optionValue="id" showClear placeholder="全部车辆"
-                                @change="loadMgmtRecords" />
-                        </div>
+                <div class="admin-data-overview">
+                    <button v-for="stat in mgmtStats" :key="stat.key" type="button" class="admin-data-stat"
+                        :class="[`tone-${stat.tone}`, { active: mgmtTab === stat.tab }]" @click="mgmtTab = stat.tab">
+                        <span class="admin-data-stat-icon"><i :class="stat.icon"></i></span>
+                        <span class="admin-data-stat-body">
+                            <span class="admin-data-stat-label">{{ t(stat.label) }}</span>
+                            <strong>{{ stat.value }}</strong>
+                        </span>
+                        <i class="pi pi-arrow-right admin-data-stat-arrow"></i>
+                    </button>
+                </div>
+
+                <div class="admin-data-filters">
+                    <div class="admin-data-filters-row">
+                        <span class="p-input-icon-left admin-data-search">
+                            <i class="pi pi-search" />
+                            <InputText v-model="mgmtFilters.q" :placeholder="t('搜索车牌、用户或记录内容')"
+                                @keyup.enter="applyMgmtFilters" />
+                        </span>
+                        <Dropdown v-model="mgmtFilters.user_id" :options="users" optionLabel="username"
+                            optionValue="id" showClear :placeholder="t('全部用户')" @change="onMgmtFilterChange" />
+                        <Dropdown v-model="mgmtFilters.vehicle_id" :options="mgmtVehicles"
+                            optionLabel="plate_number" optionValue="id" showClear :placeholder="t('全部车辆')"
+                            @change="applyMgmtFilters" />
+                        <Calendar v-model="mgmtFilters.dateRange" selectionMode="range" :manualInput="false"
+                            :placeholder="t('选择日期范围')" showIcon />
+                        <Button :label="t('查询')" icon="pi pi-search" @click="applyMgmtFilters" />
+                        <Button :label="t('重置')" icon="pi pi-filter-slash" text @click="resetMgmtFilters" />
+                        <Button icon="pi pi-refresh" text rounded :loading="loading" @click="loadMgmtRecords"
+                            v-tooltip.top="t('刷新')" />
+                    </div>
+                    <div class="admin-data-summary">
+                        <span>{{ mgmtTotal }} {{ t('条') }}</span>
+                        <span v-if="hasMgmtFilters" class="admin-data-filter-hint">
+                            <i class="pi pi-filter"></i> {{ t('已应用筛选') }}
+                        </span>
                     </div>
                 </div>
 
-                <TabView>
-                    <TabPanel header="车辆列表">
-                        <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="10"
-                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+                <TabView :activeIndex="mgmtTab" @update:activeIndex="mgmtTab = $event">
+                    <TabPanel :header="t('车辆列表') + ' (' + mgmtData.vehicles.length + ')'">
+                        <DataTable :value="mgmtData.vehicles" :loading="loading" stripedRows paginator :rows="20"
+                            :rowsPerPageOptions="[10, 20, 50, 100]" responsiveLayout="stack" breakpoint="960px"
+                            class="responsive-table" :emptyMessage="t('暂无数据')"
+                            :key="'mgmt-vehicles-' + mgmtTableVersion"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                            :currentPageReportTemplate="t('显示 {first} 至 {last} 条，共 {totalRecords} 条')">
                             <Column field="owner_name" header="所属用户" sortable></Column>
                             <Column field="plate_number" header="车牌号" sortable></Column>
                             <Column field="brand" header="品牌" sortable></Column>
-                            <Column field="purchase_date" header="购车时间" sortable>
+                            <Column field="model" header="型号" sortable></Column>
+                            <Column field="power_type" header="动力类型" sortable>
                                 <template #body="slotProps">
-                                    {{ formatDate(slotProps.data.purchase_date) }}
+                                    <Tag :value="getPowerTypeLabel(slotProps.data.power_type)"
+                                        :severity="getPowerTypeSeverity(slotProps.data.power_type)" />
                                 </template>
                             </Column>
-                            <Column header="操作">
+                            <Column field="current_mileage" header="当前里程 (km)" sortable>
+                                <template #body="slotProps">{{ formatNumber(slotProps.data.current_mileage) }}</template>
+                            </Column>
+                            <Column field="purchase_date" header="购车时间" sortable>
+                                <template #body="slotProps">{{ formatDate(slotProps.data.purchase_date) }}</template>
+                            </Column>
+                            <Column header="操作" style="width: 100px">
                                 <template #body="slotProps">
-                                    <Button icon="pi pi-pencil" text rounded
+                                    <Button icon="pi pi-pencil" text rounded v-tooltip.top="t('编辑')"
                                         @click="editMgmtItem('vehicle', slotProps.data)" />
                                     <Button icon="pi pi-trash" text rounded severity="danger"
-                                        @click="deleteMgmtItem('vehicle', slotProps.data.id)" />
+                                        v-tooltip.top="t('删除')" @click="deleteMgmtItem('vehicle', slotProps.data.id)" />
                                 </template>
                             </Column>
                         </DataTable>
                     </TabPanel>
-                    <TabPanel header="能耗记录">
-                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="10" :rowsPerPageOptions="[10, 20, 50, 100, 200]"
-                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                            currentPageReportTemplate="显示第 {first} 到 {last} 条，共 {totalRecords} 条记录"
-                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+
+                    <TabPanel :header="t('能耗记录') + ' (' + mgmtData.energy.length + ')'">
+                        <DataTable :value="mgmtData.energy" :loading="loading" stripedRows paginator :rows="20"
+                            :rowsPerPageOptions="[10, 20, 50, 100, 200]" responsiveLayout="stack" breakpoint="960px"
+                            class="responsive-table" :emptyMessage="t('暂无数据')"
+                            :key="'mgmt-energy-' + mgmtTableVersion"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                            :currentPageReportTemplate="t('显示 {first} 至 {last} 条，共 {totalRecords} 条')">
                             <Column field="owner_name" header="用户" sortable></Column>
                             <Column field="plate_number" header="车辆" sortable></Column>
                             <Column field="log_date" header="日期" sortable>
                                 <template #body="slotProps">{{ formatDate(slotProps.data.log_date) }}</template>
                             </Column>
-                            <Column field="amount" header="数量" sortable></Column>
-                            <Column field="cost" header="花费" sortable></Column>
-                            <Column header="操作">
+                            <Column field="energy_type" header="类型" sortable>
                                 <template #body="slotProps">
-                                    <Button icon="pi pi-pencil" text rounded
+                                    <Tag :value="getEnergyTypeLabel(slotProps.data.energy_type)"
+                                        :severity="slotProps.data.energy_type === 'electric' ? 'success' : 'warning'" />
+                                </template>
+                            </Column>
+                            <Column field="mileage" header="里程 (km)" sortable>
+                                <template #body="slotProps">{{ formatNumber(slotProps.data.mileage) }}</template>
+                            </Column>
+                            <Column field="amount" header="数量" sortable></Column>
+                            <Column field="cost" header="花费" sortable>
+                                <template #body="slotProps">{{ formatCurrency(slotProps.data.cost) }}</template>
+                            </Column>
+                            <Column header="操作" style="width: 100px">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded v-tooltip.top="t('编辑')"
                                         @click="editMgmtItem('energy', slotProps.data)" />
                                     <Button icon="pi pi-trash" text rounded severity="danger"
-                                        @click="deleteMgmtItem('energy', slotProps.data.id)" />
+                                        v-tooltip.top="t('删除')" @click="deleteMgmtItem('energy', slotProps.data.id)" />
                                 </template>
                             </Column>
                         </DataTable>
                     </TabPanel>
-                    <TabPanel header="保养维修">
-                        <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="10"
-                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+
+                    <TabPanel :header="t('保养维修') + ' (' + mgmtData.maintenance.length + ')'">
+                        <DataTable :value="mgmtData.maintenance" :loading="loading" stripedRows paginator :rows="20"
+                            :rowsPerPageOptions="[10, 20, 50, 100]" responsiveLayout="stack" breakpoint="960px"
+                            class="responsive-table" :emptyMessage="t('暂无数据')"
+                            :key="'mgmt-maintenance-' + mgmtTableVersion"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                            :currentPageReportTemplate="t('显示 {first} 至 {last} 条，共 {totalRecords} 条')">
                             <Column field="owner_name" header="用户" sortable></Column>
                             <Column field="plate_number" header="车辆" sortable></Column>
                             <Column field="maintenance_date" header="日期" sortable>
                                 <template #body="slotProps">{{ formatDate(slotProps.data.maintenance_date) }}</template>
                             </Column>
+                            <Column field="type" header="类型" sortable></Column>
                             <Column field="description" header="项目" sortable
-                                style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></Column>
+                            <Column field="cost" header="金额" sortable>
+                                <template #body="slotProps">{{ formatCurrency(slotProps.data.cost) }}</template>
                             </Column>
-                            <Column header="操作">
+                            <Column header="操作" style="width: 100px">
                                 <template #body="slotProps">
-                                    <Button icon="pi pi-pencil" text rounded
+                                    <Button icon="pi pi-pencil" text rounded v-tooltip.top="t('编辑')"
                                         @click="editMgmtItem('maintenance', slotProps.data)" />
                                     <Button icon="pi pi-trash" text rounded severity="danger"
-                                        @click="deleteMgmtItem('maintenance', slotProps.data.id)" />
+                                        v-tooltip.top="t('删除')" @click="deleteMgmtItem('maintenance', slotProps.data.id)" />
                                 </template>
                             </Column>
                         </DataTable>
                     </TabPanel>
-                    <TabPanel header="配件管理">
-                        <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="10"
-                            responsiveLayout="stack" breakpoint="960px" class="responsive-table">
+
+                    <TabPanel :header="t('配件管理') + ' (' + mgmtData.parts.length + ')'">
+                        <DataTable :value="mgmtData.parts" :loading="loading" stripedRows paginator :rows="20"
+                            :rowsPerPageOptions="[10, 20, 50, 100]" responsiveLayout="stack" breakpoint="960px"
+                            class="responsive-table" :emptyMessage="t('暂无数据')"
+                            :key="'mgmt-parts-' + mgmtTableVersion"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                            :currentPageReportTemplate="t('显示 {first} 至 {last} 条，共 {totalRecords} 条')">
                             <Column field="owner_name" header="用户" sortable></Column>
                             <Column field="plate_number" header="车辆" sortable></Column>
-                            <Column field="name" header="配件名" sortable
-                                style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <Column field="name" header="配件名" sortable></Column>
+                            <Column field="part_number" header="配件编号" sortable></Column>
+                            <Column field="installed_date" header="安装日期" sortable>
+                                <template #body="slotProps">{{ formatDate(slotProps.data.installed_date) }}</template>
                             </Column>
-                            <Column field="status" header="状态" sortable></Column>
-                            <Column header="操作">
+                            <Column field="status" header="状态" sortable>
                                 <template #body="slotProps">
-                                    <Button icon="pi pi-pencil" text rounded
+                                    <Tag :value="getPartStatusLabel(slotProps.data.status)"
+                                        :severity="getPartStatusSeverity(slotProps.data.status)" />
+                                </template>
+                            </Column>
+                            <Column header="操作" style="width: 100px">
+                                <template #body="slotProps">
+                                    <Button icon="pi pi-pencil" text rounded v-tooltip.top="t('编辑')"
                                         @click="editMgmtItem('part', slotProps.data)" />
                                     <Button icon="pi pi-trash" text rounded severity="danger"
-                                        @click="deleteMgmtItem('part', slotProps.data.id)" />
+                                        v-tooltip.top="t('删除')" @click="deleteMgmtItem('part', slotProps.data.id)" />
                                 </template>
                             </Column>
                         </DataTable>
@@ -663,10 +732,12 @@ import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import { useSiteStore } from '../utils/siteStore'
 import { formatDate as fmtDate, formatDateTime as fmtDateTime, parseLocalDate, toLocalDateString } from '../utils/date'
+import { useI18n } from '../i18n'
 
 const siteStore = useSiteStore()
 
 const toast = useToast()
+const { t } = useI18n()
 const activeTab = ref(0)
 const loading = ref(false)
 const saving = ref(false)
@@ -760,7 +831,22 @@ const saveBranding = async () => {
 }
 const mgmtFilters = ref({
     user_id: null,
-    vehicle_id: null
+    vehicle_id: null,
+    q: '',
+    dateRange: null
+})
+const mgmtTab = ref(0)
+const mgmtTableVersion = ref(0)
+const mgmtStats = computed(() => [
+    { key: 'vehicles', label: '车辆列表', value: mgmtData.value.vehicles.length, icon: 'pi pi-car', tone: 'blue', tab: 0 },
+    { key: 'energy', label: '能耗记录', value: mgmtData.value.energy.length, icon: 'pi pi-bolt', tone: 'green', tab: 1 },
+    { key: 'maintenance', label: '保养维修', value: mgmtData.value.maintenance.length, icon: 'pi pi-wrench', tone: 'orange', tab: 2 },
+    { key: 'parts', label: '配件管理', value: mgmtData.value.parts.length, icon: 'pi pi-box', tone: 'purple', tab: 3 }
+])
+const mgmtTotal = computed(() => mgmtStats.value.reduce((sum, stat) => sum + stat.value, 0))
+const hasMgmtFilters = computed(() => {
+    const filters = mgmtFilters.value
+    return Boolean(filters.user_id || filters.vehicle_id || (filters.q && filters.q.trim()) || filters.dateRange?.[0])
 })
 const mgmtDialogs = ref({
     vehicle: false,
@@ -875,10 +961,21 @@ const loadSmtp = async () => {
     } catch (e) { }
 }
 
+const buildMgmtParams = () => {
+    const filters = mgmtFilters.value
+    const params = {}
+    if (filters.user_id) params.user_id = filters.user_id
+    if (filters.vehicle_id) params.vehicle_id = filters.vehicle_id
+    if (filters.q && filters.q.trim()) params.q = filters.q.trim()
+    if (filters.dateRange?.[0]) params.start_date = toLocalDateString(filters.dateRange[0])
+    if (filters.dateRange?.[1]) params.end_date = toLocalDateString(filters.dateRange[1])
+    return params
+}
+
 const loadMgmtRecords = async () => {
     loading.value = true
     try {
-        const params = { ...mgmtFilters.value }
+        const params = buildMgmtParams()
         const [vRes, eRes, mRes, pRes] = await Promise.all([
             adminAPI.getAllVehicles(params),
             adminAPI.getAllEnergy(params),
@@ -889,6 +986,7 @@ const loadMgmtRecords = async () => {
         if (eRes.success) mgmtData.value.energy = eRes.data
         if (mRes.success) mgmtData.value.maintenance = mRes.data
         if (pRes.success) mgmtData.value.parts = pRes.data
+        mgmtTableVersion.value++
     } catch (e) {
         toast.add({ severity: 'error', summary: '加载失败', detail: '数据加载失败' })
     } finally {
@@ -896,15 +994,30 @@ const loadMgmtRecords = async () => {
     }
 }
 
+const applyMgmtFilters = () => {
+    loadMgmtRecords()
+}
+
+const resetMgmtFilters = () => {
+    mgmtFilters.value = {
+        user_id: null,
+        vehicle_id: null,
+        q: '',
+        dateRange: null
+    }
+    loadMgmtVehicles()
+    loadMgmtRecords()
+}
+
+const loadMgmtVehicles = async (userId = null) => {
+    const res = await adminAPI.getAllVehicles(userId ? { user_id: userId } : {})
+    if (res.success) mgmtVehicles.value = res.data
+}
+
 const onMgmtFilterChange = async () => {
     mgmtFilters.value.vehicle_id = null
-    if (mgmtFilters.value.user_id) {
-        const res = await adminAPI.getAllVehicles({ user_id: mgmtFilters.value.user_id })
-        if (res.success) mgmtVehicles.value = res.data
-    } else {
-        mgmtVehicles.value = []
-    }
-    loadMgmtRecords()
+    await loadMgmtVehicles(mgmtFilters.value.user_id)
+    await loadMgmtRecords()
 }
 
 const editMgmtItem = (type, item) => {
@@ -1106,7 +1219,11 @@ watch(activeTab, (idx) => {
         loadSmtp()
     }
     if (idx === 1) loadUsers()
-    if (idx === 2) loadMgmtRecords()
+    if (idx === 2) {
+        loadUsers()
+        loadMgmtVehicles()
+        loadMgmtRecords()
+    }
     if (idx === 3) loadAttachments()
     if (idx === 4) loadLogs()
     if (idx === 5) loadAdminLocations()
@@ -1114,6 +1231,15 @@ watch(activeTab, (idx) => {
 
 const formatDate = fmtDate
 const formatDateTime = fmtDateTime
+const formatNumber = (value) => value === null || value === undefined || value === '' ? '-' : Number(value).toLocaleString()
+const formatCurrency = (value) => value === null || value === undefined || value === ''
+    ? '-'
+    : '¥' + Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const getPowerTypeLabel = (type) => ({ fuel: t('燃油'), electric: t('纯电'), hybrid: t('混动') }[type] || type)
+const getPowerTypeSeverity = (type) => ({ fuel: 'warning', electric: 'info', hybrid: 'success' }[type] || 'secondary')
+const getEnergyTypeLabel = (type) => type === 'electric' ? t('纯电') : type === 'fuel' ? t('燃油') : type
+const getPartStatusLabel = (status) => ({ normal: t('正常'), warning: t('即将需要更换'), critical: t('需要更换') }[status] || status)
+const getPartStatusSeverity = (status) => ({ normal: 'success', warning: 'warning', critical: 'danger' }[status] || 'secondary')
 
 onMounted(() => {
     loadBranding()
@@ -1126,5 +1252,202 @@ label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
+}
+
+.admin-data-overview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.admin-data-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    text-align: left;
+    color: var(--cn-text);
+    background: var(--cn-card);
+    border: 1px solid var(--cn-border);
+    border-radius: 14px;
+    box-shadow: var(--cn-shadow);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-data-stat:hover {
+    transform: translateY(-2px);
+    border-color: var(--cn-border-strong);
+    box-shadow: var(--cn-shadow-md);
+}
+
+.admin-data-stat.active {
+    border-color: var(--cn-primary);
+    box-shadow: var(--focus-ring);
+}
+
+.admin-data-stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.45rem;
+    height: 2.45rem;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    font-size: 1rem;
+}
+
+.tone-blue .admin-data-stat-icon {
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+}
+
+.tone-green .admin-data-stat-icon {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+
+.tone-orange .admin-data-stat-icon {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+}
+
+.tone-purple .admin-data-stat-icon {
+    background: rgba(139, 92, 246, 0.14);
+    color: #7c3aed;
+}
+
+.admin-data-stat-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 0.1rem;
+}
+
+.admin-data-stat-label {
+    color: var(--cn-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.admin-data-stat-body strong {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.admin-data-stat-arrow {
+    margin-left: auto;
+    color: var(--cn-subtle);
+    font-size: 0.72rem;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.admin-data-stat:hover .admin-data-stat-arrow,
+.admin-data-stat.active .admin-data-stat-arrow {
+    opacity: 1;
+    transform: translateX(2px);
+}
+
+.admin-data-filters {
+    margin-bottom: 1rem;
+    padding: 0.9rem 1rem;
+    background: var(--cn-card);
+    border: 1px solid var(--cn-border);
+    border-radius: 16px;
+    box-shadow: var(--cn-shadow);
+}
+
+.admin-data-filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.admin-data-search {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.admin-data-search :deep(.p-inputtext) {
+    width: 100%;
+}
+
+.admin-data-filters-row :deep(.p-dropdown) {
+    min-width: 10rem;
+}
+
+.admin-data-filters-row :deep(.p-calendar) {
+    min-width: 15rem;
+}
+
+.admin-data-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.7rem;
+    color: var(--cn-muted);
+    font-size: 0.78rem;
+}
+
+.admin-data-filter-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--cn-accent);
+    font-weight: 600;
+}
+
+@media screen and (max-width: 1100px) {
+    .admin-data-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .admin-data-filters-row {
+        align-items: stretch;
+    }
+
+    .admin-data-search,
+    .admin-data-filters-row :deep(.p-dropdown),
+    .admin-data-filters-row :deep(.p-calendar) {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .admin-data-filters-row :deep(.p-button) {
+        flex: 1 1 auto;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .admin-data-overview {
+        gap: 0.6rem;
+    }
+
+    .admin-data-stat {
+        padding: 0.8rem;
+        gap: 0.6rem;
+    }
+
+    .admin-data-stat-icon {
+        width: 2.1rem;
+        height: 2.1rem;
+    }
+
+    .admin-data-stat-body strong {
+        font-size: 1.15rem;
+    }
+
+    .admin-data-stat-arrow {
+        display: none;
+    }
 }
 </style>
