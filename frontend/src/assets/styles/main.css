@@ -730,6 +730,27 @@ footer a {
     color: var(--cn-text);
 }
 
+.p-dataview {
+    border: 1px solid var(--cn-border);
+    border-radius: var(--cn-radius);
+    overflow: hidden;
+    background: var(--cn-card);
+    box-shadow: var(--cn-shadow);
+}
+
+.p-dataview .p-dataview-content {
+    background: transparent;
+    color: var(--cn-text);
+}
+
+.p-dataview .surface-border {
+    border-color: var(--cn-border) !important;
+}
+
+[data-theme="dark"] .p-dataview .text-500 {
+    color: var(--cn-muted) !important;
+}
+
 .p-paginator {
     background: transparent;
     border: 0;
