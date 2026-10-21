@@ -103,7 +103,7 @@
                             <Column field="key_name" header="名称"></Column>
                             <Column field="key_prefix" header="前缀">
                                 <template #body="slotProps">
-                                    <code>{{ slotProps.data.key_value.substring(0, 8) }}...</code>
+                                    <code>{{ slotProps.data.key_prefix || '********' }}...</code>
                                 </template>
                             </Column>
                             <Column field="created_at" header="创建时间">

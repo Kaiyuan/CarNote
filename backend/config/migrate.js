@@ -2,6 +2,7 @@ const { query, get, transaction } = require('./database');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { hashApiKey, getApiKeyPrefix } = require('../utils/apiKey');
 
 /**
  * 创建数据库备份
@@ -80,6 +81,9 @@ async function autoMigrate() {
 
         // 启动时检测所有数据表完整性并自动修复/创建缺失数据表
         await checkAndEnsureAllTablesExist();
+
+        // 将旧版明文 API Key 转换为哈希，只保留可展示的前缀
+        await migrateApiKeyHashes();
 
         console.log('数据库迁移检测完成');
     } catch (error) {
@@ -171,6 +175,46 @@ async function ensureSqliteUserColumns() {
 }
 
 /**
+ * 为旧版 SQLite API Key 表增量添加前缀列。
+ */
+async function ensureSqliteApiKeyColumns() {
+    const columns = await query('PRAGMA table_info(api_keys)');
+    if (!columns.length) return;
+
+    if (!columns.some(column => column.name === 'key_prefix')) {
+        await query('ALTER TABLE api_keys ADD COLUMN key_prefix VARCHAR(16)');
+        console.log('[数据库迁移] api_keys 表已添加列: key_prefix');
+    }
+}
+
+/**
+ * 将旧版明文 API Key 就地替换为 SHA-256 哈希并记录展示前缀。
+ * key_prefix 为空的记录视为尚未迁移；更新时再次检查，避免并发启动重复哈希。
+ */
+async function migrateApiKeyHashes() {
+    let keys;
+    try {
+        keys = await query('SELECT id, key_value, key_prefix FROM api_keys WHERE key_prefix IS NULL OR key_prefix = \'\'');
+    } catch (error) {
+        if (/no such table|does not exist/i.test(error.message)) return;
+        throw error;
+    }
+
+    if (!keys.length) return;
+
+    console.log(`[数据库迁移] 正在转换 ${keys.length} 个旧版 API Key...`);
+    for (const key of keys) {
+        if (!key.key_value) continue;
+        await query(
+            `UPDATE api_keys SET key_value = ?, key_prefix = ?
+             WHERE id = ? AND (key_prefix IS NULL OR key_prefix = '')`,
+            [hashApiKey(key.key_value), getApiKeyPrefix(key.key_value), key.id]
+        );
+    }
+    console.log('[数据库迁移] API Key 哈希转换完成');
+}
+
+/**
  * SQLite 标识符引用。表名来自 sqlite_master，仍做转义以防特殊字符。
  */
 function quoteSqliteIdentifier(identifier) {
@@ -187,6 +231,7 @@ async function migrateSQLite() {
 
         // 新列优先使用 ALTER TABLE 增量添加，避免整表重建影响其他表的外键
         await ensureSqliteUserColumns();
+        await ensureSqliteApiKeyColumns();
 
         // 1. 定义期望的架构模板
         const tablesTemplates = [
@@ -600,10 +645,15 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE energy_logs ADD COLUMN lent_to VARCHAR(50)");
     }
 
-    // api_keys vehicle_id column
+    // api_keys vehicle_id / key_prefix columns
     const apiKeyVehicleExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'api_keys' AND column_name = 'vehicle_id'");
     if (apiKeyVehicleExists.length === 0) {
         await query("ALTER TABLE api_keys ADD COLUMN vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL");
+    }
+
+    const apiKeyPrefixExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'api_keys' AND column_name = 'key_prefix'");
+    if (apiKeyPrefixExists.length === 0) {
+        await query("ALTER TABLE api_keys ADD COLUMN key_prefix VARCHAR(16)");
     }
 
     // shared_locations created_by column
@@ -703,6 +753,7 @@ const allExpectedTables = [
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             key_value VARCHAR(64) UNIQUE NOT NULL,
+            key_prefix VARCHAR(16),
             key_name VARCHAR(50),
             vehicle_id INTEGER,
             is_active BOOLEAN DEFAULT 1,

@@ -185,9 +185,9 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
 }));
 
 /**
- * 快速添加能耗记录 (通过 API Key)
+ * 快速添加能耗记录 (通过 X-API-Key 请求头)
  * GET /api/energy/quick
- * 查询参数: apiKey, mileage, amount, [cost], [location_name], [location_lat], [location_lng]
+ * 查询参数: mileage, amount, [cost], [location_name], [location_lat], [location_lng]
  */
 router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
     const {
@@ -200,10 +200,23 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
         is_full
     } = req.query;
 
+    const mileageNumber = Number(mileage);
+    const amountNumber = Number(amount);
+    const costNumber = cost === undefined || cost === '' ? 0 : Number(cost);
+
     if (!mileage || !amount) {
         return res.status(400).json({
             success: false,
             message: '里程和加油量/充电量不能为空'
+        });
+    }
+
+    if (!Number.isFinite(mileageNumber) || mileageNumber < 0 ||
+        !Number.isFinite(amountNumber) || amountNumber <= 0 ||
+        !Number.isFinite(costNumber) || costNumber < 0) {
+        return res.status(400).json({
+            success: false,
+            message: '里程、加油量/充电量或费用格式不正确'
         });
     }
 
@@ -217,20 +230,32 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
         });
     }
 
-    // 获取车辆信息以判断能耗类型
-    const vehicle = await get('SELECT power_type FROM vehicles WHERE id = ?', [vehicle_id]);
+    // 获取车辆信息并校验归属，防止 API Key 被篡改绑定到他人车辆
+    const vehicle = await get(
+        'SELECT power_type, current_mileage FROM vehicles WHERE id = ? AND user_id = ?',
+        [vehicle_id, req.userId]
+    );
+
+    if (!vehicle) {
+        return res.status(404).json({
+            success: false,
+            message: '车辆不存在'
+        });
+    }
+
     const energy_type = vehicle.power_type === 'electric' ? 'electric' : 'fuel';
 
     // 插入记录
     const log_date = new Date().toISOString();
-    const unit_price = cost && amount ? parseFloat(cost) / parseFloat(amount) : null;
+    const unit_price = amountNumber > 0 ? costNumber / amountNumber : null;
+    const fullTank = is_full === 'true' || is_full === '1';
 
     const result = await query(
         `INSERT INTO energy_logs 
          (vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, is_full,
           location_name, location_lat, location_lng)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, log_date, mileage, energy_type, amount, cost, unit_price, Boolean(is_full),
+        [vehicle_id, log_date, mileageNumber, energy_type, amountNumber, costNumber, unit_price, fullTank,
             location_name, location_lat, location_lng]
     );
 
@@ -238,10 +263,10 @@ router.get('/quick', authenticateApiKey, asyncHandler(async (req, res) => {
     await recalculateVehicleLogs(vehicle_id);
 
     // 更新车辆里程
-    if (parseInt(mileage) > vehicle.current_mileage) {
+    if (mileageNumber > Number(vehicle.current_mileage || 0)) {
         await query(
             'UPDATE vehicles SET current_mileage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [mileage, vehicle_id]
+            [mileageNumber, vehicle_id]
         );
     }
 

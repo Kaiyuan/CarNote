@@ -229,7 +229,7 @@ curl -b cookies.txt http://localhost:53300/api/vehicles
 
 也支持 `Authorization: Bearer <session_token>` 供受信任的 API 客户端使用。
 
-快速记账 API 支持 API Key 认证：
+快速记账 API 支持 API Key 认证。请在请求头中传递密钥，不要放在 URL 查询参数里：
 ```
 X-API-Key: <api_key>
 ```
@@ -239,11 +239,11 @@ X-API-Key: <api_key>
 使用 API Key 一键添加能耗记录：
 
 ```bash
-curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&amount=45.5&cost=350"
+curl -H "X-API-Key: YOUR_API_KEY" \
+  "http://localhost:53300/api/energy/quick?mileage=12345&amount=45.5&cost=350"
 ```
 
 查询参数：
-- `apiKey` (必需) - 后台生成的 API 密钥
 - `mileage` (必需) - 当前里程
 - `amount` (必需) - 加油量/充电量
 - `cost` (可选) - 费用

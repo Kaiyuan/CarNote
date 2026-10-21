@@ -3,7 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { query, get } = require('../config/database');
+const { finalizeUploadedFile, removeFileQuietly } = require('../utils/uploadSecurity');
 const { authenticateUser } = require('../middleware/auth');
 const { recognizePolicy } = require('../services/ocrService');
 
@@ -28,23 +30,39 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `policy-${uniqueSuffix}${ext}`);
+        // 先使用无意义扩展名，校验真实文件内容后再改为安全扩展名
+        const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+        cb(null, `policy-${uniqueSuffix}.upload`);
     }
 });
+
+const ALLOWED_POLICY_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const upload = multer({
     storage: storage,
     limits: { fileSize: 10 * 1024 * 1024 }, // 限制 10MB
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        if (ALLOWED_POLICY_TYPES.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('只支持上传图片或 PDF 文件'));
+            cb(new Error('只支持上传 JPG、PNG、WebP 图片或 PDF 文件'));
         }
     }
 });
+
+/**
+ * 校验车辆是否存在且属于当前用户。
+ * 未绑定车辆时返回 true；绑定了他人车辆或不存在时返回 false。
+ */
+async function isOwnedVehicle(userId, vehicleId) {
+    if (vehicleId === undefined || vehicleId === null || vehicleId === '') return true;
+
+    const vehicle = await get(
+        'SELECT id FROM vehicles WHERE id = ? AND user_id = ?',
+        [vehicleId, userId]
+    );
+    return Boolean(vehicle);
+}
 
 /**
  * 检查用户是否具备上传权限 (VIP 模块判定)
@@ -72,7 +90,7 @@ async function checkUploadPermission(userId) {
         return { allowed: true };
     } catch (err) {
         console.error('[Insurance] VIP 权限检查异常:', err);
-        return { allowed: true }; // 发生异常时容错
+        return { allowed: false, message: '上传权限校验失败，请稍后重试' };
     }
 }
 
@@ -161,6 +179,15 @@ router.post('/upload', authenticateUser, async (req, res) => {
             return res.status(400).json({ success: false, message: '请选择要上传的文件' });
         }
 
+        const finalized = finalizeUploadedFile(req.file, ALLOWED_POLICY_TYPES);
+        if (!finalized) {
+            removeFileQuietly(req.file.path);
+            return res.status(400).json({
+                success: false,
+                message: '文件内容与类型不匹配，只支持 JPG、PNG、WebP 图片或 PDF 文件'
+            });
+        }
+
         try {
             // 生成可访问的相对 URL (基于系统上传目录, 对应 /uploads 静态服务)
             const relativePath = path.relative(getBaseUploadDir(), req.file.path).replace(/\\/g, '/');
@@ -216,6 +243,10 @@ router.post('/', authenticateUser, async (req, res) => {
             notes
         } = req.body;
 
+        if (!(await isOwnedVehicle(req.userId, vehicle_id))) {
+            return res.status(404).json({ success: false, message: '车辆不存在' });
+        }
+
         const result = await query(`
             INSERT INTO insurances (
                 user_id, vehicle_id, policy_number, insurance_company,
@@ -267,6 +298,10 @@ router.put('/:id', authenticateUser, async (req, res) => {
             ocr_content,
             notes
         } = req.body;
+
+        if (!(await isOwnedVehicle(req.userId, vehicle_id))) {
+            return res.status(404).json({ success: false, message: '车辆不存在' });
+        }
 
         await query(`
             UPDATE insurances SET

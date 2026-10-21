@@ -4,8 +4,8 @@
  */
 
 const { query, get } = require('../config/database');
-const crypto = require('crypto');
 const { getSession, getRequestToken } = require('../utils/session');
+const { generateApiKey, hashApiKey } = require('../utils/apiKey');
 
 /**
  * API Key 认证中间件
@@ -13,7 +13,7 @@ const { getSession, getRequestToken } = require('../utils/session');
  */
 async function authenticateApiKey(req, res, next) {
     try {
-        const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+        const apiKey = req.headers['x-api-key'];
 
         if (!apiKey) {
             return res.status(401).json({
@@ -22,16 +22,26 @@ async function authenticateApiKey(req, res, next) {
             });
         }
 
-        // 查询 API Key
+        // 数据库只保存 SHA-256 哈希，查询时先对请求中的密钥做哈希
         const keyRecord = await get(
-            'SELECT * FROM api_keys WHERE key_value = ? AND is_active = TRUE',
-            [apiKey]
+            `SELECT k.*, u.is_disabled
+             FROM api_keys k
+             JOIN users u ON k.user_id = u.id
+             WHERE k.key_value = ? AND k.is_active = TRUE`,
+            [hashApiKey(apiKey)]
         );
 
         if (!keyRecord) {
             return res.status(401).json({
                 success: false,
                 message: '无效的 API Key'
+            });
+        }
+
+        if (keyRecord.is_disabled) {
+            return res.status(403).json({
+                success: false,
+                message: '您的账号已被禁用，请联系管理员'
             });
         }
 
@@ -43,7 +53,7 @@ async function authenticateApiKey(req, res, next) {
 
         // 将 API Key 信息附加到请求对象
         req.apiKey = keyRecord;
-        req.userId = keyRecord.user_id;
+        req.userId = Number(keyRecord.user_id);
 
         next();
     } catch (error) {
@@ -60,7 +70,7 @@ async function authenticateApiKey(req, res, next) {
  * 如果提供了 API Key 则验证，否则跳过
  */
 async function optionalApiKey(req, res, next) {
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    const apiKey = req.headers['x-api-key'];
 
     if (!apiKey) {
         return next();
@@ -129,13 +139,6 @@ async function createAuditLog(userId, action, details) {
     } catch (e) {
         console.error('Audit log failed:', e);
     }
-}
-
-/**
- * 生成随机 API Key
- */
-function generateApiKey() {
-    return crypto.randomBytes(32).toString('hex');
 }
 
 /**

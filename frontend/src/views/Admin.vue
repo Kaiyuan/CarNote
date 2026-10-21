@@ -32,7 +32,7 @@
                                             <i v-else class="pi pi-car text-2xl"></i>
                                         </div>
                                         <div class="flex-1">
-                                            <input type="file" ref="iconInput" hidden accept="image/*"
+                                            <input type="file" ref="iconInput" hidden accept="image/jpeg,image/png,image/webp"
                                                 @change="onIconFileSelect" />
                                             <Button label="上传图标" icon="pi pi-upload" severity="secondary"
                                                 @click="$refs.iconInput.click()" class="p-button-sm w-full"

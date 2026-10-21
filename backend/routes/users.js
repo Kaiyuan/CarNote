@@ -7,7 +7,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { query, get } = require('../config/database');
-const { authenticateUser, generateApiKey } = require('../middleware/auth');
+const { authenticateUser } = require('../middleware/auth');
+const { generateApiKey, hashApiKey, getApiKeyPrefix } = require('../utils/apiKey');
 const { asyncHandler } = require('../middleware/errorHandler');
 const {
     createSession,
@@ -658,11 +659,32 @@ router.put('/settings', authenticateUser, asyncHandler(async (req, res) => {
  */
 router.post('/api-keys', authenticateUser, asyncHandler(async (req, res) => {
     const { key_name, vehicle_id } = req.body;
+    let boundVehicleId = null;
+
+    if (vehicle_id !== undefined && vehicle_id !== null && vehicle_id !== '') {
+        const vehicle = await get(
+            'SELECT id FROM vehicles WHERE id = ? AND user_id = ?',
+            [vehicle_id, req.userId]
+        );
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: '车辆不存在'
+            });
+        }
+
+        boundVehicleId = vehicle.id;
+    }
+
     const apiKey = generateApiKey();
+    const keyHash = hashApiKey(apiKey);
+    const keyPrefix = getApiKeyPrefix(apiKey);
 
     const result = await query(
-        'INSERT INTO api_keys (user_id, key_value, key_name, vehicle_id) VALUES (?, ?, ?, ?)',
-        [req.userId, apiKey, key_name, vehicle_id || null]
+        `INSERT INTO api_keys (user_id, key_value, key_prefix, key_name, vehicle_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [req.userId, keyHash, keyPrefix, key_name, boundVehicleId]
     );
 
     res.status(201).json({
@@ -671,7 +693,9 @@ router.post('/api-keys', authenticateUser, asyncHandler(async (req, res) => {
         data: {
             id: result.lastID,
             key: apiKey,
-            name: key_name
+            key_prefix: keyPrefix,
+            name: key_name,
+            vehicle_id: boundVehicleId
         }
     });
 }));
@@ -682,7 +706,7 @@ router.post('/api-keys', authenticateUser, asyncHandler(async (req, res) => {
  */
 router.get('/api-keys', authenticateUser, asyncHandler(async (req, res) => {
     const keys = await query(
-        `SELECT id, key_name, key_value, vehicle_id, is_active, created_at, last_used_at 
+        `SELECT id, key_name, key_prefix, vehicle_id, is_active, created_at, last_used_at
          FROM api_keys 
          WHERE user_id = ?
          ORDER BY created_at DESC`,

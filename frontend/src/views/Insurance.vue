@@ -8,7 +8,7 @@
       description="集中管理保单、保障期限与理赔记录，及时掌握续保时间。">
       <template #actions>
         <Button label="上传保单 (OCR)" icon="pi pi-upload" severity="secondary" @click="triggerFileUpload" :loading="uploading" />
-        <input ref="fileInputRef" type="file" accept="image/*,application/pdf" class="hidden" @change="handleFileUpload" />
+        <input ref="fileInputRef" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="hidden" @change="handleFileUpload" />
         <Button label="新增保单" icon="pi pi-plus" @click="openAddDialog" />
       </template>
     </PageHeader>

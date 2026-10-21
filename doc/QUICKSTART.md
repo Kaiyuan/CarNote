@@ -76,12 +76,13 @@ npm run dev
 # 先生成 API Key
 # 登录后端 -> 用户设置 -> 生成 API Key
 
-# 使用 API Key 快速添加（一行命令）
-curl "http://localhost:53300/api/energy/quick?apiKey=YOUR_API_KEY&mileage=12345&amount=45.5&cost=350"
+# 使用 API Key 快速添加（密钥放在请求头）
+curl -H "X-API-Key: YOUR_API_KEY" \
+  "http://localhost:53300/api/energy/quick?mileage=12345&amount=45.5&cost=350"
 ```
 
 参数说明：
-- `apiKey`: 你的 API 密钥
+- `X-API-Key`: 你的 API 密钥（请求头）
 - `mileage`: 当前里程
 - `amount`: 加油量（L）或充电量（kWh）
 - `cost`: 费用（可选）
@@ -155,7 +156,8 @@ Body: {
 
 ```bash
 # 快速添加（推荐）
-GET /api/energy/quick?apiKey=YOUR_KEY&mileage=5100&amount=50&cost=400
+GET /api/energy/quick?mileage=5100&amount=50&cost=400
+X-API-Key: YOUR_KEY
 
 # 完整添加
 POST /api/energy

@@ -179,7 +179,7 @@ router.get('/:id', authenticateUser, asyncHandler(async (req, res) => {
         });
     }
 
-    if (part.user_id !== req.userId) {
+    if (Number(part.user_id) !== Number(req.userId)) {
         return res.status(403).json({
             success: false,
             message: '无权访问此配件'
@@ -218,7 +218,7 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
         [req.params.id]
     );
 
-    if (!part || part.user_id !== req.userId) {
+    if (!part || Number(part.user_id) !== Number(req.userId)) {
         return res.status(404).json({
             success: false,
             message: '配件不存在'
@@ -257,7 +257,7 @@ router.delete('/:id', authenticateUser, asyncHandler(async (req, res) => {
         [req.params.id]
     );
 
-    if (!part || part.user_id !== req.userId) {
+    if (!part || Number(part.user_id) !== Number(req.userId)) {
         return res.status(404).json({
             success: false,
             message: '配件不存在'
@@ -312,6 +312,23 @@ router.post('/replacements', authenticateUser, asyncHandler(async (req, res) => 
             success: false,
             message: '车辆不存在'
         });
+    }
+
+    // 配件必须存在、属于当前用户，且与本次更换的车辆一致
+    if (part_id) {
+        const part = await get(
+            `SELECT p.id FROM parts p
+             JOIN vehicles v ON p.vehicle_id = v.id
+             WHERE p.id = ? AND p.vehicle_id = ? AND v.user_id = ?`,
+            [part_id, vehicle_id, req.userId]
+        );
+
+        if (!part) {
+            return res.status(404).json({
+                success: false,
+                message: '配件不存在或不属于该车辆'
+            });
+        }
     }
 
     // 插入更换记录

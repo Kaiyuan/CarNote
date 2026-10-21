@@ -121,13 +121,29 @@ const uploadDir = path.isAbsolute(process.env.UPLOAD_PATH || './uploads')
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadDir));
+
+// 上传目录只提供被动内容，禁止浏览器嗅探或执行其中的 HTML/SVG 脚本
+const uploadStaticOptions = {
+    index: false,
+    dotfiles: 'deny',
+    setHeaders: (res, filePath) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+
+        // PDF 交给浏览器内置查看器；其他上传内容强制沙箱，避免历史遗留的 HTML/SVG 被执行
+        if (path.extname(filePath).toLowerCase() !== '.pdf') {
+            res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+        }
+    }
+};
+
+app.use('/uploads', express.static(uploadDir, uploadStaticOptions));
 
 const dataUploadDir = path.resolve(process.cwd(), 'data', 'upload');
 if (!fs.existsSync(dataUploadDir)) {
     fs.mkdirSync(dataUploadDir, { recursive: true });
 }
-app.use('/data/upload', express.static(dataUploadDir));
+app.use('/data/upload', express.static(dataUploadDir, uploadStaticOptions));
 
 // 健康检查接口
 app.get('/health', (req, res) => {

@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
 
     user_id INTEGER NOT NULL,
 
-    key_value VARCHAR(64) UNIQUE NOT NULL,
+    key_value VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 哈希，不保存明文
+    key_prefix VARCHAR(16),
 
     key_name VARCHAR(50),
     vehicle_id INTEGER, -- 关联到特定车辆

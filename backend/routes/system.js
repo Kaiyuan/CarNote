@@ -5,13 +5,17 @@ const express = require('express');
 const router = express.Router();
 const { query, get } = require('../config/database');
 const { authenticateUser } = require('../middleware/auth');
+const { finalizeUploadedFile, removeFileQuietly } = require('../utils/uploadSecurity');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { isSmtpConfigured } = require('../utils/mailer');
 
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const sharp = require('sharp');
+
+const ALLOWED_ICON_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // 配置 Multer 用于图标上传
 const storage = multer.diskStorage({
@@ -22,32 +26,43 @@ const storage = multer.diskStorage({
         cb(null, absPath);
     },
     filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname) || '.png';
-        cb(null, `site_icon_original${ext}`);
+        // 校验真实文件内容后再确定安全扩展名，不信任客户端文件名
+        cb(null, `site_icon_original-${crypto.randomBytes(16).toString('hex')}.upload`);
     }
 });
 const upload = multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB for PWA source
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) cb(null, true);
-        else cb(new Error('只允许上传图片文件'));
+        if (ALLOWED_ICON_TYPES.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('只允许上传 JPG、PNG 或 WebP 图片文件'));
     }
+});
+
+const requireAdmin = asyncHandler(async (req, res, next) => {
+    const user = await get("SELECT role FROM users WHERE id = ?", [req.userId]);
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '无权操作' });
+    }
+    next();
 });
 
 /**
  * 上传站点图标并生成 PWA 图标
  * POST /api/system/upload-icon
  */
-router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandler(async (req, res) => {
-    // 检查管理员
-    const user = await get("SELECT role FROM users WHERE id = ?", [req.userId]);
-    if (!user || user.role !== 'admin') {
-        return res.status(403).json({ success: false, message: '无权操作' });
-    }
-
+router.post('/upload-icon', authenticateUser, requireAdmin, upload.single('icon'), asyncHandler(async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ success: false, message: '未选择文件' });
+    }
+
+    const finalized = finalizeUploadedFile(req.file, ALLOWED_ICON_TYPES);
+    if (!finalized) {
+        removeFileQuietly(req.file.path);
+        return res.status(400).json({
+            success: false,
+            message: '文件内容与类型不匹配，只允许上传 JPG、PNG 或 WebP 图片文件'
+        });
     }
 
     const uploadPath = process.env.UPLOAD_PATH || './uploads';
@@ -133,6 +148,7 @@ router.post('/upload-icon', authenticateUser, upload.single('icon'), asyncHandle
 
     } catch (error) {
         console.error('Sharp processing error:', error);
+        removeFileQuietly(req.file.path);
         res.status(500).json({ success: false, message: '图片处理失败: ' + error.message });
     }
 }));
