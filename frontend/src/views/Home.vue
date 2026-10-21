@@ -194,17 +194,17 @@
 
           <DataTable :value="recentActivities" :rows="5" responsiveLayout="stack" breakpoint="960px"
             class="home-table">
-            <Column field="type" header="类型" style="width: 7rem">
+            <Column field="type" header="类型" class="activity-type-col">
               <template #body="slotProps">
                 <Tag :severity="getActivitySeverity(slotProps.data.type)"
                   :value="getActivityLabel(slotProps.data.type)" />
               </template>
             </Column>
-            <Column field="date" header="日期" style="width: 8rem">
+            <Column field="date" header="日期" class="activity-date-col">
               <template #body="slotProps">{{ formatDate(slotProps.data.date) }}</template>
             </Column>
             <Column field="description" header="描述"></Column>
-            <Column field="cost" header="金额" alignFrozen="right" frozen style="width: 9rem">
+            <Column field="cost" header="金额" alignFrozen="right" frozen class="activity-cost-col">
               <template #body="slotProps">
                 <span class="font-semibold text-900">{{ formatCurrency(slotProps.data.cost) }}</span>
               </template>
@@ -770,6 +770,26 @@ onMounted(async () => {
 
   .home-main-chart {
     height: 260px;
+  }
+}
+
+.home-table :deep(.activity-type-col) {
+  width: 7rem;
+}
+
+.home-table :deep(.activity-date-col) {
+  width: 8rem;
+}
+
+.home-table :deep(.activity-cost-col) {
+  width: 9rem;
+}
+
+@media screen and (max-width: 960px) {
+  .home-table :deep(.activity-type-col),
+  .home-table :deep(.activity-date-col),
+  .home-table :deep(.activity-cost-col) {
+    width: auto !important;
   }
 }
 </style>

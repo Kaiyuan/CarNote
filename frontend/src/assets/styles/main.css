@@ -1195,9 +1195,20 @@ html[data-theme="dark"] .p-paginator .p-paginator-pages .p-paginator-page.p-high
     color: #101828;
 }
 
-[data-theme="dark"] .p-button.p-button-primary,
-[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help) {
-    color: #101828;
+html[data-theme="dark"] .p-button.p-button-primary,
+html[data-theme="dark"] .p-button.p-button-primary:not(:disabled):hover,
+html[data-theme="dark"] .p-button.p-button-primary:not(:disabled):active,
+html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help),
+html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help):not(:disabled):hover,
+html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help):not(:disabled):active {
+    color: #101828 !important;
+}
+
+html[data-theme="dark"] .p-button.p-button-primary .p-button-label,
+html[data-theme="dark"] .p-button.p-button-primary .p-button-icon,
+html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help) .p-button-label,
+html[data-theme="dark"] .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-rounded):not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-danger):not(.p-button-help) .p-button-icon {
+    color: #101828 !important;
 }
 
 [data-theme="dark"] .p-button.p-button-secondary {

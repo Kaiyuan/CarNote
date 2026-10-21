@@ -116,7 +116,7 @@ const mobileMenuVisible = ref(false)
 const siteStore = useSiteStore()
 const { locale, supportedLocales } = useI18n()
 const { isDark, cycleMode } = useTheme()
-const appVersion = ref(__APP_VERSION__ || '1.3.5')
+const appVersion = ref(__APP_VERSION__ || '1.3.6')
 
 const mobileNavItems = computed(() => [
   { label: '首页', shortLabel: '首页', icon: 'pi pi-home', path: '/' },
