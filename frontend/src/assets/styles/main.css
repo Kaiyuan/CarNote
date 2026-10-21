@@ -1191,8 +1191,9 @@ html[data-theme="dark"] .login-logo {
 
 html[data-theme="dark"] .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
     color: #101828;
-}
-    color: #101828;
+    }
+html[data-theme="dark"] .p-tabview .p-tabview-nav {
+    background: #101828;
 }
 
 html[data-theme="dark"] .p-button.p-button-primary,
