@@ -78,6 +78,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       # 跨域资源共享
       - CORS_ORIGIN=http://localhost
+      # 可信反向代理（默认信任本机/内网代理）；无代理直接暴露公网时设为 false
+      - TRUST_PROXY=loopback, linklocal, uniquelocal
       # SMTP 配置 (可选)
       # - SMTP_HOST=smtp.example.com
       # - SMTP_PORT=465
