@@ -76,6 +76,8 @@ body {
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 h1,
@@ -1040,12 +1042,34 @@ footer a {
     .login-form-panel {
         min-height: 100vh;
     }
+
+    input,
+    textarea,
+    select,
+    .p-inputtext,
+    .p-inputnumber-input,
+    .p-dropdown .p-dropdown-label,
+    .p-multiselect .p-multiselect-label,
+    .p-calendar .p-inputtext,
+    .p-password-input,
+    .p-textarea,
+    .p-chips .p-chips-multiple-container,
+    .p-chips .p-chips-input-token input {
+        font-size: 16px !important;
+        touch-action: manipulation;
+    }
+
+    button,
+    a {
+        touch-action: manipulation;
+    }
 }
 
 @media screen and (max-width: 768px) {
     .layout-content {
         padding: 1rem 0.9rem 2rem;
     }
+
 
     .cn-page-header {
         align-items: flex-start;
