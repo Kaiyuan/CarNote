@@ -52,7 +52,9 @@ function getRequestToken(req) {
 function isSecureRequest(req) {
     if (process.env.COOKIE_SECURE === 'true') return true;
     if (process.env.COOKIE_SECURE === 'false') return false;
-    return Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https');
+
+    // req.secure 只在 Express 信任的代理链上采信 X-Forwarded-Proto
+    return Boolean(req.secure);
 }
 
 function cookieOptions(req) {

@@ -103,12 +103,20 @@ app.use((req, res, next) => {
     })(req, res, next);
 });
 
-const trustProxy = process.env.TRUST_PROXY;
-if (trustProxy === 'true') {
-    app.set('trust proxy', 1);
-} else if (/^\d+$/.test(String(trustProxy || ''))) {
-    app.set('trust proxy', Number(trustProxy));
+// 默认信任本机、链路本地和内网反向代理（Nginx/Docker）。
+// 如果后端直接暴露在公网且前面没有代理，请设置 TRUST_PROXY=false。
+function resolveTrustProxy(value) {
+    const raw = String(value || '').trim();
+
+    if (!raw) return 'loopback, linklocal, uniquelocal';
+    if (raw.toLowerCase() === 'true') return 1;
+    if (raw.toLowerCase() === 'false') return false;
+    if (/^\d+$/.test(raw)) return Number(raw);
+
+    return raw;
 }
+
+app.set('trust proxy', resolveTrustProxy(process.env.TRUST_PROXY));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

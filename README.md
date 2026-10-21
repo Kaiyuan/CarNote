@@ -173,6 +173,7 @@ networks:
 | `UPLOAD_PATH` | 图片上传存储路径 | `/app/uploads` |
 | `JWT_SECRET` | JWT 签名密钥 (建议修改) | `carnote-production-secret...` |
 | `CORS_ORIGIN` | 允许跨域的前端地址 | `http://localhost` |
+| `TRUST_PROXY` | 可信反向代理（代理层数、IP/CIDR 或命名网段）；无代理直连公网时设为 `false` | `loopback, linklocal, uniquelocal` |
 | `SMTP_HOST` | SMTP 服务器地址 (可选，不配置则跳过邮箱验证) | (空) |
 | `SMTP_PORT` | SMTP 端口 (默认 465/587) | (空) |
 | `SMTP_USER` | SMTP 用户名 | (空) |
