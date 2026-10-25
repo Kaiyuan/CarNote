@@ -107,8 +107,8 @@ router.post('/execute', authenticateUser, asyncHandler(async (req, res) => {
                     if (!newVehicleId) continue;
 
                     const result = await query(
-                        'INSERT INTO parts (vehicle_id, name, part_number, installed_date, installed_mileage, recommended_replacement_mileage, recommended_replacement_months, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [newVehicleId, part.name, part.part_number, part.installed_date, part.installed_mileage, part.recommended_replacement_mileage, part.recommended_replacement_months, part.status, part.notes]
+                        'INSERT INTO parts (vehicle_id, name, part_number, price, installed_date, installed_mileage, recommended_replacement_mileage, recommended_replacement_months, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [newVehicleId, part.name, part.part_number, part.price, part.installed_date, part.installed_mileage, part.recommended_replacement_mileage, part.recommended_replacement_months, part.status, part.notes]
                     );
                     partIdMap.set(part.id, { newId: result.lastID, vehicleId: newVehicleId });
                 }

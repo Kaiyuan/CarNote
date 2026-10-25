@@ -54,6 +54,10 @@
                 <i class="pi pi-car mr-2"></i>
                 安装里程: {{ formatNumber(part.installed_mileage) }} km
               </div>
+              <div class="mb-2" v-if="part.price != null">
+                <i class="pi pi-wallet mr-2"></i>
+                价格: {{ formatCurrency(part.price) }}
+              </div>
               
               <!-- 有寿命设置：显示预期寿命 -->
               <div class="mb-2" v-if="part.recommended_replacement_months || part.recommended_replacement_mileage">
@@ -110,9 +114,16 @@
         <InputText v-model="partForm.name" class="w-full" placeholder="如：空气滤芯" />
       </div>
 
-      <div class="field">
-        <label>配件编号</label>
-        <InputText v-model="partForm.part_number" class="w-full" />
+      <div class="formgrid grid">
+        <div class="field col-12 md:col-6">
+          <label>配件编号</label>
+          <InputText v-model="partForm.part_number" class="w-full" />
+        </div>
+        <div class="field col-12 md:col-6">
+          <label>价格 (元)</label>
+          <InputNumber v-model="partForm.price" class="w-full" :min="0" :maxFractionDigits="2"
+            :inputProps="{ inputmode: 'decimal' }" />
+        </div>
       </div>
 
       <Divider align="left"><b>安装信息</b></Divider>
@@ -171,7 +182,7 @@
       </div>
 
       <div class="field">
-        <label>费用 (元)</label>
+        <label>更换价格 (元)</label>
         <InputNumber v-model="replaceForm.cost" class="w-full" :min="0" :maxFractionDigits="2"
           :inputProps="{ inputmode: 'decimal' }" />
       </div>
@@ -280,6 +291,7 @@ const defaultPartForm = {
   vehicle_id: null,
   name: '',
   part_number: '',
+  price: null,
   installed_date: new Date(),
   installed_mileage: null,
   recommended_replacement_months: null,
@@ -368,6 +380,7 @@ const editPart = (part) => {
   editingPart.value = part
   partForm.value = {
     ...part,
+    price: part.price != null ? Number(part.price) : null,
     installed_date: parseLocalDate(part.installed_date)
   }
   showDialog.value = true
@@ -410,7 +423,7 @@ const openReplaceDialog = (part) => {
   replaceForm.value = {
     replacement_date: new Date(),
     mileage: null,  // 理想情况下应自动填入车辆当前里程
-    cost: null,
+    cost: part.price != null ? Number(part.price) : null,
     service_provider: '',
     notes: '',
     reset_install: true,
@@ -523,7 +536,7 @@ const deletePart = async (id) => {
 const getVehiclePlate = (id) => vehicles.value.find(v => v.id === id)?.plate_number || '未知'
 const formatDate = fmtDate
 const formatNumber = (num) => num ? num.toLocaleString() : 0
-const formatCurrency = (val) => val ? '¥' + val.toFixed(2) : '¥0.00'
+const formatCurrency = (val) => val != null ? '¥' + Number(val).toFixed(2) : '¥0.00'
 
 const getStatusLabel = (status) => {
   const map = { 'normal': '正常', 'warning': '即将更换', 'critical': '急需更换' }

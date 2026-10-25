@@ -328,6 +328,7 @@ async function migrateSQLite() {
                 vehicle_id INTEGER NOT NULL,
                 name VARCHAR(100) NOT NULL,
                 part_number VARCHAR(50),
+                price DECIMAL(10, 2),
                 installed_date DATE,
                 installed_mileage INTEGER,
                 recommended_replacement_mileage INTEGER,
@@ -662,6 +663,12 @@ async function migratePostgreSQL() {
         await query("ALTER TABLE shared_locations ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL");
     }
 
+    // parts price column
+    const partPriceExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'parts' AND column_name = 'price'");
+    if (partPriceExists.length === 0) {
+        await query("ALTER TABLE parts ADD COLUMN price DECIMAL(10, 2)");
+    }
+
     // part_replacements location columns
     const partReplacementsLocExists = await query("SELECT 1 FROM information_schema.columns WHERE table_name = 'part_replacements' AND column_name = 'location_name'");
     if (partReplacementsLocExists.length === 0) {
@@ -821,6 +828,7 @@ const allExpectedTables = [
             vehicle_id INTEGER NOT NULL,
             name VARCHAR(100) NOT NULL,
             part_number VARCHAR(50),
+            price DECIMAL(10, 2),
             installed_date DATE,
             installed_mileage INTEGER,
             recommended_replacement_mileage INTEGER,

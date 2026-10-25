@@ -209,6 +209,8 @@ CREATE TABLE IF NOT EXISTS parts (
 
     part_number VARCHAR(50), -- 配件编号/型号
 
+    price DECIMAL(10, 2), -- 配件价格
+
     installed_date DATE, -- 安装日期
 
     installed_mileage INTEGER, -- 安装时的里程

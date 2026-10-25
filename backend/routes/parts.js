@@ -18,6 +18,7 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
         vehicle_id,
         name,
         part_number,
+        price,
         installed_date,
         installed_mileage,
         recommended_replacement_mileage,
@@ -73,10 +74,10 @@ router.post('/', authenticateUser, asyncHandler(async (req, res) => {
     // 插入配件
     const result = await query(
         `INSERT INTO parts 
-         (vehicle_id, name, part_number, installed_date, installed_mileage,
+         (vehicle_id, name, part_number, price, installed_date, installed_mileage,
           recommended_replacement_mileage, recommended_replacement_months, status, photo_url, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [vehicle_id, name, part_number, installed_date, installed_mileage,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [vehicle_id, name, part_number, price, installed_date, installed_mileage,
             recommended_replacement_mileage, recommended_replacement_months, status, photo_url, notes]
     );
 
@@ -200,6 +201,7 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
     const {
         name,
         part_number,
+        price,
         installed_date,
         installed_mileage,
         recommended_replacement_mileage,
@@ -228,11 +230,11 @@ router.put('/:id', authenticateUser, asyncHandler(async (req, res) => {
     // 更新配件
     await query(
         `UPDATE parts 
-         SET name = ?, part_number = ?, installed_date = ?, installed_mileage = ?,
+         SET name = ?, part_number = ?, price = ?, installed_date = ?, installed_mileage = ?,
              recommended_replacement_mileage = ?, recommended_replacement_months = ?,
              status = ?, photo_url = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [name, part_number, installed_date, installed_mileage,
+        [name, part_number, price, installed_date, installed_mileage,
             recommended_replacement_mileage, recommended_replacement_months,
             status, photo_url, notes, req.params.id]
     );

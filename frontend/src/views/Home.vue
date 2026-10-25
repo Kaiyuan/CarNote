@@ -585,7 +585,7 @@ const expenseList = computed(() => {
   const items = [
     { label: t('补能费用'), value: s.energy || 0 },
     { label: t('保养维修'), value: s.maintenance || 0 },
-    { label: t('配件更换'), value: s.parts || 0 },
+    { label: t('配件费用'), value: s.parts || 0 },
     { label: t('保险费用'), value: s.insurance || 0 }
   ]
   const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0)

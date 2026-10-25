@@ -200,6 +200,25 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
 
     const partsCostResult = await get(partsSql, partsParams);
 
+    // 配件购买费用
+    let partsPurchaseSql = `
+        SELECT SUM(price) as total_cost
+        FROM parts
+        WHERE vehicle_id = ?
+    `;
+    const partsPurchaseParams = [vehicleId];
+
+    if (start_date) {
+        partsPurchaseSql += ' AND installed_date >= ?';
+        partsPurchaseParams.push(start_date);
+    }
+    if (end_date) {
+        partsPurchaseSql += ' AND installed_date <= ?';
+        partsPurchaseParams.push(end_date);
+    }
+
+    const partsPurchaseResult = await get(partsPurchaseSql, partsPurchaseParams);
+
     // 保险费用
     let insuranceSql = `SELECT COALESCE(SUM(premium), 0) as total_cost FROM insurances WHERE vehicle_id = ?`;
     const insuranceParams = [vehicleId];
@@ -216,7 +235,9 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
     // 汇总
     const totalEnergyCost = energyCosts.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
     const totalMaintenanceCost = maintenanceCosts.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
-    const totalPartsCost = parseFloat(partsCostResult?.total_cost) || 0;
+    const totalPartsReplacementCost = parseFloat(partsCostResult?.total_cost) || 0;
+    const totalPartsPurchaseCost = parseFloat(partsPurchaseResult?.total_cost) || 0;
+    const totalPartsCost = totalPartsReplacementCost + totalPartsPurchaseCost;
     const totalInsuranceCost = parseFloat(insuranceCostResult?.total_cost) || 0;
 
     res.json({
@@ -233,6 +254,8 @@ router.get('/expenses/:vehicleId', authenticateUser, asyncHandler(async (req, re
                 energy: energyCosts,
                 maintenance: maintenanceCosts,
                 parts: totalPartsCost,
+                partsPurchase: totalPartsPurchaseCost,
+                partsReplacement: totalPartsReplacementCost,
                 insurance: totalInsuranceCost
             }
         }
@@ -307,6 +330,7 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
     const dateFilter = start_date ? ` AND log_date >= '${start_date}'` : '';
     const maintDateFilter = start_date ? ` AND maintenance_date >= '${start_date}'` : '';
     const partDateFilter = start_date ? ` AND replacement_date >= '${start_date}'` : '';
+    const partInstalledFilter = start_date ? ` AND installed_date >= '${start_date}'` : '';
     const insuranceDateFilter = start_date ? ` AND start_date >= '${start_date}'` : '';
     const lentFilter = (exclude_lent === 'true' || exclude_lent === '1') ? ' AND (is_lent = FALSE OR is_lent IS NULL)' : '';
 
@@ -380,6 +404,14 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
         [vehicleId]
     );
 
+    // 配件购买费用
+    const partPurchaseStats = await get(
+        `SELECT COALESCE(SUM(price), 0) as total_cost
+         FROM parts
+         WHERE vehicle_id = ?${partInstalledFilter}`,
+        [vehicleId]
+    );
+
     // 保险统计
     const insuranceStats = await get(
         `SELECT COUNT(*) as total_records, COALESCE(SUM(premium), 0) as total_cost
@@ -389,15 +421,18 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
     );
 
     const insuranceCost = insuranceStats?.total_cost || 0;
+    const partReplacementCost = parseFloat(partReplacementStats?.total_cost) || 0;
+    const partPurchaseCost = parseFloat(partPurchaseStats?.total_cost) || 0;
+    const totalCost = (energyStats?.total_cost || 0) + (maintenanceStats?.total_cost || 0) + partReplacementCost + partPurchaseCost + insuranceCost;
 
     res.json({
         success: true,
         data: {
             vehicle,
             total_mileage: displayMileage,
-            total_cost: (energyStats?.total_cost || 0) + (maintenanceStats?.total_cost || 0) + (partReplacementStats?.total_cost || 0) + insuranceCost,
+            total_cost: totalCost,
             avg_consumption: energyStats?.avg_consumption || 0,
-            avg_cost_per_km: displayMileage > 0 ? ((energyStats?.total_cost || 0) + (maintenanceStats?.total_cost || 0) + (partReplacementStats?.total_cost || 0) + insuranceCost) / displayMileage : 0,
+            avg_cost_per_km: displayMileage > 0 ? totalCost / displayMileage : 0,
             last_maintenance_date: maintenanceStats?.last_maintenance_date || null,
             last_maintenance_days: lastMaintDays,
             energy: energyStats,
@@ -405,7 +440,8 @@ router.get('/overview/:vehicleId', authenticateUser, asyncHandler(async (req, re
             maintenance: maintenanceStats,
             parts: {
                 ...partsStats,
-                replacement_cost: partReplacementStats?.total_cost || 0
+                purchase_cost: partPurchaseCost,
+                replacement_cost: partReplacementCost
             },
             insurance: {
                 total_records: insuranceStats?.total_records || 0,
