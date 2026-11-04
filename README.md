@@ -4,6 +4,8 @@
 
 一个功能完整的车辆记录管理系统，支持油耗、电耗追踪、保养管理、配件跟踪和数据分析。
 
+[我搭建好的](https://carnote.boxks.com)，里面有进阶版和专业版会员，可以在[爱发电](https://afdian.com/a/kaiyuan) 购买。
+
 ## 功能特性
 
 - 🚗 **多车辆管理** - 支持管理多辆不同动力类型的车辆（燃油、纯电、混动）
@@ -274,5 +276,6 @@ curl -H "X-API-Key: YOUR_API_KEY" \
 MIT License
 
 ## 赞助
-
-![WeiChat](https://kaiyuan.github.io/sponsor-page/simple/images/WeChanSQ.png) ![AliPay](https://kaiyuan.github.io/sponsor-page/simple/images/AliPayQR.png)
+|给我补充 token||
+|------|------|
+|![WeiChat](https://kaiyuan.github.io/sponsor-page/simple/images/WeChanSQ.png) |![AliPay](https://kaiyuan.github.io/sponsor-page/simple/images/AliPayQR.png)|
