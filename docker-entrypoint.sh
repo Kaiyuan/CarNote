@@ -4,7 +4,7 @@
 set -e
 
 if [ "$(id -u)" = "0" ]; then
-    for dir in /app/uploads /app/data /app/backend/uploads /app/backend/data; do
+    for dir in /app/uploads /app/data /app/backend/uploads /app/backend/data /app/mod; do
         mkdir -p "$dir" 2>/dev/null || true
         chown -R node:node "$dir" 2>/dev/null || true
     done

@@ -269,22 +269,33 @@ async function startServer() {
         await initDatabase();
         console.log('数据库初始化完成');
 
-        // --- VIP 模块加载钩子 (必须在数据库初始化后) ---
-        const vipModulePath = path.join(__dirname, '../vip/backend/index.js');
-        if (fs.existsSync(vipModulePath)) {
+        // --- 模块加载钩子 (必须在数据库初始化后) ---
+        // 优先从外部挂载目录 /app/mod/vip 加载，其次回退到内置 vip 目录
+        // 这样在 Docker 部署时，只需将 vip 文件夹内容挂载到 /app/mod/vip 即可启用 VIP 功能
+        const MOD_PATH = process.env.MOD_PATH || path.join(__dirname, '../../mod');
+        const vipModuleCandidates = [
+            path.join(MOD_PATH, 'vip/backend/index.js'),           // /app/mod/vip/backend/index.js (外部挂载)
+            path.join(__dirname, '../vip/backend/index.js')         // 内置 vip 目录 (开发/旧版兼容)
+        ];
+        const vipModulePath = vipModuleCandidates.find(p => fs.existsSync(p));
+
+        if (vipModulePath) {
+            console.log(`[MOD] 正在从 ${vipModulePath} 加载 VIP 模块...`);
             try {
                 const vipModule = require(vipModulePath);
                 if (typeof vipModule.init === 'function') {
                     // 传入 express 实例，解决模块找不到 express 的问题
                     await vipModule.init(app, express);
                     app.set('hasVip', true);
+                    console.log('[MOD] VIP 模块加载成功');
                 }
             } catch (err) {
                 app.set('hasVip', false);
-                console.error('[VIP] 加载 VIP 模块失败:', err);
+                console.error('[MOD] 加载 VIP 模块失败:', err);
             }
         } else {
             app.set('hasVip', false);
+            console.log('[MOD] 未检测到 VIP 模块，以基础模式运行');
         }
         // ----------------------------------------------
 

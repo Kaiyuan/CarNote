@@ -38,6 +38,9 @@ services:
     volumes:
       - ${carnote_data}:/app/data
       - ${carnote_uploads}:/app/uploads
+      # mod 目录：将 vip/ 文件夹内容放入此 volume 下的 vip/ 子目录即可启用 VIP 功能
+      # 例如：将 vip/backend/ 和 vip/frontend/ 复制到 <carnote_mod>/vip/ 下
+      - ${carnote_mod:-carnote_mod}:/app/mod
     # restart: always 确保 PG 容器重启后 app 也会被 Docker 自动重启以重建连接池
     restart: always
     healthcheck:
@@ -77,6 +80,9 @@ volumes:
   carnote_data:
     driver: local
   carnote_uploads:
+    driver: local
+  # mod volume：默认自动创建，如需映射到宿主机特定路径请在 .env 中设置 carnote_mod=/host/path/to/mod
+  carnote_mod:
     driver: local
   # postgres_data:
   #   driver: local
