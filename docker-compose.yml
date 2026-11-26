@@ -38,16 +38,41 @@ services:
     volumes:
       - ${carnote_data}:/app/data
       - ${carnote_uploads}:/app/uploads
-    restart: unless-stopped
+    # restart: always 确保 PG 容器重启后 app 也会被 Docker 自动重启以重建连接池
+    restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:53300/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
       interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - carnote-network
-  # 数据卷
+
+  # ──────────────────────────────────────────────────────────────────
+  # 可选：内置 PostgreSQL 服务（启用时取消注释，并修改 app 的 DB_TYPE 等配置）
+  # 若使用外部 PG，删除此 service，PG_HOST 填写外部 IP/主机名即可。
+  # ──────────────────────────────────────────────────────────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: carnote-postgres
+  #   restart: always
+  #   environment:
+  #     - POSTGRES_DB=carnote
+  #     - POSTGRES_USER=carnote
+  #     - POSTGRES_PASSWORD=postgresqlPassword
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U carnote -d carnote"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 20s
+  #   networks:
+  #     - carnote-network
+
+# 数据卷
 volumes:
   carnote_data:
     driver: local
@@ -56,7 +81,7 @@ volumes:
   # postgres_data:
   #   driver: local
 
-  # 网络
+# 网络
 networks:
   carnote-network:
     driver: bridge

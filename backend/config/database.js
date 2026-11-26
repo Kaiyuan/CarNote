@@ -59,6 +59,7 @@ function initSQLite() {
 
 /**
  * 初始化 PostgreSQL 数据库连接池
+ * 配置重连友好参数，防止 PG 容器重启后连接池僵死
  */
 function initPostgreSQL() {
     const pool = new Pool({
@@ -66,15 +67,30 @@ function initPostgreSQL() {
         port: process.env.PG_PORT || 5432,
         database: process.env.PG_DATABASE || 'carnote',
         user: process.env.PG_USER || 'postgres',
-        password: process.env.PG_PASSWORD
+        password: process.env.PG_PASSWORD,
+        // 连接池大小
+        max: 10,
+        // 连接获取超时 (10s)
+        connectionTimeoutMillis: 10000,
+        // 空闲连接超时，让池自动丢弃陈旧连接 (30s)
+        idleTimeoutMillis: 30000,
+        // 查询执行超时 (30s)
+        query_timeout: 30000,
+        // 允许池在 PG 不可用时继续等待，不立即抛出
+        allowExitOnIdle: false
     });
 
     pool.on('connect', () => {
         console.log('已连接到 PostgreSQL 数据库');
     });
 
-    pool.on('error', (err) => {
-        console.error('PostgreSQL 连接错误:', err);
+    pool.on('error', (err, client) => {
+        // 记录错误但不退出进程，连接池会自动移除有问题的连接
+        console.error('PostgreSQL 连接池错误 (已自动移除该连接):', err.message);
+    });
+
+    pool.on('remove', () => {
+        console.log('PostgreSQL 连接已从池中移除');
     });
 
     return pool;
@@ -120,6 +136,29 @@ async function initSchema() {
 }
 
 const { normalizeRowTimestamps } = require('../utils/date');
+
+/**
+ * 判断是否为可重试的 PG 连接断开错误
+ */
+function isPgConnectionError(err) {
+    if (!err) return false;
+    const code = err.code || '';
+    const msg = (err.message || '').toLowerCase();
+    return (
+        code === 'ECONNREFUSED' ||
+        code === 'ECONNRESET' ||
+        code === 'EPIPE' ||
+        code === 'ETIMEDOUT' ||
+        code === '57P01' || // admin_shutdown
+        code === '57P02' || // crash_shutdown
+        code === '57P03' || // cannot_connect_now
+        msg.includes('connection terminated') ||
+        msg.includes('connection reset') ||
+        msg.includes('connection refused') ||
+        msg.includes('client has encountered a connection error') ||
+        msg.includes('server closed the connection unexpectedly')
+    );
+}
 
 /**
  * 执行查询 - 统一接口
@@ -181,36 +220,52 @@ function query(sql, params = []) {
             }
         }
 
-        return db.query(pgSql, processedParams).then(result => {
-            // 如果是查询语句，直接返回 rows
-            if (pgSql.trim().toUpperCase().startsWith('SELECT')) {
-                // 修正：确保 COUNT(*)、SUM、AVG 等聚合函数返回的是数字而非字符串，并统一时间为国际时间
-                const rows = result.rows.map(row => {
-                    const newRow = normalizeRowTimestamps({ ...row });
-                    for (const key in newRow) {
-                        // 如果键包含 count, sum, avg 或 total，尝试转换为数字
-                        if (/count|sum|avg|total|mileage|cost|amount/i.test(key) && typeof newRow[key] === 'string') {
-                            const val = Number(newRow[key]);
-                            if (!isNaN(val)) newRow[key] = val;
+        // 执行 PG 查询，连接断开时最多重试一次（等待 2s 后重建连接）
+        const executePgQuery = async (retryCount = 0) => {
+            try {
+                const result = await db.query(pgSql, processedParams);
+
+                // 如果是查询语句，直接返回 rows
+                if (pgSql.trim().toUpperCase().startsWith('SELECT')) {
+                    // 修正：确保 COUNT(*)、SUM、AVG 等聚合函数返回的是数字而非字符串，并统一时间为国际时间
+                    const rows = result.rows.map(row => {
+                        const newRow = normalizeRowTimestamps({ ...row });
+                        for (const key in newRow) {
+                            // 如果键包含 count, sum, avg 或 total，尝试转换为数字
+                            if (/count|sum|avg|total|mileage|cost|amount/i.test(key) && typeof newRow[key] === 'string') {
+                                const val = Number(newRow[key]);
+                                if (!isNaN(val)) newRow[key] = val;
+                            }
                         }
-                    }
-                    return newRow;
-                });
-                return rows;
+                        return newRow;
+                    });
+                    return rows;
+                }
+
+                // 兼容 SQLite 的非查询返回值
+                const resObj = {
+                    changes: result.rowCount,
+                    lastID: null
+                };
+
+                if (isInsert && result.rows && result.rows.length > 0) {
+                    resObj.lastID = result.rows[0].id;
+                }
+
+                return resObj;
+            } catch (err) {
+                // 连接断开类错误：等待后重试一次（让连接池重建新连接）
+                if (isPgConnectionError(err) && retryCount < 2) {
+                    const delay = (retryCount + 1) * 2000; // 2s, 4s
+                    console.warn(`PostgreSQL 连接中断，${delay / 1000}s 后重试 (第 ${retryCount + 1} 次)...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return executePgQuery(retryCount + 1);
+                }
+                throw err;
             }
+        };
 
-            // 兼容 SQLite 的非查询返回值
-            const resObj = {
-                changes: result.rowCount,
-                lastID: null
-            };
-
-            if (isInsert && result.rows && result.rows.length > 0) {
-                resObj.lastID = result.rows[0].id;
-            }
-
-            return resObj;
-        });
+        return executePgQuery();
     }
 }
 
