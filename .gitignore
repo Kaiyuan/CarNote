@@ -141,5 +141,6 @@ dist
 # Data
 data/
 uploads/
-# 独立会员模块
+mod/
+# 私有扩展模块
 vip/

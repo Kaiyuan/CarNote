@@ -94,7 +94,9 @@ services:
       - ${carnote_data}:/app/data
       # 上传文件目录
       - ${carnote_uploads}:/app/uploads
-    restart: unless-stopped
+      # 扩展模块目录
+      - ${carnote_mod:-carnote_mod}:/app/mod
+    restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:53300/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
       interval: 30s
@@ -108,6 +110,8 @@ volumes:
   carnote_data:
     driver: local
   carnote_uploads:
+    driver: local
+  carnote_mod:
     driver: local
   # postgres_data:
   #   driver: local
@@ -175,6 +179,7 @@ networks:
 | `SQLITE_PATH` | SQLite 文件路径 | `/app/data/carnote.db` |
 | `PG_*` | PostgreSQL 连接参数 | (空) |
 | `UPLOAD_PATH` | 图片上传存储路径 | `/app/uploads` |
+| `MOD_PATH` | 外部扩展模块（Mod）目录路径 | `/app/mod` |
 | `JWT_SECRET` | JWT 签名密钥 (建议修改) | `carnote-production-secret...` |
 | `CORS_ORIGIN` | 允许跨域的前端地址 | `http://localhost` |
 | `TRUST_PROXY` | 可信反向代理（代理层数、IP/CIDR 或命名网段）；无代理直连公网时设为 `false` | `loopback, linklocal, uniquelocal` |
@@ -266,6 +271,18 @@ curl -H "X-API-Key: YOUR_API_KEY" \
 - **安全恢复**：支持从 JSON 备份文件恢复完整数据。
 - **预览验证**：导入前会解析文件并显示统计信息（如识别到的车辆数、记录数），由用户确认后再执行。
 - **智能兼容**：自动兼容旧版本备份文件及不同数据库架构下的字段映射。
+
+## 扩展模块 (Mod)
+
+CarNote 支持通过挂载外部模块目录（默认容器内 `/app/mod`）来扩展系统功能（如自定义 API、中间件、数据库表等），无需修改主项目代码。
+
+1. 在 `.env` 中配置宿主机模块目录（可选，不配置则使用 Docker 默认数据卷）：
+   ```env
+   carnote_mod=/volume1/docker/carnote/mod
+   ```
+2. 将模块目录放入宿主机对应路径下的 `<模块名>/backend/index.js` 中，重启容器即可自动扫描加载。
+
+> 详细的模块结构、上下文 API 与开发示例请参阅：[模块开发指南](doc/MOD_DEVELOPMENT.md)。
 
 ## 贡献
 

@@ -6,8 +6,8 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app
 # 复制所有 package.json
 COPY frontend/package*.json ./frontend/
-# 尝试复制 VIP 前端模块（可选）
-# 若本地有 vip/ 目录则将其前端部分编译进产物；若无则跳过（使用 README.md 占位避免 COPY 报错）
+# 尝试复制可选扩展前端模块
+# 若构建上下文中存在外部前端模块目录则一同编译；若无则跳过
 COPY README.md vip* ./vip/
 RUN rm -f ./vip/README.md
 
@@ -39,8 +39,8 @@ WORKDIR /app
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # 创建持久化目录和模块挂载目录
-# /app/mod  —— 外部模块挂载点，将 vip/ 内容放入 /app/mod/vip/ 即可启用 VIP 功能
-# /app/data —— 数据库/日志持久化
+# /app/mod     —— 外部扩展模块挂载点，将模块目录放入 /app/mod/<模块名>/ 即可自动加载
+# /app/data    —— 数据库/日志持久化
 # /app/uploads —— 上传文件持久化
 # 使用 alpine 自带的 node 用户 (uid: 1000) 以提高 NAS 兼容性
 RUN mkdir -p /app/mod /app/backend/data /app/backend/uploads && \
@@ -58,7 +58,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENV PORT=53300
 ENV NODE_ENV=production
 ENV OCR_LANG_PATH=/app/backend/language
-# MOD_PATH 指定外部模块目录，后端启动时会从此目录加载 vip 等模块
+# MOD_PATH 指定外部扩展模块目录，后端启动时会从此目录自动扫描并加载模块
 ENV MOD_PATH=/app/mod
 
 # 暴露端口

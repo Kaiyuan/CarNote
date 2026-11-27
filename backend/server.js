@@ -269,33 +269,91 @@ async function startServer() {
         await initDatabase();
         console.log('数据库初始化完成');
 
-        // --- 模块加载钩子 (必须在数据库初始化后) ---
-        // 优先从外部挂载目录 /app/mod/vip 加载，其次回退到内置 vip 目录
-        // 这样在 Docker 部署时，只需将 vip 文件夹内容挂载到 /app/mod/vip 即可启用 VIP 功能
-        const MOD_PATH = process.env.MOD_PATH || path.join(__dirname, '../../mod');
-        const vipModuleCandidates = [
-            path.join(MOD_PATH, 'vip/backend/index.js'),           // /app/mod/vip/backend/index.js (外部挂载)
-            path.join(__dirname, '../vip/backend/index.js')         // 内置 vip 目录 (开发/旧版兼容)
-        ];
-        const vipModulePath = vipModuleCandidates.find(p => fs.existsSync(p));
+        // --- 扩展模块加载钩子 (必须在数据库初始化后) ---
+        // 默认扫描 /app/mod (可通过 MOD_PATH 环境变量覆盖)
+        // 支持两种目录结构：
+        //   1) 多模块目录：<MOD_PATH>/<模块名>/backend/index.js
+        //   2) 单模块直挂：<MOD_PATH>/backend/index.js
+        const Module = require('module');
+        const MOD_PATH = path.resolve(process.env.MOD_PATH || path.join(__dirname, '../../mod'));
+        const backendNodeModules = path.join(__dirname, 'node_modules');
 
-        if (vipModulePath) {
-            console.log(`[MOD] 正在从 ${vipModulePath} 加载 VIP 模块...`);
+        // 让外部模块目录中的代码能正常解析主项目依赖 (express 等) 及相对 backend 路径
+        const originalResolveFilename = Module._resolveFilename;
+        Module._resolveFilename = function (request, parent, isMain, options) {
+            if (parent && parent.filename && path.resolve(parent.filename).startsWith(MOD_PATH)) {
+                const backendMatch = request.match(/^(?:\.\.\/)+backend\/(.+)$/);
+                if (backendMatch) {
+                    return originalResolveFilename.call(this, path.join(__dirname, backendMatch[1]), parent, isMain, options);
+                }
+            }
+            return originalResolveFilename.call(this, request, parent, isMain, options);
+        };
+        if (!process.env.NODE_PATH || !process.env.NODE_PATH.includes(backendNodeModules)) {
+            process.env.NODE_PATH = process.env.NODE_PATH
+                ? `${process.env.NODE_PATH}${path.delimiter}${backendNodeModules}`
+                : backendNodeModules;
+            Module._initPaths();
+        }
+
+        const modContext = {
+            db: require('./config/database'),
+            auth: require('./middleware/auth'),
+            uploadDir,
+            modPath: MOD_PATH,
+            appRoot: path.join(__dirname, '..')
+        };
+
+        const loadedMods = [];
+        let hasVip = false;
+        const modCandidates = [];
+
+        if (fs.existsSync(MOD_PATH)) {
+            const directEntry = path.join(MOD_PATH, 'backend/index.js');
+            if (fs.existsSync(directEntry)) {
+                modCandidates.push({ name: 'direct', entry: directEntry });
+            }
+            for (const entry of fs.readdirSync(MOD_PATH, { withFileTypes: true })) {
+                if (!entry.isDirectory() || entry.name === 'backend' || entry.name === 'frontend') continue;
+                const modEntry = path.join(MOD_PATH, entry.name, 'backend/index.js');
+                if (fs.existsSync(modEntry)) {
+                    modCandidates.push({ name: entry.name, entry: modEntry });
+                }
+            }
+        }
+
+        // 开发/旧版兼容：若外部未挂载 vip，则检查内置 ../vip/backend/index.js
+        const legacyVipEntry = path.join(__dirname, '../vip/backend/index.js');
+        if (!modCandidates.some(m => m.name === 'vip') && fs.existsSync(legacyVipEntry)) {
+            modCandidates.push({ name: 'vip', entry: legacyVipEntry });
+        }
+
+        for (const candidate of modCandidates) {
             try {
-                const vipModule = require(vipModulePath);
-                if (typeof vipModule.init === 'function') {
-                    // 传入 express 实例，解决模块找不到 express 的问题
-                    await vipModule.init(app, express);
-                    app.set('hasVip', true);
-                    console.log('[MOD] VIP 模块加载成功');
+                console.log(`[MOD] 正在加载模块 (${candidate.name}): ${candidate.entry}`);
+                const mod = require(candidate.entry);
+                if (typeof mod.init === 'function') {
+                    await mod.init(app, express, modContext);
+                    loadedMods.push({
+                        name: mod.name || candidate.name,
+                        version: mod.version || '1.0.0'
+                    });
+                    if (candidate.name === 'vip' || mod.name === 'vip' || fs.existsSync(path.join(path.dirname(candidate.entry), 'routes/membership.js'))) {
+                        hasVip = true;
+                    }
+                    console.log(`[MOD] 模块加载成功: ${mod.name || candidate.name}`);
+                } else {
+                    console.warn(`[MOD] 模块 ${candidate.name} 未导出 init(app, express, context) 函数，已跳过`);
                 }
             } catch (err) {
-                app.set('hasVip', false);
-                console.error('[MOD] 加载 VIP 模块失败:', err);
+                console.error(`[MOD] 加载模块 ${candidate.name} 失败:`, err);
             }
-        } else {
-            app.set('hasVip', false);
-            console.log('[MOD] 未检测到 VIP 模块，以基础模式运行');
+        }
+
+        app.set('hasVip', hasVip);
+        app.set('loadedMods', loadedMods);
+        if (loadedMods.length === 0) {
+            console.log('[MOD] 未检测到外部扩展模块，以基础模式运行');
         }
         // ----------------------------------------------
 
