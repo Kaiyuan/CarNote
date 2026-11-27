@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarNote - 扩展模块功能与开发指南</title>
+    <meta name="description" content="CarNote 扩展模块（Mod）功能介绍与开发指南：无需修改核心代码，通过 /app/mod 目录挂载自定义 API、数据库表与中间件。">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.azcdn.cn">
+    <link rel="preconnect" href="https://gstatic.azcdn.cn" crossorigin>
+    <link href="https://fonts.azcdn.cn/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo" style="text-decoration: none;">
+                <img src="assets/logo-192.png" alt="CarNote Logo">
+                <span>CarNote</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html#features" data-i18n="navFeatures">功能特性</a>
+                <a href="index.html#deployment" data-i18n="navDeploy">部署指南</a>
+                <a href="modules.html" class="active" data-i18n="navModules">扩展模块</a>
+                <a href="https://github.com/Kaiyuan/CarNote" target="_blank" class="github-link"><i
+                        class="fab fa-github"></i> <span data-i18n="navGithub">GitHub</span></a>
+            </div>
+            <div class="nav-actions">
+                <label class="lang-select-wrap">
+                    <i class="fas fa-globe" aria-hidden="true"></i>
+                    <select id="langSelect" class="lang-select" aria-label="Language">
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                        <option value="ko">한국어</option>
+                        <option value="fr">Français</option>
+                        <option value="it">Italiano</option>
+                    </select>
+                </label>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 页面头部 -->
+    <header class="doc-hero">
+        <div class="container">
+            <div class="doc-badge">
+                <i class="fas fa-puzzle-piece"></i>
+                <span data-i18n="docBadge">Mod 扩展机制</span>
+            </div>
+            <h1 data-i18n="docTitle">模块功能与开发指南</h1>
+            <p data-i18n="docSubtitle">无需修改主项目核心代码，通过挂载 /app/mod 目录即可为 CarNote 动态扩展自定义 API、数据库表、鉴权中间件与自动化任务。</p>
+            <div class="hero-buttons" style="margin-bottom: 0;">
+                <a href="#quick-start" class="btn btn-primary"><i class="fas fa-code"></i> <span
+                        data-i18n="btnStart">开始开发</span></a>
+                <a href="https://github.com/Kaiyuan/CarNote/blob/main/doc/MOD_DEVELOPMENT.md" target="_blank"
+                    class="btn btn-secondary"><i class="fab fa-github"></i> <span data-i18n="btnRepoDoc">查看 Markdown
+                        文档</span></a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 文档主体 -->
+    <main class="doc-main">
+        <div class="container">
+            <div class="doc-layout">
+                <!-- 侧边目录 -->
+                <aside class="doc-sidebar">
+                    <div class="doc-sidebar-title" data-i18n="tocTitle">目录导航</div>
+                    <nav class="doc-toc">
+                        <a href="#overview" data-i18n="tocOverview">1. 模块功能概览</a>
+                        <a href="#structure" data-i18n="tocStructure">2. 目录结构规范</a>
+                        <a href="#entry-api" data-i18n="tocEntry">3. 后端入口与 Context</a>
+                        <a href="#quick-start" data-i18n="tocExample">4. 完整开发示例</a>
+                        <a href="#docker" data-i18n="tocDocker">5. Docker 挂载启用</a>
+                        <a href="#db-tips" data-i18n="tocDb">6. 双库兼容与排查</a>
+                    </nav>
+                </aside>
+
+                <!-- 正文内容 -->
+                <div class="doc-content">
+                    <!-- 1. 概览 -->
+                    <section id="overview" class="doc-section">
+                        <h2><i class="fas fa-cubes"></i> <span data-i18n="sec1Title">1. 模块功能概览</span></h2>
+                        <p data-i18n="sec1Desc">CarNote 内置了轻量级的外部模块（Mod）加载器。服务在完成数据库初始化后、挂载全局 404 处理前，会自动扫描外部模块目录并按顺序初始化已安装模块。</p>
+                        <div class="doc-cap-grid">
+                            <div class="doc-cap-card">
+                                <i class="fas fa-plug"></i>
+                                <h4 data-i18n="cap1Title">即插即用热挂载</h4>
+                                <p data-i18n="cap1Desc">Docker 容器内默认挂载 <span class="doc-inline-code">/app/mod</span>，放入模块后重启容器即可生效，镜像升级不丢失扩展。</p>
+                            </div>
+                            <div class="doc-cap-card">
+                                <i class="fas fa-route"></i>
+                                <h4 data-i18n="cap2Title">自定义 API 与中间件</h4>
+                                <p data-i18n="cap2Desc">直接向 Express 实例注册 <span class="doc-inline-code">/api/mod/*</span> 路由或前置中间件，无缝复用登录态与 API Key 鉴权。</p>
+                            </div>
+                            <div class="doc-cap-card">
+                                <i class="fas fa-database"></i>
+                                <h4 data-i18n="cap3Title">双数据库统一接口</h4>
+                                <p data-i18n="cap3Desc">通过注入的 <span class="doc-inline-code">context.db</span> 自动兼容 SQLite 与 PostgreSQL，无需重复编写两套查询代码。</p>
+                            </div>
+                            <div class="doc-cap-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <h4 data-i18n="cap4Title">异常隔离保护</h4>
+                                <p data-i18n="cap4Desc">单个模块初始化失败会被捕获并输出日志，不会影响主项目或其他正常模块启动。</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 2. 目录结构 -->
+                    <section id="structure" class="doc-section">
+                        <h2><i class="fas fa-folder-tree"></i> <span data-i18n="sec2Title">2. 目录结构规范</span></h2>
+                        <p>容器内默认模块根目录为 <span class="doc-inline-code">/app/mod</span>（可通过环境变量 <span class="doc-inline-code">MOD_PATH</span> 自定义），支持以下两种目录组织方式：</p>
+                        <h3>方式一：多模块目录（推荐）</h3>
+                        <p>将每个扩展模块独立放在 <span class="doc-inline-code">/app/mod/&lt;模块名&gt;/</span> 子目录中，系统会自动扫描所有子目录：</p>
+                        <div class="doc-code"><code>/app/mod/
+├── fuel-alert/
+│   ├── backend/
+│   │   ├── index.js        # 【必需】后端入口文件
+│   │   ├── routes/         # 可选：子路由
+│   │   └── database/       # 可选：建表 SQL
+│   └── README.md
+└── webhook-sync/
+    └── backend/
+        └── index.js</code></div>
+
+                        <h3>方式二：单模块直接挂载</h3>
+                        <p>若仅需挂载单个模块，也可以直接将模块内容放到 <span class="doc-inline-code">/app/mod/</span> 根目录下：</p>
+                        <div class="doc-code"><code>/app/mod/
+└── backend/
+    └── index.js            # 【必需】后端入口文件</code></div>
+                    </section>
+
+                    <!-- 3. 后端入口规范 -->
+                    <section id="entry-api" class="doc-section">
+                        <h2><i class="fas fa-terminal"></i> <span data-i18n="sec3Title">3. 后端入口与 Context 注入</span></h2>
+                        <p>每个模块需在 <span class="doc-inline-code">backend/index.js</span> 中导出 <span class="doc-inline-code">init(app, express, context)</span> 函数（支持 <span class="doc-inline-code">async</span>）：</p>
+                        <div class="doc-code"><code>async function init(app, express, context) {
+    // 1. 从 context 获取主项目数据库与鉴权能力
+    const { db, auth, uploadDir, modPath } = context;
+
+    // 2. 初始化表结构、注册中间件或路由
+}
+
+module.exports = {
+    name: 'my-plugin',      // 可选：模块名称
+    version: '1.0.0',       // 可选：版本号
+    init                    // 必需：初始化函数
+};</code></div>
+
+                        <h3>Context 上下文对象说明</h3>
+                        <div class="doc-table-wrap">
+                            <table class="doc-table">
+                                <thead>
+                                    <tr>
+                                        <th>属性</th>
+                                        <th>说明</th>
+                                        <th>常用方法 / 导出</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="doc-inline-code">context.db</span></td>
+                                        <td>统一数据库接口（兼容 SQLite / PostgreSQL）</td>
+                                        <td><span class="doc-inline-code">query(sql, params)</span>, <span class="doc-inline-code">get(sql, params)</span>, <span class="doc-inline-code">transaction(cb)</span>, <span class="doc-inline-code">getDb()</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="doc-inline-code">context.auth</span></td>
+                                        <td>用户会话与 API Key 鉴权中间件</td>
+                                        <td><span class="doc-inline-code">authenticateUser</span>, <span class="doc-inline-code">authenticateApiKey</span>, <span class="doc-inline-code">optionalApiKey</span>, <span class="doc-inline-code">isAdmin</span>, <span class="doc-inline-code">checkVehicleOwnership</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="doc-inline-code">context.uploadDir</span></td>
+                                        <td>上传文件根目录绝对路径</td>
+                                        <td>字符串路径</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="doc-inline-code">context.modPath</span></td>
+                                        <td>当前生效的外部模块根目录</td>
+                                        <td>默认 <span class="doc-inline-code">/app/mod</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="doc-inline-code">context.appRoot</span></td>
+                                        <td>主项目根目录绝对路径</td>
+                                        <td>默认 <span class="doc-inline-code">/app</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="doc-callout">
+                            <strong>提示：</strong>主项目已自动将 <span class="doc-inline-code">/app/backend/node_modules</span> 注入模块解析路径，因此模块可直接 <span class="doc-inline-code">require('express')</span> 等主项目已有依赖；如需额外 npm 包，可在模块目录内自行安装。
+                        </div>
+                    </section>
+
+                    <!-- 4. 完整示例 -->
+                    <section id="quick-start" class="doc-section">
+                        <h2><i class="fas fa-code"></i> <span data-i18n="sec4Title">4. 完整开发示例（油耗预警模块）</span></h2>
+                        <p>以下示例演示如何在 <span class="doc-inline-code">/app/mod/fuel-alert/backend/index.js</span> 中自动建表并提供带登录校验的读写接口：</p>
+                        <div class="doc-code"><code>async function init(app, express, context) {
+    const { db, auth } = context;
+    const { query, get, getDb } = db;
+    const { authenticateUser, isAdmin } = auth;
+    const DB_TYPE = process.env.DB_TYPE || 'sqlite';
+
+    // 1. 初始化专属数据表（兼容 SQLite 与 PostgreSQL）
+    const createTableSql = DB_TYPE === 'postgresql'
+        ? `CREATE TABLE IF NOT EXISTS mod_fuel_alerts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                threshold REAL NOT NULL DEFAULT 10.0,
+                created_at TIMESTAMP DEFAULT NOW()
+           )`
+        : `CREATE TABLE IF NOT EXISTS mod_fuel_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                threshold REAL NOT NULL DEFAULT 10.0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           )`;
+
+    if (DB_TYPE === 'postgresql') {
+        await getDb().query(createTableSql);
+    } else {
+        await new Promise((resolve, reject) => {
+            getDb().exec(createTableSql, (err) => (err ? reject(err) : resolve()));
+        });
+    }
+
+    // 2. 注册模块路由
+    const router = express.Router();
+
+    router.get('/threshold', authenticateUser, async (req, res, next) => {
+        try {
+            const row = await get(
+                'SELECT threshold FROM mod_fuel_alerts WHERE user_id = ?',
+                [req.userId]
+            );
+            res.json({ success: true, data: { threshold: row ? row.threshold : 10.0 } });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    router.post('/threshold', authenticateUser, async (req, res, next) => {
+        try {
+            const threshold = Number(req.body.threshold);
+            if (!Number.isFinite(threshold) || threshold <= 0) {
+                return res.status(400).json({ success: false, message: '阈值必须大于 0' });
+            }
+            const existing = await get('SELECT id FROM mod_fuel_alerts WHERE user_id = ?', [req.userId]);
+            if (existing) {
+                await query('UPDATE mod_fuel_alerts SET threshold = ? WHERE user_id = ?', [threshold, req.userId]);
+            } else {
+                await query('INSERT INTO mod_fuel_alerts (user_id, threshold) VALUES (?, ?)', [req.userId, threshold]);
+            }
+            res.json({ success: true, message: '保存成功' });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    router.get('/admin/stats', authenticateUser, isAdmin, async (req, res, next) => {
+        try {
+            const rows = await query('SELECT COUNT(*) AS total FROM mod_fuel_alerts');
+            res.json({ success: true, data: { total: rows[0]?.total || 0 } });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    app.use('/api/mod/fuel-alert', router);
+}
+
+module.exports = {
+    name: 'fuel-alert',
+    version: '1.0.0',
+    init
+};</code></div>
+                    </section>
+
+                    <!-- 5. Docker 挂载 -->
+                    <section id="docker" class="doc-section">
+                        <h2><i class="fab fa-docker"></i> <span data-i18n="sec5Title">5. Docker 挂载与启用</span></h2>
+                        <p>在 <span class="doc-inline-code">docker-compose.yml</span> 中已预设 <span class="doc-inline-code">/app/mod</span> 卷映射：</p>
+                        <div class="doc-code"><code>volumes:
+  - ${carnote_data}:/app/data
+  - ${carnote_uploads}:/app/uploads
+  - ${carnote_mod:-carnote_mod}:/app/mod</code></div>
+                        <p>在 <span class="doc-inline-code">.env</span> 中指定宿主机模块目录并重启服务：</p>
+                        <div class="doc-code"><code># .env
+carnote_mod=/volume1/docker/carnote/mod
+
+# 重启容器并查看加载日志
+docker-compose restart app
+docker-compose logs -f app</code></div>
+                        <p>成功加载时可在日志中看到：</p>
+                        <div class="doc-code"><code>[MOD] 正在加载模块 (fuel-alert): /app/mod/fuel-alert/backend/index.js
+[MOD] 模块加载成功: fuel-alert</code></div>
+                    </section>
+
+                    <!-- 6. 兼容性与排查 -->
+                    <section id="db-tips" class="doc-section">
+                        <h2><i class="fas fa-wrench"></i> <span data-i18n="sec6Title">6. 双库兼容与排查建议</span></h2>
+                        <ul>
+                            <li><strong>占位符统一使用 <span class="doc-inline-code">?</span></strong>：<span class="doc-inline-code">query()</span> 会在 PostgreSQL 模式下自动将 <span class="doc-inline-code">?</span> 转换为 <span class="doc-inline-code">$1, $2</span>。</li>
+                            <li><strong>表名加模块前缀</strong>：建议使用 <span class="doc-inline-code">mod_&lt;模块名&gt;_&lt;表名&gt;</span>，防止与核心表冲突。</li>
+                            <li><strong>布尔字段比较</strong>：PostgreSQL 请使用 <span class="doc-inline-code">TRUE / FALSE</span>，JS 参数直接传 <span class="doc-inline-code">Boolean</span> 值。</li>
+                            <li><strong>路由命名空间</strong>：建议统一挂载在 <span class="doc-inline-code">/api/mod/&lt;模块名&gt;</span> 下，避免与主项目 API 及前端 SPA 路由冲突。</li>
+                            <li><strong>目录权限</strong>：容器内以 <span class="doc-inline-code">node</span>（UID <span class="doc-inline-code">1000</span>）运行，启动脚本会自动修正 <span class="doc-inline-code">/app/mod</span> 权限，确保宿主机文件可读即可。</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="assets/logo-192.png" alt="CarNote">
+                    <span>CarNote</span>
+                </div>
+                <div class="footer-links">
+                    <a href="index.html" data-i18n="footerHome">返回首页</a>
+                    <a href="https://github.com/Kaiyuan/CarNote" data-i18n="footerRepo">GitHub 仓库</a>
+                    <a href="https://github.com/Kaiyuan/CarNote/issues" data-i18n="footerIssues">问题反馈</a>
+                </div>
+                <div class="copyright">
+                    &copy; 2024-2026 CarNote Project. Open Source under MIT License.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const translations = {
+            'zh-CN': {
+                title: 'CarNote - 扩展模块功能与开发指南',
+                meta: 'CarNote 扩展模块（Mod）功能介绍与开发指南：无需修改核心代码，通过 /app/mod 目录挂载自定义 API、数据库表与中间件。',
+                navFeatures: '功能特性', navDeploy: '部署指南', navModules: '扩展模块', navGithub: 'GitHub',
+                docBadge: 'Mod 扩展机制',
+                docTitle: '模块功能与开发指南',
+                docSubtitle: '无需修改主项目核心代码，通过挂载 /app/mod 目录即可为 CarNote 动态扩展自定义 API、数据库表、鉴权中间件与自动化任务。',
+                btnStart: '开始开发', btnRepoDoc: '查看 Markdown 文档',
+                tocTitle: '目录导航', tocOverview: '1. 模块功能概览', tocStructure: '2. 目录结构规范',
+                tocEntry: '3. 后端入口与 Context', tocExample: '4. 完整开发示例', tocDocker: '5. Docker 挂载启用', tocDb: '6. 双库兼容与排查',
+                sec1Title: '1. 模块功能概览',
+                sec1Desc: 'CarNote 内置了轻量级的外部模块（Mod）加载器。服务在完成数据库初始化后、挂载全局 404 处理前，会自动扫描外部模块目录并按顺序初始化已安装模块。',
+                cap1Title: '即插即用热挂载', cap1Desc: 'Docker 容器内默认挂载 /app/mod，放入模块后重启容器即可生效，镜像升级不丢失扩展。',
+                cap2Title: '自定义 API 与中间件', cap2Desc: '直接向 Express 实例注册 /api/mod/* 路由或前置中间件，无缝复用登录态与 API Key 鉴权。',
+                cap3Title: '双数据库统一接口', cap3Desc: '通过注入的 context.db 自动兼容 SQLite 与 PostgreSQL，无需重复编写两套查询代码。',
+                cap4Title: '异常隔离保护', cap4Desc: '单个模块初始化失败会被捕获并输出日志，不会影响主项目或其他正常模块启动。',
+                sec2Title: '2. 目录结构规范', sec3Title: '3. 后端入口与 Context 注入',
+                sec4Title: '4. 完整开发示例（油耗预警模块）', sec5Title: '5. Docker 挂载与启用', sec6Title: '6. 双库兼容与排查建议',
+                footerHome: '返回首页', footerRepo: 'GitHub 仓库', footerIssues: '问题反馈'
+            },
+            'zh-TW': {
+                title: 'CarNote - 擴充模組功能與開發指南',
+                meta: 'CarNote 擴充模組（Mod）功能介紹與開發指南：無需修改核心程式碼，透過 /app/mod 目錄掛載自訂 API、資料庫表與中介軟體。',
+                navFeatures: '功能特色', navDeploy: '部署指南', navModules: '擴充模組', navGithub: 'GitHub',
+                docBadge: 'Mod 擴充機制',
+                docTitle: '模組功能與開發指南',
+                docSubtitle: '無需修改主專案核心程式碼，透過掛載 /app/mod 目錄即可為 CarNote 動態擴充自訂 API、資料庫表與驗證中介軟體。',
+                btnStart: '開始開發', btnRepoDoc: '查看 Markdown 文件',
+                tocTitle: '目錄導覽', tocOverview: '1. 模組功能概覽', tocStructure: '2. 目錄結構規範',
+                tocEntry: '3. 後端入口與 Context', tocExample: '4. 完整開發範例', tocDocker: '5. Docker 掛載啟用', tocDb: '6. 雙庫相容與排查',
+                sec1Title: '1. 模組功能概覽',
+                sec1Desc: 'CarNote 內建輕量級外部模組（Mod）載入器。服務在完成資料庫初始化後，會自動掃描模組目錄並依序初始化已安裝模組。',
+                cap1Title: '隨插即用掛載', cap1Desc: 'Docker 容器預設掛載 /app/mod，放入模組後重啟容器即可生效，映像檔升級不遺失擴充。',
+                cap2Title: '自訂 API 與中介軟體', cap2Desc: '向 Express 實例註冊 /api/mod/* 路由或中介軟體，無縫復用登入態與 API Key 驗證。',
+                cap3Title: '雙資料庫統一介面', cap3Desc: '透過注入的 context.db 自動相容 SQLite 與 PostgreSQL，無需撰寫兩套查詢程式。',
+                cap4Title: '異常隔離保護', cap4Desc: '單一模組初始化失敗會被捕捉並記錄日誌，不影響主專案或其他模組啟動。',
+                sec2Title: '2. 目錄結構規範', sec3Title: '3. 後端入口與 Context 注入',
+                sec4Title: '4. 完整開發範例（油耗預警模組）', sec5Title: '5. Docker 掛載與啟用', sec6Title: '6. 雙庫相容與排查建議',
+                footerHome: '返回首頁', footerRepo: 'GitHub 倉庫', footerIssues: '問題回報'
+            },
+            en: {
+                title: 'CarNote - Extension Modules & Developer Guide',
+                meta: 'CarNote extension module (Mod) features and developer guide: extend CarNote with custom APIs, database tables, and middleware via /app/mod.',
+                navFeatures: 'Features', navDeploy: 'Deploy', navModules: 'Modules', navGithub: 'GitHub',
+                docBadge: 'Mod Extension System',
+                docTitle: 'Modules & Developer Guide',
+                docSubtitle: 'Extend CarNote without modifying core code. Mount custom APIs, database tables, auth middleware, and background jobs via /app/mod.',
+                btnStart: 'Get Started', btnRepoDoc: 'View Markdown Docs',
+                tocTitle: 'Contents', tocOverview: '1. Module Capabilities', tocStructure: '2. Directory Layout',
+                tocEntry: '3. Entrypoint & Context', tocExample: '4. Full Example', tocDocker: '5. Docker Mounting', tocDb: '6. DB & Troubleshooting',
+                sec1Title: '1. Module Capabilities',
+                sec1Desc: 'CarNote includes a lightweight external module (Mod) loader. After database initialization and before global 404 handling, the server scans the mod directory and initializes installed modules.',
+                cap1Title: 'Plug-and-Play Mount', cap1Desc: 'Docker mounts /app/mod by default. Drop in a module and restart the container—upgrades keep your extensions intact.',
+                cap2Title: 'Custom APIs & Middleware', cap2Desc: 'Register /api/mod/* routes or middleware directly on Express, reusing session and API Key authentication.',
+                cap3Title: 'Unified Dual-DB API', cap3Desc: 'context.db abstracts SQLite and PostgreSQL differences automatically so one query works on both.',
+                cap4Title: 'Fault Isolation', cap4Desc: 'Initialization errors in a single module are caught and logged without crashing the core server.',
+                sec2Title: '2. Directory Structure', sec3Title: '3. Backend Entrypoint & Context',
+                sec4Title: '4. Complete Example (Fuel Alert Module)', sec5Title: '5. Mounting in Docker', sec6Title: '6. Database Compatibility & Tips',
+                footerHome: 'Home', footerRepo: 'GitHub Repository', footerIssues: 'Report an Issue'
+            },
+            ja: {
+                title: 'CarNote - 拡張モジュール機能と開発ガイド',
+                meta: 'CarNote 拡張モジュール（Mod）の機能紹介と開発ガイド。/app/mod マウントでカスタム API や DB テーブルを追加できます。',
+                navFeatures: '機能', navDeploy: '導入ガイド', navModules: '拡張モジュール', navGithub: 'GitHub',
+                docBadge: 'Mod 拡張システム',
+                docTitle: 'モジュール機能と開発ガイド',
+                docSubtitle: 'コアコードを変更せずに /app/mod ディレクトリをマウントするだけで、独自の API、DB テーブル、ミドルウェアを追加できます。',
+                btnStart: '開発を始める', btnRepoDoc: 'Markdown ドキュメント',
+                tocTitle: '目次', tocOverview: '1. モジュール機能概要', tocStructure: '2. ディレクトリ構成',
+                tocEntry: '3. エントリーポイント', tocExample: '4. 実装例', tocDocker: '5. Docker マウント', tocDb: '6. DB 互換性とヒント',
+                sec1Title: '1. モジュール機能概要',
+                sec1Desc: 'CarNote には軽量な外部モジュール（Mod）ローダーが組み込まれており、DB 初期化後に /app/mod を自動スキャンして読み込みます。',
+                cap1Title: 'プラグ＆プレイ', cap1Desc: '/app/mod にモジュールを配置してコンテナを再起動するだけで有効になります。',
+                cap2Title: 'カスタム API と認証再利用', cap2Desc: 'Express に /api/mod/* ルートを追加し、既存のログイン・API Key 認証をそのまま利用できます。',
+                cap3Title: 'SQLite / PostgreSQL 両対応', cap3Desc: '注入された context.db により 2 つのデータベースを統一インターフェースで扱えます。',
+                cap4Title: '障害分離', cap4Desc: '個別モジュールのエラーはログに記録され、本体サーバーの起動を妨げません。',
+                sec2Title: '2. ディレクトリ構成', sec3Title: '3. エントリーポイントと Context',
+                sec4Title: '4. 完全な開発例', sec5Title: '5. Docker でのマウント', sec6Title: '6. DB 互換性とトラブルシューティング',
+                footerHome: 'ホーム', footerRepo: 'GitHub リポジトリ', footerIssues: '問題を報告'
+            },
+            ko: {
+                title: 'CarNote - 확장 모듈 기능 및 개발 가이드',
+                meta: 'CarNote 확장 모듈(Mod) 기능 소개 및 개발 가이드: /app/mod 마운트를 통해 사용자 지정 API와 DB 테이블을 추가할 수 있습니다.',
+                navFeatures: '기능', navDeploy: '배포 가이드', navModules: '확장 모듈', navGithub: 'GitHub',
+                docBadge: 'Mod 확장 시스템',
+                docTitle: '모듈 기능 및 개발 가이드',
+                docSubtitle: '핵심 코드를 수정하지 않고 /app/mod 디렉터리를 마운트하여 사용자 지정 API, DB 테이블 및 미들웨어를 확장하세요.',
+                btnStart: '개발 시작', btnRepoDoc: 'Markdown 문서 보기',
+                tocTitle: '목차', tocOverview: '1. 모듈 기능 개요', tocStructure: '2. 디렉터리 구조',
+                tocEntry: '3. 진입점 및 Context', tocExample: '4. 전체 예제', tocDocker: '5. Docker 마운트', tocDb: '6. DB 호환성 및 팁',
+                sec1Title: '1. 모듈 기능 개요',
+                sec1Desc: 'CarNote에는 경량 외부 모듈(Mod) 로더가 내장되어 있어 DB 초기화 후 /app/mod를 자동으로 스캔하여 로드합니다.',
+                cap1Title: '플러그 앤 플레이', cap1Desc: '/app/mod에 모듈을 넣고 컨테이너를 재시작하면 즉시 적용됩니다.',
+                cap2Title: '사용자 지정 API 및 인증 재사용', cap2Desc: 'Express에 /api/mod/* 라우트를 등록하고 기존 세션 및 API Key 인증을 재사용합니다.',
+                cap3Title: '듀얼 DB 통합 API', cap3Desc: '주입된 context.db를 통해 SQLite와 PostgreSQL을 모두 지원합니다.',
+                cap4Title: '오류 격리', cap4Desc: '단일 모듈 오류가 발생해도 기본 서버의 시작을 중단하지 않습니다.',
+                sec2Title: '2. 디렉터리 구조', sec3Title: '3. 백엔드 진입점 및 Context',
+                sec4Title: '4. 전체 개발 예제', sec5Title: '5. Docker 마운트 및 활성화', sec6Title: '6. DB 호환성 및 문제 해결',
+                footerHome: '홈', footerRepo: 'GitHub 저장소', footerIssues: '문제 신고'
+            },
+            fr: {
+                title: 'CarNote - Modules d’extension et guide développeur',
+                meta: 'Guide des modules d’extension (Mod) CarNote : ajoutez des API, tables et middlewares via /app/mod sans modifier le cœur.',
+                navFeatures: 'Fonctionnalités', navDeploy: 'Déploiement', navModules: 'Modules', navGithub: 'GitHub',
+                docBadge: 'Système d’extensions Mod',
+                docTitle: 'Modules et guide développeur',
+                docSubtitle: 'Étendez CarNote sans modifier le code principal. Montez /app/mod pour ajouter des API, tables et middlewares.',
+                btnStart: 'Commencer', btnRepoDoc: 'Voir la doc Markdown',
+                tocTitle: 'Sommaire', tocOverview: '1. Capacités', tocStructure: '2. Structure',
+                tocEntry: '3. Point d’entrée', tocExample: '4. Exemple complet', tocDocker: '5. Montage Docker', tocDb: '6. Compatibilité DB',
+                sec1Title: '1. Capacités des modules',
+                sec1Desc: 'CarNote intègre un chargeur de modules externes qui scanne /app/mod après l’initialisation de la base de données.',
+                cap1Title: 'Prêt à l’emploi', cap1Desc: 'Placez votre module dans /app/mod et redémarrez le conteneur Docker.',
+                cap2Title: 'API & Middlewares', cap2Desc: 'Enregistrez des routes /api/mod/* et réutilisez l’authentification existante.',
+                cap3Title: 'API SQLite & PostgreSQL', cap3Desc: 'context.db unifie les requêtes pour les deux bases de données.',
+                cap4Title: 'Isolation des erreurs', cap4Desc: 'Une erreur dans un module n’empêche pas le serveur principal de démarrer.',
+                sec2Title: '2. Structure des dossiers', sec3Title: '3. Point d’entrée & Context',
+                sec4Title: '4. Exemple complet', sec5Title: '5. Montage avec Docker', sec6Title: '6. Compatibilité DB & Conseils',
+                footerHome: 'Accueil', footerRepo: 'Dépôt GitHub', footerIssues: 'Signaler un problème'
+            },
+            it: {
+                title: 'CarNote - Moduli di estensione e guida sviluppatore',
+                meta: 'Guida ai moduli di estensione (Mod) di CarNote: aggiungi API, tabelle e middleware tramite /app/mod senza modificare il core.',
+                navFeatures: 'Funzioni', navDeploy: 'Distribuzione', navModules: 'Moduli', navGithub: 'GitHub',
+                docBadge: 'Sistema di estensione Mod',
+                docTitle: 'Moduli e guida sviluppatore',
+                docSubtitle: 'Estendi CarNote senza modificare il codice core. Monta /app/mod per aggiungere API personalizzate, tabelle e middleware.',
+                btnStart: 'Inizia', btnRepoDoc: 'Vedi doc Markdown',
+                tocTitle: 'Indice', tocOverview: '1. Funzionalità', tocStructure: '2. Struttura directory',
+                tocEntry: '3. Entrypoint e Context', tocExample: '4. Esempio completo', tocDocker: '5. Montaggio Docker', tocDb: '6. Compatibilità DB',
+                sec1Title: '1. Funzionalità dei moduli',
+                sec1Desc: 'CarNote include un caricatore di moduli esterni che scansiona /app/mod dopo l’inizializzazione del database.',
+                cap1Title: 'Plug-and-Play', cap1Desc: 'Inserisci il modulo in /app/mod e riavvia il container Docker.',
+                cap2Title: 'API e Middleware', cap2Desc: 'Registra route /api/mod/* riutilizzando l’autenticazione di sessione e API Key.',
+                cap3Title: 'API unificata SQLite / PG', cap3Desc: 'context.db gestisce automaticamente SQLite e PostgreSQL.',
+                cap4Title: 'Isolamento guasti', cap4Desc: 'Gli errori di un singolo modulo vengono registrati senza bloccare il server.',
+                sec2Title: '2. Struttura delle directory', sec3Title: '3. Entrypoint Backend e Context',
+                sec4Title: '4. Esempio completo', sec5Title: '5. Montaggio in Docker', sec6Title: '6. Compatibilità DB e suggerimenti',
+                footerHome: 'Home', footerRepo: 'Repository GitHub', footerIssues: 'Segnala un problema'
+            }
+        };
+
+        function normalizeLocale(value) {
+            if (!value) return null;
+            const lower = String(value).toLowerCase();
+            if (lower.startsWith('zh')) return /tw|hk|mo|hant/.test(lower) ? 'zh-TW' : 'zh-CN';
+            if (lower.startsWith('ja')) return 'ja';
+            if (lower.startsWith('ko')) return 'ko';
+            if (lower.startsWith('fr')) return 'fr';
+            if (lower.startsWith('it')) return 'it';
+            if (lower.startsWith('en')) return 'en';
+            return null;
+        }
+
+        const select = document.getElementById('langSelect');
+        const meta = document.querySelector('meta[name="description"]');
+
+        function setLanguage(code, persist) {
+            const locale = translations[code] ? code : 'zh-CN';
+            const dict = translations[locale];
+            document.documentElement.lang = locale;
+            document.title = dict.title;
+            if (meta) meta.setAttribute('content', dict.meta);
+
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                const key = el.getAttribute('data-i18n');
+                if (dict[key]) el.textContent = dict[key];
+            });
+
+            select.value = locale;
+            if (persist) {
+                try { localStorage.setItem('carnote_docs_locale', locale); } catch (e) {}
+            }
+        }
+
+        let initial = null;
+        try { initial = normalizeLocale(localStorage.getItem('carnote_docs_locale')); } catch (e) {}
+        if (!initial) initial = normalizeLocale(navigator.language) || 'zh-CN';
+        setLanguage(initial, false);
+
+        select.addEventListener('change', function () {
+            setLanguage(select.value, true);
+        });
+
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function () {
+            document.querySelector('.nav-links').classList.toggle('active');
+        });
+
+        document.querySelectorAll('.nav-links a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                document.querySelector('.nav-links').classList.remove('active');
+            });
+        });
+    </script>
+    <script defer="" src="https://tj.ooio.win/tracker.min.js" data-website-id="CarNote-page"></script>
+</body>
+
+</html>
